@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">ZedSecure</string>
+    <string name="app_name">Z VPN</string>
     <string name="brand_tagline">Private. Fast. Yours.</string>
 
     <string name="nav_home">Home</string>
@@ -66,7 +66,7 @@
     <string name="vault_name_numbered">Multiple servers are numbered automatically</string>
     <string name="vault_password">Password</string>
     <string name="vault_toggle_password">Show or hide password</string>
-    <string name="nav_locked">Vault</string>
+    <string name="nav_browser">Browser</string>
     <string name="nav_settings">Settings</string>
 
     <string name="state_idle">Not connected</string>
@@ -82,8 +82,8 @@
     <string name="action_retry">Retry</string>
 
     <string name="home_no_config_title">No active config</string>
-    <string name="home_no_config_body">Add a config or import a shared vault file to get started.</string>
-    <string name="home_select_config">Select a config</string>
+    <string name="home_no_config_body">Choose a server to connect to Z VPN.</string>
+    <string name="home_select_config">Select a server</string>
     <string name="home_upload">Upload</string>
     <string name="home_download">Download</string>
     <string name="home_duration">Duration</string>
@@ -656,7 +656,7 @@
     <string name="snispoof_no_ack">The edge never acknowledged the fake packet, so every connection was reset. This network or this clean IP does not allow the spoof — try a different clean IP.</string>
     <string name="qr_scan_hint">Point the camera at a QR code</string>
     <string name="qr_scan_chunk_progress">Part %1$d of %2$d — hold still for the rest</string>
-    <string name="tile_label">ZedSecure VPN</string>
+    <string name="tile_label">Z VPN</string>
     <string name="switch_server_timeout">Could not switch server — the previous connection did not stop.</string>
     <string name="engine_failed_with_reason">%1$s: %2$s</string>
     <string name="engine_failed_ssh">SSH failed to connect</string>

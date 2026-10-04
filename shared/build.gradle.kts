@@ -55,6 +55,7 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.android)
 
                 implementation(libs.androidx.activity.compose)
+                implementation(libs.androidx.webkit)
             }
         }
         getByName("desktopMain") {

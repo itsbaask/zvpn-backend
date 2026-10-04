@@ -7,6 +7,7 @@ package dev.cluvex.zedsecure.ui.home
 
 import org.jetbrains.compose.resources.DrawableResource
 
+
 import org.jetbrains.compose.resources.StringResource
 
 import androidx.compose.animation.AnimatedContent
@@ -610,14 +611,11 @@ private fun Hero(
                     maxLines = 1,
                     softWrap = false,
                 )
-                else -> Text(
-                    text = "Z",
-                    fontSize = coreTextSize(size, 0.315f),
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.displayLarge,
-                    color = Color.White,
-                    maxLines = 1,
-                    softWrap = false,
+                else -> Icon(
+                    painter = painterResource(Res.drawable.logo_white),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(size * 0.42f),
                 )
             }
         }

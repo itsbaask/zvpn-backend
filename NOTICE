@@ -1,4 +1,4 @@
-ZedSecure — third-party notices
+Z VPN — third-party notices
 ===============================
 
 Country flag SVGs
@@ -72,18 +72,15 @@ sing-openvpn
 ------------
 Source: https://github.com/SagerNet/sing-openvpn
 License: GPL-3.0-or-later
-Our patched fork: https://github.com/CluvexStudio/sing-openvpn (branch `zedsecure`)
 
 AndroidLibXrayLite
 ------------------
 Source: https://github.com/2dust/AndroidLibXrayLite
 License: LGPL-3.0
-Our patched fork: https://github.com/CluvexStudio/AndroidLibXrayLite (branch `zedsecure`)
-It also carries `zeddns`, the DNS-tunnel client written for this app.
 
 Xray-core patches
 -----------------
-Our patched fork: https://github.com/CluvexStudio/Xray-core (branch `zedsecure`)
+Source: https://github.com/XTLS/Xray-core
 
 Psiphon
 -------
@@ -106,18 +103,11 @@ VayDNS
 Source: https://github.com/anonvector/vaydns (module path github.com/net2share/vaydns)
 License: CC0 1.0 Universal
 A public-domain fork of dnstt. It is the engine behind both DNS-tunnel modes in
-this app, driven by our own `zeddns` package.
+this app.
 
 SlipNet
 -------
 Source: https://github.com/anonvector/SlipNet — anonvector
-
-Versions before 3.0.9 included SlipNet's dnstt fork (AGPL-3.0), noizdns, and
-vaydns-mobile in the core, including SlipNet's TCP transport. Since 3.0.9, the
-core uses zeddns, which has the same features with its own code. These features
-come from SlipNet: DNS over plain TCP, the fan-out and round-robin resolver
-modes with spread count, the DNS pool, the global resolver override and
-prevent-DNS-fallback settings, and the design and text of the DNS and SSH settings.
 
 MasterDNS
 ---------
@@ -133,8 +123,6 @@ OpenConnect
 -----------
 Source: https://gitlab.com/openconnect/openconnect
 License: LGPL-2.1
-`app/src/main/jniLibs/<abi>/libopenconnect.so` is a build of our patched fork.
-Ask us for that source and we will provide it, as LGPL-2.1 section 6 requires.
 
 KCP, smux, uTLS
 ---------------

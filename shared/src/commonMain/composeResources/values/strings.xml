@@ -1,6 +1,6 @@
 <resources>
-    <string name="app_name">ZedSecure</string>
-    <string name="brand_tagline">Private. Fast. Yours.</string>
+    <string name="app_name">Z VPN</string>
+    <string name="brand_tagline">PRIVATE. FAST. CONNECTED.</string>
 
     <string name="nav_home">Home</string>
     <string name="nav_servers">Servers</string>
@@ -87,7 +87,7 @@
     <string name="vault_name_numbered">Multiple servers are numbered automatically</string>
     <string name="vault_password">Password</string>
     <string name="vault_toggle_password">Show or hide password</string>
-    <string name="nav_locked">Vault</string>
+    <string name="nav_browser">Browser</string>
     <string name="nav_settings">Settings</string>
 
     <string name="state_idle">Not connected</string>
@@ -103,8 +103,8 @@
     <string name="action_retry">Retry</string>
 
     <string name="home_no_config_title">No active config</string>
-    <string name="home_no_config_body">Add a config or import a shared vault file to get started.</string>
-    <string name="home_select_config">Select a config</string>
+    <string name="home_no_config_body">Choose a server to connect to Z VPN.</string>
+    <string name="home_select_config">Select a server</string>
     <string name="home_upload">Upload</string>
     <string name="home_download">Download</string>
     <string name="home_duration">Duration</string>
@@ -265,9 +265,9 @@
     <string name="zsx_wrong_password">Incorrect password</string>
     <string name="zsx_imported">Locked config imported</string>
     <string name="zsx_invalid">Not a valid .zsx file</string>
-    <string name="zsx_legacy">This locked config was made by an older version of ZedSecure. Ask whoever shared it for a new copy.</string>
+    <string name="zsx_legacy">This locked config was made by an older version of Z VPN. Ask whoever shared it for a new copy.</string>
 
-    <string name="cd_app_logo">ZedSecure logo</string>
+    <string name="cd_app_logo">Z VPN logo</string>
     <string name="cd_connection_status">Connection status</string>
     <string name="cd_settings">Open settings</string>
 
@@ -892,7 +892,7 @@
     <string name="personalize_upload_tile_sub">Colours the rectangle behind them</string>
     <string name="subs_ua_preset">User-Agent</string>
     <string name="subs_ua_v2rayng">v2rayNG (recommended)</string>
-    <string name="subs_ua_zedsecure">ZedSecure</string>
+    <string name="subs_ua_zedsecure">Z VPN</string>
     <string name="subs_ua_custom">Custom</string>
     <string name="subs_ua_hint">Many providers only send their JSON custom configs to the v2rayNG User-Agent, and send plain links to anything else.</string>
     <string name="subs_edit">Edit subscription</string>

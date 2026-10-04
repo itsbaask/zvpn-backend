@@ -3,7 +3,7 @@
 
     <string name="nav_home">主页</string>
     <string name="nav_servers">服务器</string>
-    <string name="nav_locked">保险库</string>
+    <string name="nav_browser">浏览器</string>
     <string name="nav_settings">设置</string>
 
     <string name="servers_count">%1$d 个服务器</string>
@@ -35,7 +35,7 @@
     <string name="action_retry">重试</string>
 
     <string name="home_no_config_title">没有活动配置</string>
-    <string name="home_select_config">选择配置</string>
+    <string name="home_select_config">选择服务器</string>
     <string name="home_upload">上传</string>
     <string name="home_download">下载</string>
     <string name="home_duration">时长</string>

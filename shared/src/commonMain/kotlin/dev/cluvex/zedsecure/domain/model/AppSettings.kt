@@ -227,7 +227,7 @@ data class AppSettings(
 
     val navBarStyle: NavBarStyle = NavBarStyle.ExpressivePill,
 
-    val themeProfileId: String? = null,
+    val themeProfileId: String? = "zvpn",
 
     val cardCornerStyle: CardCornerStyle = CardCornerStyle.Rounded,
     val listDensity: ListDensity = ListDensity.Comfortable,

@@ -28,6 +28,23 @@ data class ThemeProfile(
 
 val ThemeProfiles: List<ThemeProfile> = listOf(
     ThemeProfile(
+        id = "zvpn",
+        name = "Z VPN Obsidian",
+        accentIndex = 3,
+        amoled = true,
+        download = 0xFFC7F24E,
+        upload = 0xFFD4FF5A,
+        downloadTile = 0xFF121613,
+        uploadTile = 0xFF181D18,
+        connect = 0xFFC7F24E,
+        connected = 0xFFA8D92A,
+        tapHint = 0xFFD4FF5A,
+        serverCard = 0xFF121613,
+        serverActive = 0xFFC7F24E,
+        configCard = 0xFF181D18,
+        configCardText = 0xFFF5F7F2,
+    ),
+    ThemeProfile(
         id = "aurora",
         name = "Aurora",
         accentIndex = 2,

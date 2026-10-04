@@ -5,78 +5,105 @@ package dev.cluvex.zedsecure.ui.theme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.expressiveLightColorScheme
 import androidx.compose.ui.graphics.Color
 
-private val Iris = Color(0xFF5646D6)
+// Z VPN Ultra-Deep OLED Black & Neon Lime Palette
+val DeepObsidian = Color(0xFF000000) // Pure OLED Black
+val PrimaryBlack = Color(0xFF050505) // Deep Pitch Black Surface
+val SurfaceBlack = Color(0xFF0C0E0D) // Dark Container Surface
+val ElevatedSurface = Color(0xFF141715) // Deep Surface Container
+val HoverSurface = Color(0xFF1C201D) // Hover Container
+val SubtleBorder = Color(0xFF222823) // Container Border
 
-val LightColors: ColorScheme = expressiveLightColorScheme().copy(
-    primary = Iris,
-    onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFE5DEFF),
-    onPrimaryContainer = Color(0xFF150067),
-    inversePrimary = Color(0xFFC7BFFF),
+val PrimaryLime = Color(0xFFC2F138) // Vibrant Electric Neon Lime
+val ElectricLime = Color(0xFFD4FF5A) // Electric Lime Pulse
+val DeepLime = Color(0xFF6B930A) // Deep Lime Container
+val SoftLime = Color(0xFFA8E600) // Soft Bright Lime
+val AccessibleLime = Color(0xFFC2F138) // Neon Lime Accent
 
-    secondary = Color(0xFF00897E),
-    onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFF9FF2E6),
-    onSecondaryContainer = Color(0xFF00201D),
+val PrimaryWhite = Color(0xFFFFFFFF)
+val SecondaryText = Color(0xFFA5AAA0)
+val MutedText = Color(0xFF686E65)
+val DisabledText = Color(0xFF454A43)
 
-    tertiary = Color(0xFFC4326B),
-    onTertiary = Color(0xFFFFFFFF),
-    tertiaryContainer = Color(0xFFFFD9E2),
-    onTertiaryContainer = Color(0xFF3E0021),
-)
+val ZError = Color(0xFFFF4D4D)
+val ZWarning = Color(0xFFF5B942)
+val ZChampagne = Color(0xFFE6D3A3)
 
-val ZedLime = Color(0xFFC7F24E)
-val ZedOnLime = Color(0xFF1A2200)
+// Legacy alias compatibility
+val ZedLime = PrimaryLime
+val ZedOnLime = Color(0xFF000000)
 val ZedHotPink = Color(0xFFFF5FA2)
 val ZedViolet = Color(0xFF7A5CFF)
-val ZedDeepViolet = Color(0xFF2A1361)
-val ZedCyan = Color(0xFF37E0D8)
+val ZedDeepViolet = Color(0xFF000000)
+val ZedCyan = PrimaryLime
 
-val DarkColors: ColorScheme = darkColorScheme(
-    primary = Color(0xFFC7BFFF),
-    onPrimary = Color(0xFF2A0A93),
-    primaryContainer = Color(0xFF3E2FB0),
-    onPrimaryContainer = Color(0xFFE5DEFF),
-    inversePrimary = Iris,
+val LightColors: ColorScheme = darkColorScheme(
+    primary = PrimaryLime,
+    onPrimary = Color(0xFF000000),
+    primaryContainer = Color(0xFF1C2605),
+    onPrimaryContainer = PrimaryLime,
 
-    secondary = Color(0xFF52DDCF),
-    onSecondary = Color(0xFF00382F),
-    secondaryContainer = Color(0xFF005048),
-    onSecondaryContainer = Color(0xFF9FF2E6),
+    secondary = SoftLime,
+    onSecondary = Color(0xFF000000),
+    secondaryContainer = Color(0xFF0F1403),
+    onSecondaryContainer = PrimaryLime,
 
-    tertiary = Color(0xFFFFB0C8),
-    onTertiary = Color(0xFF5E1136),
-    tertiaryContainer = Color(0xFF7B2953),
-    onTertiaryContainer = Color(0xFFFFD9E2),
+    background = Color(0xFF000000),
+    onBackground = PrimaryWhite,
+    surface = Color(0xFF050505),
+    onSurface = PrimaryWhite,
+    surfaceVariant = Color(0xFF0C0E0D),
+    onSurfaceVariant = SecondaryText,
 
-    error = Color(0xFFFFB4AB),
-    onError = Color(0xFF690005),
-    errorContainer = Color(0xFF93000A),
-    onErrorContainer = Color(0xFFFFDAD6),
-
-    background = Color(0xFF131318),
-    onBackground = Color(0xFFE5E1E9),
-    surface = Color(0xFF131318),
-    onSurface = Color(0xFFE5E1E9),
-    surfaceVariant = Color(0xFF47464F),
-    onSurfaceVariant = Color(0xFFC8C5D0),
-    surfaceTint = Color(0xFFC7BFFF),
-
-    inverseSurface = Color(0xFFE5E1E9),
-    inverseOnSurface = Color(0xFF303036),
-
-    outline = Color(0xFF928F9A),
-    outlineVariant = Color(0xFF47464F),
+    outline = SubtleBorder,
+    outlineVariant = ElevatedSurface,
     scrim = Color(0xFF000000),
 
-    surfaceBright = Color(0xFF3A393F),
-    surfaceDim = Color(0xFF131318),
-    surfaceContainerLowest = Color(0xFF0E0E13),
-    surfaceContainerLow = Color(0xFF1B1B21),
-    surfaceContainer = Color(0xFF1F1F25),
-    surfaceContainerHigh = Color(0xFF2A2930),
-    surfaceContainerHighest = Color(0xFF35343B),
+    surfaceContainerLowest = Color(0xFF000000),
+    surfaceContainerLow = Color(0xFF050505),
+    surfaceContainer = Color(0xFF0C0E0D),
+    surfaceContainerHigh = Color(0xFF141715),
+    surfaceContainerHighest = Color(0xFF1C201D),
+)
+
+val DarkColors: ColorScheme = darkColorScheme(
+    primary = PrimaryLime,
+    onPrimary = Color(0xFF000000),
+    primaryContainer = Color(0xFF1C2605),
+    onPrimaryContainer = PrimaryLime,
+    inversePrimary = DeepLime,
+
+    secondary = SoftLime,
+    onSecondary = Color(0xFF000000),
+    secondaryContainer = Color(0xFF0F1403),
+    onSecondaryContainer = PrimaryLime,
+
+    error = ZError,
+    onError = Color(0xFF000000),
+    errorContainer = Color(0xFF331010),
+    onErrorContainer = Color(0xFFFFDAD6),
+
+    background = Color(0xFF000000),
+    onBackground = PrimaryWhite,
+    surface = Color(0xFF050505),
+    onSurface = PrimaryWhite,
+    surfaceVariant = Color(0xFF0C0E0D),
+    onSurfaceVariant = SecondaryText,
+    surfaceTint = PrimaryLime,
+
+    inverseSurface = PrimaryWhite,
+    inverseOnSurface = Color(0xFF000000),
+
+    outline = SubtleBorder,
+    outlineVariant = ElevatedSurface,
+    scrim = Color(0xFF000000),
+
+    surfaceBright = HoverSurface,
+    surfaceDim = Color(0xFF000000),
+    surfaceContainerLowest = Color(0xFF000000),
+    surfaceContainerLow = Color(0xFF050505),
+    surfaceContainer = Color(0xFF0C0E0D),
+    surfaceContainerHigh = Color(0xFF141715),
+    surfaceContainerHighest = Color(0xFF1C201D),
 )

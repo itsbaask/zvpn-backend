@@ -70,7 +70,7 @@
     <string name="vault_name_numbered">اگر چند سرور انتخاب شود، خودکار شماره‌گذاری می‌شود</string>
     <string name="vault_password">رمز</string>
     <string name="vault_toggle_password">نمایش یا پنهان کردن رمز</string>
-    <string name="nav_locked">گاوصندوق</string>
+    <string name="nav_browser">مرورگر</string>
     <string name="nav_settings">تنظیمات</string>
 
     <string name="state_idle">متصل نیستید</string>
@@ -86,8 +86,8 @@
     <string name="action_retry">تلاش دوباره</string>
 
     <string name="home_no_config_title">کانفیگ فعالی نیست</string>
-    <string name="home_no_config_body">برای شروع یک کانفیگ اضافه کنید یا یک فایل گاوصندوق واردشده را باز کنید.</string>
-    <string name="home_select_config">انتخاب کانفیگ</string>
+    <string name="home_no_config_body">برای شروع یک سرور انتخاب کنید.</string>
+    <string name="home_select_config">انتخاب سرور</string>
     <string name="home_upload">آپلود</string>
     <string name="home_download">دانلود</string>
     <string name="home_duration">مدت</string>

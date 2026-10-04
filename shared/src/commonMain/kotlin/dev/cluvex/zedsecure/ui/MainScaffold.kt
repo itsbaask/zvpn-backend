@@ -116,7 +116,7 @@ fun MainScaffold(
 
     VaultImportHost(
         repository = configRepository,
-        onImported = { current = TopDestination.Vault },
+        onImported = { current = TopDestination.Browser },
     )
 
     dev.cluvex.zedsecure.ui.servers.DeepLinkImportHost(
@@ -227,8 +227,7 @@ fun MainScaffold(
                     onToggleConnection = onToggleConnection,
 
                     onBrowseConfigs = {
-                        current = if (activeProfile?.isLocked == true) TopDestination.Vault
-                        else TopDestination.Servers
+                        current = TopDestination.Servers
                     },
                     onSecretUnlocked = { spaceUnlocked = true },
                 )
@@ -250,11 +249,21 @@ fun MainScaffold(
                         onActiveServerChanged()
                     },
                 )
-                TopDestination.Vault -> VaultScreen(
-                    repository = configRepository,
-                    contentPadding = innerPadding,
-                    onImportRequested = onImportZsx,
-                )
+                TopDestination.Browser -> {
+                    val connState = connectionVm.ui.collectAsStateWithLifecycle().value.state
+                    val isConn = connState == dev.cluvex.zedsecure.domain.model.ConnectionState.Connected
+
+                    // Independent Tor Proxy for Browser WebView (isolated from global VPN state)
+                    val realPrivacy = dev.cluvex.zedsecure.ui.browser.BrowserPrivacy(
+                        routedThroughVpn = isConn,
+                        torCircuitActive = true, // Isolated Tor Proxy active on WebView
+                        dnsProtected = false, // a DNS-based tunnel is a transport, not leak protection
+                    )
+                    dev.cluvex.zedsecure.ui.browser.BrowserScreen(
+                        contentPadding = innerPadding,
+                        privacy = realPrivacy,
+                    )
+                }
                 TopDestination.Settings -> SettingsScreen(
                     settings = settings,
                     contentPadding = innerPadding,

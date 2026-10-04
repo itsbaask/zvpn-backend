@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">ZedSecure</string>
+    <string name="app_name">Z VPN</string>
     <string name="brand_tagline">私密。快速。属于你。</string>
 
     <string name="nav_home">主页</string>
@@ -88,7 +88,7 @@
     <string name="vault_name_numbered">多个服务器会自动编号</string>
     <string name="vault_password">密码</string>
     <string name="vault_toggle_password">显示或隐藏密码</string>
-    <string name="nav_locked">保险库</string>
+    <string name="nav_browser">浏览器</string>
     <string name="nav_settings">设置</string>
 
     <string name="state_idle">未连接</string>
@@ -105,7 +105,7 @@
 
     <string name="home_no_config_title">没有活动配置</string>
     <string name="home_no_config_body">添加配置或导入共享的保险库文件以开始使用。</string>
-    <string name="home_select_config">选择配置</string>
+    <string name="home_select_config">选择服务器</string>
     <string name="home_upload">上传</string>
     <string name="home_download">下载</string>
     <string name="home_duration">时长</string>

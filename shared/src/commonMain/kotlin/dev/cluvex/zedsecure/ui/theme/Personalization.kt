@@ -13,6 +13,7 @@ import dev.cluvex.zedsecure.domain.model.TrafficTileSize
 data class AccentPreset(val name: String, val light: Color, val dark: Color)
 
 val AccentPresets: List<AccentPreset> = listOf(
+    AccentPreset("Z Lime", Color(0xFFC7F24E), Color(0xFFC7F24E)),
     AccentPreset("Iris", Color(0xFF5646D6), Color(0xFFC7BFFF)),
     AccentPreset("Ocean", Color(0xFF1E63D0), Color(0xFFAAC7FF)),
     AccentPreset("Teal", Color(0xFF00897E), Color(0xFF52DDCF)),

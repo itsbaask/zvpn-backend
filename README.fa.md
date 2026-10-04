@@ -1,25 +1,24 @@
 <div dir="rtl">
 
 <p align="center">
-  <img src="docs/assets/icon.png" width="104" alt="ZedSecure">
+  <img src="docs/assets/icon.png" width="104" alt="Z VPN">
 </p>
 
-<h1 align="center">ZedSecure</h1>
+<h1 align="center">Z VPN</h1>
 
 <p align="center">همهٔ راه‌های عبور، در یک برنامه.</p>
 
 <p align="center">
-  <a href="https://github.com/CluvexStudio/ZedSecure/releases/latest"><img src="https://img.shields.io/github/v/release/CluvexStudio/ZedSecure?style=flat-square&color=C7F24E&labelColor=15170B&label=release" alt="آخرین نسخه"></a>
-  <a href="https://play.google.com/store/apps/details?id=com.zedsecure.vpn"><img src="https://img.shields.io/badge/Google%20Play-install-C7F24E?style=flat-square&labelColor=15170B" alt="گوگل پلی"></a>
+  <a href="https://github.com/zvpn/zvpn/releases/latest"><img src="https://img.shields.io/github/v/release/zvpn/zvpn?style=flat-square&color=C7F24E&labelColor=15170B&label=release" alt="آخرین نسخه"></a>
   <img src="https://img.shields.io/badge/Android%20%C2%B7%20Linux%20%C2%B7%20Windows%20%C2%B7%20macOS-C7F24E?style=flat-square&labelColor=15170B" alt="اندروید، لینوکس، ویندوز، مک">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-C7F24E?style=flat-square&labelColor=15170B" alt="AGPL-3.0"></a>
 </p>
 
 <p align="center"><a href="README.md">English</a> · <b>فارسی</b></p>
 
-## ZedSecure چیست؟
+## Z VPN چیست؟
 
-ZedSecure یک کلاینت VPN و پروکسی برای اندروید، لینوکس، ویندوز و مک است که به‌جای یک هسته، چند هسته
+Z VPN یک کلاینت VPN و پروکسی برای اندروید، لینوکس، ویندوز و مک است که به‌جای یک هسته، چند هسته
 را با هم دارد. وقتی یک مسیر بسته شود، مسیر بعدی از قبل نصب است: Xray و sing-box برای پروتکل‌های
 رایج، سایفون و Tor برای وقتی که هیچ چیز دیگری وصل نمی‌شود، تونل DNS برای شبکه‌هایی که جز DNS
 تقریباً چیزی رد نمی‌کنند، و WireGuard و AmneziaWG و OpenConnect و IKEv2 برای سرورهایی که خودتان
@@ -27,7 +26,7 @@ ZedSecure یک کلاینت VPN و پروکسی برای اندروید، لین
 سریع‌ترینشان می‌رود.
 
 <p align="center">
-  <img src="docs/assets/showcase.png" width="100%" alt="ZedSecure: خانه، سرورها و تنظیمات">
+  <img src="docs/assets/showcase.png" width="100%" alt="Z VPN: خانه، سرورها و تنظیمات">
 </p>
 
 ## هسته‌ها
@@ -57,12 +56,10 @@ ZedSecure یک کلاینت VPN و پروکسی برای اندروید، لین
 
 ## دانلود
 
-**اندروید:** از [گوگل پلی](https://play.google.com/store/apps/details?id=com.zedsecure.vpn)، یا
-APK مخصوص دستگاهتان از [Releases](https://github.com/CluvexStudio/ZedSecure/releases/latest)
+**اندروید:** APK مخصوص دستگاهتان از [Releases](https://github.com/zvpn/zvpn/releases/latest)
 (`arm64-v8a` برای تقریباً همهٔ گوشی‌ها، `armeabi-v7a` برای گوشی‌های قدیمی‌تر).
 
-**لینوکس:** فایل `.deb`، `.rpm`، `.AppImage` یا `.tar.gz` از Releases. روی NixOS:
-`nix run github:CluvexStudio/ZedSecure`
+**لینوکس:** فایل `.deb`، `.rpm`، `.AppImage` یا `.tar.gz` از Releases.
 
 **ویندوز:** نصب‌کنندهٔ `.msi`، یا نسخهٔ قابل حمل `.zip`.
 
@@ -82,38 +79,19 @@ APK مخصوص دستگاهتان از [Releases](https://github.com/CluvexStudi
 
 </div>
 
-هسته‌هایی که تغییر داده‌ایم به‌صورت فورک منتشر شده‌اند؛ در
-[`tools/core-sources.txt`](tools/core-sources.txt) هر کدام با کامیت دقیقی که هر نسخه از آن ساخته
-می‌شود آمده است. زدن تگ `v*` نسخهٔ اندروید را در CI می‌سازد و امضا می‌کند، و تگ `desktop-v*`
-نسخهٔ دسکتاپ را.
-
 ## سپاسگزاری
 
 حالت‌های DNSTT و VayDNS تونل DNS با کتابخانهٔ [VayDNS](https://github.com/net2share/vaydns)
 ساخته شده‌اند که فورکی از [dnstt](https://www.bamsoftware.com/software/dnstt/) است. حالت MasterDNS
 موتور جداگانه‌ای است که پایین‌تر از آن نام برده شده.
 
-ایده‌های اصلی این تونل از [SlipNet](https://github.com/anonvector/SlipNet) ساختهٔ anonvector
-آمده است: DNS روی TCP ساده (که VayDNS به‌تنهایی ندارد)، حالت‌های رزالور fan-out و round-robin
-همراه با تعداد پخش، استخر DNS که در هر اتصال سریع‌ترین رزالورها را انتخاب می‌کند، تنظیمات
-override سراسری رزالور و جلوگیری از fallback ی DNS، و طراحی و متن تنظیمات DNS و SSH.
-
-نسخه‌های پیش از 3.0.9 موتور خود SlipNet، از جمله لایهٔ انتقال TCP آن، را داخل هسته داشتند. از
-نسخهٔ 3.0.9 موتور `zeddns` است که برای همین اپ نوشته شده؛ همان قابلیت‌ها را دارد، اما با کد
-خودش.
-
-ZedSecure همچنین روی
+Z VPN همچنین روی
 [Xray-core](https://github.com/XTLS/Xray-core)، [sing-box](https://github.com/SagerNet/sing-box)،
 [سایفون](https://github.com/Psiphon-Labs/psiphon-tunnel-core)، [Tor](https://www.torproject.org/)،
 [MasterDnsVPN](https://github.com/masterking32/MasterDnsVPN)،
 [AmneziaWG](https://github.com/amnezia-vpn/amneziawg-go)،
-[OpenConnect](https://www.infradead.org/openconnect/) و
-[hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel) بنا شده است. لایسنس هر کدام در
-[NOTICE](NOTICE) آمده است.
+[OpenConnect](https://www.infradead.org/openconnect/) و [hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel) ایستاده است. مجوزهای آن‌ها در [NOTICE](NOTICE) موجود است.
 
-## لایسنس
+## مجوز
 
-[AGPL-3.0](LICENSE). هستهٔ برنامه sing-box و سایفون و sing-openvpn را هم لینک می‌کند که GPL-3.0
-هستند؛ بند ۱۳ لایسنس GPL-3.0 ترکیب آن‌ها با کد AGPL-3.0 را اجازه می‌دهد و هر بخش لایسنس خودش را نگه می‌دارد.
-
-</div>
+[AGPL-3.0](LICENSE).

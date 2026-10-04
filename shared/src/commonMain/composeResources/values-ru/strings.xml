@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">ZedSecure</string>
+    <string name="app_name">Z VPN</string>
     <string name="brand_tagline">Приватно. Быстро. Ваше.</string>
 
     <string name="nav_home">Главная</string>
@@ -88,7 +88,7 @@
     <string name="vault_name_numbered">Несколько серверов нумеруются автоматически</string>
     <string name="vault_password">Пароль</string>
     <string name="vault_toggle_password">Показать или скрыть пароль</string>
-    <string name="nav_locked">Хранилище</string>
+    <string name="nav_browser">Браузер</string>
     <string name="nav_settings">Настройки</string>
 
     <string name="state_idle">Не подключено</string>
@@ -105,7 +105,7 @@
 
     <string name="home_no_config_title">Нет активной конфигурации</string>
     <string name="home_no_config_body">Добавьте конфигурацию или импортируйте общий файл хранилища, чтобы начать.</string>
-    <string name="home_select_config">Выбрать конфигурацию</string>
+    <string name="home_select_config">Выбрать сервер</string>
     <string name="home_upload">Отдача</string>
     <string name="home_download">Загрузка</string>
     <string name="home_duration">Время</string>

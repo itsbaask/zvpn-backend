@@ -22,7 +22,7 @@
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
     <application
-        android:name=".ZedSecureApp"
+        android:name=".ZvpnApp"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -31,12 +31,12 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:enableOnBackInvokedCallback="true"
-        android:theme="@style/Theme.ZedSecure">
+        android:theme="@style/Theme.Zvpn">
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.ZedSecure"
+            android:theme="@style/Theme.Zvpn"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -172,7 +172,7 @@
             android:name=".qr.QrScanActivity"
             android:exported="false"
             android:screenOrientation="portrait"
-            android:theme="@style/Theme.ZedSecure" />
+            android:theme="@style/Theme.Zvpn" />
     </application>
 
 </manifest>

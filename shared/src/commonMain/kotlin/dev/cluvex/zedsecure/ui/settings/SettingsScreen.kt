@@ -235,7 +235,6 @@ private fun RootPage(
     onOpen: (SettingsPage) -> Unit,
     onAbout: () -> Unit,
     onReplayTour: (() -> Unit)?,
-
     hasAi: Boolean,
 ) {
     val platform = LocalPlatform.current
@@ -248,37 +247,37 @@ private fun RootPage(
         contentPadding = contentPadding,
         modifier = modifier,
     ) {
-        SettingsGroup(modifier = Modifier.tourTargetInPage(TourTargets.SETTINGS_SUPPORT)) {
-            SettingsMenuRow(
-                stringResource(Res.string.support_title),
-                stringResource(Res.string.support_subtitle),
-                leadingIcon = Res.drawable.ic_favorite,
-            ) { onOpen(SettingsPage.Support) }
-        }
-
-        SettingsGroup(modifier = Modifier.tourTargetInPage(TourTargets.SETTINGS_LOOK)) {
+        SettingsGroup(
+            stringResource(Res.string.title_ui_settings),
+            modifier = Modifier.tourTargetInPage(TourTargets.SETTINGS_LOOK),
+        ) {
             SettingsMenuRow(
                 stringResource(Res.string.title_ui_settings),
                 stringResource(Res.string.summary_ui_settings),
+                leadingIcon = Res.drawable.ic_palette,
             ) { onOpen(SettingsPage.Ui) }
             SettingsMenuRow(
                 stringResource(Res.string.title_mode_settings),
                 stringResource(Res.string.summary_mode_settings),
+                leadingIcon = Res.drawable.ic_tune,
             ) { onOpen(SettingsPage.Mode) }
             SettingsMenuRow(
                 stringResource(Res.string.monitor_title),
                 stringResource(Res.string.monitor_subtitle),
+                leadingIcon = Res.drawable.ic_speed,
             ) { onOpen(SettingsPage.Monitor) }
             if (hasAi) {
                 SettingsMenuRow(
                     stringResource(Res.string.ai_title),
                     stringResource(Res.string.ai_subtitle),
+                    leadingIcon = Res.drawable.ic_info,
                 ) { onOpen(SettingsPage.Ai) }
             }
             if (onReplayTour != null) {
                 SettingsMenuRow(
                     stringResource(Res.string.tour_replay_title),
                     stringResource(Res.string.tour_replay_subtitle),
+                    leadingIcon = Res.drawable.ic_schedule,
                 ) { onReplayTour() }
             }
         }
@@ -290,6 +289,7 @@ private fun RootPage(
             SettingsMenuRow(
                 stringResource(Res.string.routing_title),
                 stringResource(Res.string.routing_subtitle),
+                leadingIcon = Res.drawable.ic_map,
             ) { onOpen(SettingsPage.Routing) }
             SettingsMenuRow(
                 stringResource(Res.string.per_app_title),
@@ -298,10 +298,12 @@ private fun RootPage(
                 } else {
                     stringResource(Res.string.per_app_mode_off)
                 },
+                leadingIcon = Res.drawable.ic_settings,
             ) { onOpen(SettingsPage.PerApp) }
             SettingsMenuRow(
                 stringResource(Res.string.assets_title),
                 stringResource(Res.string.assets_subtitle),
+                leadingIcon = Res.drawable.ic_sync,
             ) { onOpen(SettingsPage.Assets) }
         }
 
@@ -312,14 +314,17 @@ private fun RootPage(
             SettingsMenuRow(
                 stringResource(Res.string.title_dns_protocols),
                 stringResource(Res.string.summary_dns_protocols),
+                leadingIcon = Res.drawable.ic_dns,
             ) { onOpen(SettingsPage.DnsProtocols) }
             SettingsMenuRow(
                 stringResource(Res.string.title_tor_settings),
                 stringResource(Res.string.summary_tor_settings),
+                leadingIcon = Res.drawable.ic_encrypted,
             ) { onOpen(SettingsPage.Tor) }
             SettingsMenuRow(
                 stringResource(Res.string.title_ssh_settings),
                 stringResource(Res.string.summary_ssh_settings),
+                leadingIcon = Res.drawable.ic_key,
             ) { onOpen(SettingsPage.Ssh) }
         }
 
@@ -330,41 +335,53 @@ private fun RootPage(
             SettingsMenuRow(
                 stringResource(Res.string.title_vpn_settings),
                 stringResource(Res.string.summary_vpn_settings),
+                leadingIcon = Res.drawable.ic_lock,
             ) { onOpen(SettingsPage.Vpn) }
             SettingsMenuRow(
                 stringResource(Res.string.title_core_settings),
                 stringResource(Res.string.summary_core_settings),
+                leadingIcon = Res.drawable.ic_tune,
             ) { onOpen(SettingsPage.Core) }
             SettingsMenuRow(
                 stringResource(Res.string.title_mux_settings),
                 stringResource(Res.string.summary_mux_settings),
+                leadingIcon = Res.drawable.ic_tune,
             ) { onOpen(SettingsPage.Mux) }
             SettingsMenuRow(
                 stringResource(Res.string.title_fragment_settings),
                 stringResource(Res.string.summary_fragment_settings),
+                leadingIcon = Res.drawable.ic_tune,
             ) { onOpen(SettingsPage.Fragment) }
             SettingsMenuRow(
                 stringResource(Res.string.title_singbox_settings),
                 stringResource(Res.string.summary_singbox_settings),
+                leadingIcon = Res.drawable.ic_tune,
             ) { onOpen(SettingsPage.SingBox) }
             SettingsMenuRow(
                 stringResource(Res.string.title_observatory_settings),
                 stringResource(Res.string.summary_observatory_settings),
+                leadingIcon = Res.drawable.ic_speedometer,
             ) { onOpen(SettingsPage.Observatory) }
             SettingsMenuRow(
                 stringResource(Res.string.title_advanced),
                 stringResource(Res.string.summary_advanced),
+                leadingIcon = Res.drawable.ic_tune,
             ) { onOpen(SettingsPage.Advanced) }
         }
 
-        SettingsGroup(modifier = Modifier.tourTargetInPage(TourTargets.SETTINGS_TOOLS)) {
+        SettingsGroup(
+            stringResource(Res.string.map_title),
+            modifier = Modifier.tourTargetInPage(TourTargets.SETTINGS_TOOLS),
+        ) {
             SettingsMenuRow(
                 stringResource(Res.string.map_title),
                 stringResource(Res.string.map_settings_sub),
+                leadingIcon = Res.drawable.ic_map,
             ) { onOpen(SettingsPage.Map) }
             SettingsMenuRow(
                 stringResource(Res.string.title_speedtest),
                 stringResource(Res.string.summary_speedtest),
+                leadingIcon = Res.drawable.ic_speedometer,
             ) { onOpen(SettingsPage.SpeedTest) }
         }
 
@@ -373,22 +390,31 @@ private fun RootPage(
             modifier = Modifier.tourTargetInPage(TourTargets.SETTINGS_ABOUT),
         ) {
             SettingsMenuRow(
+                stringResource(Res.string.support_title),
+                stringResource(Res.string.support_subtitle),
+                leadingIcon = Res.drawable.ic_favorite,
+            ) { onOpen(SettingsPage.Support) }
+            SettingsMenuRow(
                 stringResource(Res.string.update_check_title),
                 if (checking) stringResource(Res.string.update_checking)
                 else stringResource(Res.string.update_check_summary),
+                leadingIcon = Res.drawable.ic_sync,
             ) { if (!checking) { checking = true; checkTrigger++ } }
             SettingsMenuRow(
                 stringResource(Res.string.rate_title),
                 stringResource(Res.string.rate_summary),
+                leadingIcon = Res.drawable.ic_star,
             ) { platform.openStorePage() }
             SettingsMenuRow(
                 stringResource(Res.string.privacy_title),
                 stringResource(Res.string.privacy_settings_sub),
                 leadingIcon = Res.drawable.ic_policy,
             ) { onOpen(SettingsPage.Privacy) }
-            SettingsMenuRow(stringResource(Res.string.settings_about), AppInfo.versionName) {
-                onAbout()
-            }
+            SettingsMenuRow(
+                stringResource(Res.string.settings_about),
+                AppInfo.versionName,
+                leadingIcon = Res.drawable.ic_info,
+            ) { onAbout() }
         }
 
         ManualUpdateCheckHost(
