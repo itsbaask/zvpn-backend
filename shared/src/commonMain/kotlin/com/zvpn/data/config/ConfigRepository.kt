@@ -1444,11 +1444,13 @@ class ConfigRepository(private val store: KeyValueStore) {
             var added = 0
             val container = runCatching { json.decodeFromString<CloudServerContainer>(body) }.getOrNull()
             if (container != null && container.servers.isNotEmpty()) {
-                val current = _profiles.value.filterNot { it.subscriptionId == "cloud_official" }
+                val currentOtherProfiles = _profiles.value.filterNot { it.subscriptionId == "cloud_official" }
                 val fresh = mutableListOf<VpnProfile>()
 
                 container.servers.forEach { entry ->
                     val serverName = entry.name.ifBlank { "${entry.flag} ${entry.country_name} - ${entry.protocol.uppercase()}" }
+                    val profileId = "cloud_" + (entry.id.ifBlank { "${entry.host}_${entry.port}_${entry.protocol}" }).replace(Regex("[^a-zA-Z0-9_]"), "_")
+
                     if (entry.protocol.equals("openvpn", ignoreCase = true) || entry.config_uri.isBlank()) {
                         val ovpnConfig = if (entry.ovpn_content.isNotBlank()) {
                             entry.ovpn_content
@@ -1470,19 +1472,26 @@ vpn
 </auth-user-pass>
 """
                         }
-                        runCatching {
-                            addOvpn(ovpnConfig, name = serverName, subscriptionId = "cloud_official").getOrNull()
-                        }.onSuccess { p ->
-                            if (p != null) fresh += p
-                        }
+                        val p = runCatching {
+                            val fragment = OvpnConfig.toSingBoxFragment(ovpnConfig, name = serverName)
+                            val server = SingBoxJson.servers(fragment).firstOrNull() ?: return@runCatching null
+                            VpnProfile.fromSingBox(
+                                server = server,
+                                id = profileId,
+                                addedAt = currentTimeMillis(),
+                                subscriptionId = "cloud_official",
+                                name = serverName
+                            )
+                        }.getOrNull()
+                        if (p != null) fresh.add(p)
                     } else if (entry.config_uri.isNotBlank()) {
-                        runCatching {
+                        val p = runCatching {
                             if (SingBoxLinks.handles(entry.config_uri)) {
                                 val parsed = SingBoxLinks.parse(entry.config_uri)
                                 val server = SingBoxJson.servers(parsed.fragment).first()
                                 VpnProfile.fromSingBox(
                                     server = server,
-                                    id = newId(),
+                                    id = profileId,
                                     addedAt = currentTimeMillis(),
                                     subscriptionId = "cloud_official",
                                     name = serverName,
@@ -1491,17 +1500,18 @@ vpn
                             } else {
                                 VpnProfile.fromLink(
                                     link = entry.config_uri,
-                                    id = newId(),
+                                    id = profileId,
                                     addedAt = currentTimeMillis(),
                                     subscriptionId = "cloud_official"
                                 ).copy(name = serverName)
                             }
-                        }.onSuccess { fresh += it }
+                        }.getOrNull()
+                        if (p != null) fresh.add(p)
                     }
                 }
 
                 if (fresh.isNotEmpty()) {
-                    _profiles.value = current + fresh
+                    _profiles.value = currentOtherProfiles + fresh
                     persistProfiles()
                     if (_activeId.value == null && fresh.isNotEmpty()) {
                         setActive(fresh.first().id)
