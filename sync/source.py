@@ -132,6 +132,15 @@ class ServerInfo:
             return f"{self.protocol}_{self.host.lower()}_{self.port}_{self.transport}"
         return self.source_id
 
+    @property
+    def storage_id(self) -> str:
+        if self.profile_id and self.profile_id.isdigit():
+            return self.profile_id
+        if self.host and self.port:
+            host_clean = re.sub(r'[^a-z0-9\-]', '-', self.host.lower()).strip('-')
+            return f"{host_clean}-{self.port}-{self.transport}"
+        return self.source_id
+
     def has_valid_profile_mapping(self) -> bool:
         if self.protocol != "openvpn":
             return True
@@ -432,15 +441,16 @@ class MultiSourceHarvester:
 
         username = "vpnbook"
         password = ""
-        pass_match = re.search(r'Password\s*([a-zA-Z0-9]+)', page_text, re.I)
+        pass_match = re.search(r'Password:\s*([a-zA-Z0-9]+)', page_text, re.I) or re.search(r'Password\s*([a-zA-Z0-9]+)', page_text, re.I)
         if pass_match:
-            password = pass_match.group(1).strip()
+            raw_pass = pass_match.group(1).strip()
+            password = re.sub(r'Copy.*$', '', raw_pass, flags=re.I).strip()
 
         server_matches = re.findall(r'([A-Za-z]+\s+Server\s+\d+)[^\w]*([a-z0-9\.-]+\.vpnbook\.com)', page_text, re.I)
         servers: Dict[str, ServerInfo] = {}
         for label, host in server_matches:
             sid = f"vpnbook_{host.replace('.', '_')}_1194_udp"
-            ovpn_config = f"client\ndev tun\nproto udp\remote {host} 1194\n<auth-user-pass>\n{username}\n{password}\n</auth-user-pass>"
+            ovpn_config = f"client\ndev tun\nproto udp\nremote {host} 1194\nresolv-retry infinite\nnobind\npersist-key\npersist-tun\ncipher AES-256-GCM\ndata-ciphers AES-256-GCM:AES-128-GCM:AES-256-CBC\n<auth-user-pass>\n{username}\n{password}\n</auth-user-pass>"
             servers[sid] = ServerInfo(
                 source_id=sid,
                 source_name="vpnbook",
