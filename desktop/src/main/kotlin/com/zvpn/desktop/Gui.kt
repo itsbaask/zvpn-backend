@@ -1,0 +1,393 @@
+package com.zvpn.desktop
+
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Notification
+import androidx.compose.ui.window.Tray
+import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowPosition
+import androidx.compose.ui.window.application
+import androidx.compose.ui.window.rememberTrayState
+import androidx.compose.ui.window.rememberWindowState
+import coil3.ImageLoader
+import kotlinx.coroutines.launch
+import coil3.compose.setSingletonImageLoaderFactory
+import coil3.svg.SvgDecoder
+import com.zvpn.core.VpnManager
+import com.zvpn.data.config.ConfigRepository
+import com.zvpn.domain.model.ConnectionState
+import com.zvpn.shared.resources.Res
+import com.zvpn.shared.resources.ic_tray_connected
+import com.zvpn.shared.resources.ic_tray_connecting
+import com.zvpn.shared.resources.ic_tray_disconnected
+import com.zvpn.shared.resources.ic_z_mark
+import com.zvpn.shared.resources.zvx_expired
+import com.zvpn.shared.resources.zvx_invalid
+import com.zvpn.shared.resources.zvx_legacy
+import com.zvpn.core.VaultImportBus
+import com.zvpn.crypto.ZvxLegacyException
+import org.jetbrains.compose.resources.getString
+import com.zvpn.domain.config.LocalProxy
+import com.zvpn.domain.model.RunMode
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.flow.first
+import org.jetbrains.compose.resources.painterResource
+import com.zvpn.desktop.core.Os
+import com.zvpn.desktop.platform.AdminPassword
+import com.zvpn.desktop.platform.DesktopKeyValueStore
+import com.zvpn.desktop.platform.DesktopProbe
+import com.zvpn.desktop.platform.DesktopPlatform
+import com.zvpn.desktop.platform.DesktopSettings
+import com.zvpn.desktop.platform.DesktopVpn
+import com.zvpn.domain.model.ThemeMode
+import com.zvpn.platform.AppInfo
+import com.zvpn.ui.MainScaffold
+import com.zvpn.ui.platform.LocalPlatform
+import com.zvpn.ui.theme.LocalMotionBudget
+import com.zvpn.ui.theme.MotionBudget
+import com.zvpn.ui.theme.ZVpnTheme
+import androidx.compose.ui.platform.LocalWindowInfo
+import java.awt.GraphicsEnvironment
+
+private val configRepository = ConfigRepository(DesktopKeyValueStore("configs"))
+private val desktopSettings = DesktopSettings(DesktopKeyValueStore("settings"))
+
+private val WIN_W = 420.dp
+private val WIN_H = 860.dp
+private val WIN_MIN_H = 480.dp
+private val SCREEN_MARGIN = 16.dp
+
+private fun fittedWindowHeight(): Dp {
+    val usable = runCatching { GraphicsEnvironment.getLocalGraphicsEnvironment().maximumWindowBounds.height }
+        .getOrNull()?.takeIf { it > 0 } ?: return WIN_H
+    return minOf(WIN_H, maxOf(WIN_MIN_H, usable.dp - SCREEN_MARGIN))
+}
+
+private const val TRAY_SERVERS = 30
+
+fun main(args: Array<String>) {
+    if (args.firstOrNull() == "--version") {
+        println("ZedSecure $BUILD_VERSION")
+        return
+    }
+    AppInfo.versionName = BUILD_VERSION
+    Runtime.getRuntime().addShutdownHook(Thread { runCatching { DesktopVpn.shutdown() } })
+
+    val softwareRendering = "--software-rendering" in args ||
+        System.getenv("ZVPN_SOFTWARE_RENDERING")?.lowercase() in setOf("1", "true", "yes") ||
+        runCatching { desktopSettings.settings.value.renderingMode == com.zvpn.domain.model.RenderingMode.Software }.getOrDefault(false)
+    if (softwareRendering) System.setProperty("skiko.renderApi", "SOFTWARE")
+
+    runCatching {
+        desktopSettings.settings.value.language.tag?.let {
+            java.util.Locale.setDefault(java.util.Locale.forLanguageTag(it))
+        }
+    }
+
+    DesktopVpn.settingsProvider = { desktopSettings.settings.value }
+
+    DesktopVpn.ruleOutboundsProvider = { configRepository.resolveRuleOutbounds(it) }
+    DesktopVpn.chainConfigProvider = { profile, options ->
+        runCatching { configRepository.buildChainConfig(profile, options) }.getOrNull()
+    }
+
+    com.zvpn.core.CoreProbe.measureDelay = { url -> DesktopProbe.measureDelay(url) }
+
+    com.zvpn.core.AutoSelect.readStatus = {
+        com.zvpn.desktop.platform.DesktopStats.latestAutoSelect
+    }
+
+    VpnManager.deviceVpnProbe = { com.zvpn.desktop.platform.DesktopVpnDetector.anyVpn() }
+    com.zvpn.core.CoreProbe.measureOutboundDelay = { cfg, url ->
+        DesktopProbe.measureOutboundDelay(cfg, url)
+    }
+
+    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO).launch {
+        while (true) {
+            val s = desktopSettings.settings.value
+            if (s.autoUpdateSubscriptions) {
+                runCatching { configRepository.updateDueSubscriptions(s.subscriptionUpdateIntervalHours) }
+            }
+            kotlinx.coroutines.delay(30 * 60 * 1000L)
+        }
+    }
+    application {
+        setSingletonImageLoaderFactory { ctx ->
+            ImageLoader.Builder(ctx).components { add(SvgDecoder.Factory()) }.build()
+        }
+
+        val nativeTrayHost = remember {
+            Os.current == Os.LINUX && LinuxDesktop.trayHostAvailable() && LinuxDesktop.nativeTrayLoads()
+        }
+        var nativeTrayFailed by remember { mutableStateOf(false) }
+        val nativeTray = nativeTrayHost && !nativeTrayFailed
+        val trayAvailable = remember(nativeTray) {
+            nativeTray || java.awt.SystemTray.isSupported() && runCatching {
+                val st = java.awt.SystemTray.getSystemTray()
+                val img = java.awt.image.BufferedImage(16, 16, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+                val probe = java.awt.TrayIcon(img)
+                st.add(probe); st.remove(probe); true
+            }.getOrDefault(false)
+        }
+        var windowVisible by remember { mutableStateOf(true) }
+        var raiseWindow by remember { mutableStateOf(0) }
+        val status by VpnManager.status.collectAsState()
+        val connecting = status.state == ConnectionState.Connecting || status.state == ConnectionState.Disconnecting
+        val connected = status.state == ConnectionState.Connected
+        val trayScope = rememberCoroutineScope()
+
+        fun reconnectIfRunning() {
+            val state = VpnManager.status.value.state
+            if (state != ConnectionState.Connected && state != ConnectionState.Connecting) return
+            trayScope.launch {
+                DesktopVpn.stop()
+                kotlinx.coroutines.withTimeoutOrNull(15_000) {
+                    VpnManager.status.first { it.state == ConnectionState.Idle }
+                } ?: return@launch
+                DesktopVpn.toggle(configRepository)
+            }
+        }
+
+        fun importLockedConfig() {
+            trayScope.launch {
+                val pick = DesktopPlatform.pickFileBytes() ?: return@launch
+                val peeked = runCatching { configRepository.peekLocked(pick.bytes) }
+                val meta = peeked.getOrNull()
+                when {
+                    meta == null -> DesktopPlatform.toast(
+                        getString(
+                            if (peeked.exceptionOrNull() is ZvxLegacyException) Res.string.zvx_legacy
+                            else Res.string.zvx_invalid,
+                        ),
+                    )
+                    meta.isExpired -> DesktopPlatform.toast(getString(Res.string.zvx_expired))
+                    else -> VaultImportBus.request(pick.bytes, meta)
+                }
+            }
+        }
+
+        if (trayAvailable) {
+            val trayState = rememberTrayState()
+            val profiles by configRepository.profiles.collectAsState()
+            val activeId by configRepository.activeId.collectAsState()
+            val settings by desktopSettings.settings.collectAsState()
+            var previous by remember { mutableStateOf(status.state) }
+            LaunchedEffect(status.state) {
+                val was = previous
+                previous = status.state
+                val notice = when {
+                    status.state == ConnectionState.Connected && was != ConnectionState.Connected ->
+                        Notification("zvpn", "Connected · ${status.serverName ?: "tunnel up"}", Notification.Type.Info)
+                    status.state == ConnectionState.Error ->
+                        Notification(
+                            "zvpn",
+                            "Could not connect" + (status.error?.takeIf { it.isNotBlank() }?.let { ": ${it.take(140)}" } ?: ""),
+                            Notification.Type.Error,
+                        )
+                    status.state == ConnectionState.Idle && was == ConnectionState.Disconnecting ->
+                        Notification("zvpn", "Disconnected", Notification.Type.None)
+                    else -> null
+                }
+                notice?.let {
+                    if (nativeTray) LinuxDesktop.notify(it.title, it.message) else trayState.sendNotification(it)
+                }
+            }
+            val statusLine = when {
+                connected -> "Connected · ${status.serverName ?: ""}".trimEnd(' ', '·')
+                status.state == ConnectionState.Connecting -> "Connecting…"
+                status.state == ConnectionState.Disconnecting -> "Disconnecting…"
+                status.state == ConnectionState.Error -> "Connection failed"
+                else -> "Not connected"
+            }
+            val tip = buildString {
+                append("ZedSecure · ").append(statusLine)
+                if (connected) {
+                    append("\n↓ ").append(humanBps(status.downloadBps)).append("   ↑ ").append(humanBps(status.uploadBps))
+                }
+            }
+            val active = profiles.firstOrNull { it.id == activeId }
+            val shown = (listOfNotNull(active) + profiles.filter { it.id != activeId }).take(TRAY_SERVERS)
+            val proxyPort = VpnManager.activeSocksPort ?: LocalProxy.SOCKS_PORT
+            val entries = buildList {
+                add(TrayEntry.Action("ZedSecure ${AppInfo.versionName}", enabled = false))
+                add(TrayEntry.Action(statusLine, enabled = false))
+                if (connected) {
+                    add(TrayEntry.Action("↓ ${humanBps(status.downloadBps)}    ↑ ${humanBps(status.uploadBps)}", enabled = false))
+                }
+                add(TrayEntry.Separator)
+                add(
+                    TrayEntry.Action(
+                        if (connected || connecting) "Disconnect" else "Connect",
+                        enabled = status.state != ConnectionState.Disconnecting,
+                    ) { DesktopVpn.toggle(configRepository) },
+                )
+                if (profiles.isNotEmpty()) {
+                    add(
+                        TrayEntry.Sub(
+                            "Server",
+                            shown.map { profile ->
+                                TrayEntry.Check(profile.name.take(48), checked = profile.id == activeId) {
+                                    if (profile.id != activeId) {
+                                        configRepository.setActive(profile.id)
+                                        reconnectIfRunning()
+                                    }
+                                }
+                            } + if (profiles.size > shown.size) {
+                                listOf(
+                                    TrayEntry.Separator,
+                                    TrayEntry.Action("All ${profiles.size} servers…") { windowVisible = true; raiseWindow++ },
+                                )
+                            } else {
+                                emptyList()
+                            },
+                        ),
+                    )
+                }
+                add(
+                    TrayEntry.Sub(
+                        "Mode",
+                        listOf(
+                            RunMode.SystemProxy to "System proxy",
+                            RunMode.ProxyOnly to "SOCKS only",
+                            RunMode.Vpn to "TUN · all traffic",
+                        ).map { (mode, label) ->
+                            TrayEntry.Check(label, checked = settings.runMode == mode) {
+                                if (settings.runMode != mode) {
+                                    desktopSettings.update { it.copy(runMode = mode) }
+                                    reconnectIfRunning()
+                                }
+                            }
+                        },
+                    ),
+                )
+                add(TrayEntry.Action("Copy proxy address · 127.0.0.1:$proxyPort") {
+                    DesktopPlatform.copyToClipboard("127.0.0.1:$proxyPort")
+                })
+                add(TrayEntry.Separator)
+                add(TrayEntry.Action(if (windowVisible) "Hide window" else "Show window") {
+                    windowVisible = !windowVisible
+                    if (windowVisible) raiseWindow++
+                })
+                add(TrayEntry.Action("Quit ZedSecure") { DesktopVpn.shutdown(); exitApplication() })
+            }
+            val trayIconKey = when {
+                connected -> "connected"
+                connecting -> "connecting"
+                else -> "disconnected"
+            }
+            val trayIcon = painterResource(
+                when (trayIconKey) {
+                    "connected" -> Res.drawable.ic_tray_connected
+                    "connecting" -> Res.drawable.ic_tray_connecting
+                    else -> Res.drawable.ic_tray_disconnected
+                },
+            )
+            if (nativeTray) {
+                LinuxNativeTray(
+                    iconKey = trayIconKey,
+                    icon = trayIcon,
+                    tooltip = tip,
+                    onOpen = { windowVisible = true; raiseWindow++ },
+                    onFailure = { nativeTrayFailed = true },
+                    entries = entries,
+                )
+            } else {
+                Tray(
+                    state = trayState,
+                    icon = trayIcon,
+                    tooltip = tip,
+                    onAction = { windowVisible = true; raiseWindow++ },
+                    menu = { awtEntries(entries) },
+                )
+            }
+        }
+
+        val windowState = rememberWindowState(width = WIN_W, height = fittedWindowHeight(), position = WindowPosition(Alignment.Center))
+        Window(
+            onCloseRequest = { if (trayAvailable) windowVisible = false else { DesktopVpn.shutdown(); exitApplication() } },
+            visible = windowVisible,
+            title = "zvpn",
+            icon = painterResource(Res.drawable.ic_z_mark),
+            resizable = false,
+            state = windowState,
+        ) {
+            LaunchedEffect(raiseWindow) {
+                if (raiseWindow > 0) {
+                    window.isMinimized = false
+                    window.toFront()
+                    window.requestFocus()
+                }
+            }
+            val settings by desktopSettings.settings.collectAsState()
+            val dark = when (settings.themeMode) {
+                ThemeMode.System -> isSystemInDarkTheme()
+                ThemeMode.Light -> false
+                ThemeMode.Dark -> true
+            }
+            val langTag = settings.language.tag ?: "en"
+
+            ProvideAppLanguage(langTag, dark) {
+                ZVpnTheme(
+                    darkTheme = dark,
+                    dynamicColor = false,
+                    accentColor = settings.accentColor,
+                    amoledBlack = settings.amoledBlack,
+                    languageTag = langTag,
+                    fontScale = settings.uiFontScale.scale,
+                ) {
+                    val focused = LocalWindowInfo.current.isWindowFocused
+                    val motion = if (windowVisible && !windowState.isMinimized && focused) {
+                        MotionBudget.Throttled
+                    } else {
+                        MotionBudget.Paused
+                    }
+                    CompositionLocalProvider(LocalPlatform provides DesktopPlatform, LocalMotionBudget provides motion) {
+                        MainScaffold(
+                            settings = settings,
+                            configRepository = configRepository,
+                            onToggleConnection = { DesktopVpn.toggle(configRepository) },
+                            onImportZvx = { importLockedConfig() },
+                            onActiveServerChanged = { reconnectIfRunning() },
+                            onUpdateSettings = { transform -> desktopSettings.update(transform) },
+                            onLanguage = { lang -> desktopSettings.update { it.copy(language = lang) } },
+                        )
+                        val passwordRequest by AdminPassword.request.collectAsState()
+                        passwordRequest?.let { request ->
+                            LaunchedEffect(request) {
+                                windowVisible = true
+                                raiseWindow++
+                            }
+                            AdminPasswordDialog(request.retry) { AdminPassword.answer(request, it) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProvideAppLanguage(langTag: String, dark: Boolean, content: @Composable () -> Unit) {
+    remember(langTag) {
+        java.util.Locale.setDefault(java.util.Locale.forLanguageTag(langTag)); langTag
+    }
+    content()
+}
+
+private fun humanBps(bps: Long): String {
+    if (bps <= 0) return "0 B/s"
+    val units = arrayOf("B/s", "KB/s", "MB/s", "GB/s")
+    var v = bps.toDouble(); var i = 0
+    while (v >= 1024 && i < units.size - 1) { v /= 1024; i++ }
+    return (if (v >= 100 || i == 0) "%.0f".format(v) else "%.1f".format(v)) + " " + units[i]
+}

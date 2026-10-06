@@ -1,5 +1,5 @@
 {
-  description = "ZedSecure — VPN client";
+  description = "Z VPN client";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -12,12 +12,12 @@
         pkgs = nixpkgs.legacyPackages.${system};
         version = "3.1.0";
 
-        zedsecure = pkgs.stdenv.mkDerivation {
-          pname = "zedsecure";
+        zvpn = pkgs.stdenv.mkDerivation {
+          pname = "zvpn";
           inherit version;
 
           src = pkgs.fetchurl {
-            url = "https://github.com/CluvexStudio/ZedSecure/releases/download/desktop-v${version}/ZedSecure-${version}-linux-x86_64.tar.gz";
+            url = "https://github.com/TODO-github-repo/releases/download/desktop-v${version}/ZVPN-${version}-linux-x86_64.tar.gz";
             hash = "sha256-IRlPyMx7/zvyRWD+l7bOIG3fmTSFKxTdEZvIe7y2QVo=";
           };
 
@@ -32,43 +32,43 @@
 
           desktopItems = [
             (pkgs.makeDesktopItem {
-              name = "zedsecure";
-              exec = "zedsecure";
-              icon = "zedsecure";
-              desktopName = "ZedSecure";
+              name = "zvpn";
+              exec = "zvpn";
+              icon = "zvpn";
+              desktopName = "Z VPN";
               categories = [ "Network" ];
             })
           ];
 
           installPhase = ''
             runHook preInstall
-            mkdir -p $out/share/zedsecure $out/bin
-            cp -r ./* $out/share/zedsecure/
+            mkdir -p $out/share/zvpn $out/bin
+            cp -r ./* $out/share/zvpn/
 
-            bin=$(find $out/share/zedsecure/bin -maxdepth 1 -type f -perm -u+x | head -1)
-            makeWrapper "$bin" $out/bin/zedsecure \
+            bin=$(find $out/share/zvpn/bin -maxdepth 1 -type f -perm -u+x | head -1)
+            makeWrapper "$bin" $out/bin/zvpn \
               --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath [ pkgs.systemdLibs ]}
 
-            icon=$(find $out/share/zedsecure -name '*.png' | head -1)
+            icon=$(find $out/share/zvpn -name '*.png' | head -1)
             if [ -n "$icon" ]; then
-              install -Dm444 "$icon" $out/share/icons/hicolor/512x512/apps/zedsecure.png
+              install -Dm444 "$icon" $out/share/icons/hicolor/512x512/apps/zvpn.png
             fi
             runHook postInstall
           '';
 
           meta = with pkgs.lib; {
             description = "VPN client with Xray, sing-box, Psiphon, Tor and DNS tunnels";
-            homepage = "https://github.com/CluvexStudio/ZedSecure";
+            homepage = "https://example.com/TODO-about-website";
             license = licenses.agpl3Plus;
             platforms = [ "x86_64-linux" ];
-            mainProgram = "zedsecure";
+            mainProgram = "zvpn";
           };
         };
       in
       {
-        packages.default = zedsecure;
-        packages.zedsecure = zedsecure;
+        packages.default = zvpn;
+        packages.zvpn = zvpn;
 
-        apps.default = flake-utils.lib.mkApp { drv = zedsecure; };
+        apps.default = flake-utils.lib.mkApp { drv = zvpn; };
       });
 }

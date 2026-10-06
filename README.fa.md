@@ -50,7 +50,7 @@ Z VPN یک کلاینت VPN و پروکسی برای اندروید، لینوک
 - انتخاب خودکار: تونل را روی سریع‌ترین سرور نگه می‌دارد و اگر قطع شد خودش جابه‌جا می‌کند
 - زنجیره در هر دو جهت، مثلاً Xray از داخل Tor یا Tor از داخل Xray
 - مسیریابی برای هر برنامه، ویرایشگر قوانین geoip/geosite، و SNI spoofing روی گوشی‌های روت‌شده
-- Vault: کانفیگ را به‌صورت فایل `.zsx` به اشتراک بگذارید تا بدون نمایش محتوا وصل شود، با رمز و تاریخ انقضای اختیاری
+- Vault: کانفیگ را به‌صورت فایل `.zvx` به اشتراک بگذارید تا بدون نمایش محتوا وصل شود، با رمز و تاریخ انقضای اختیاری
 - تست سرعت، یافتن MTU، اسکنر DNS و لاگ زنده
 - طراحی Material 3 Expressive، روشن و تاریک، به فارسی، انگلیسی، روسی و چینی
 
@@ -72,7 +72,7 @@ Z VPN یک کلاینت VPN و پروکسی برای اندروید، لینوک
 
 ```sh
 ./tools/fetch-cores.sh           # every engine at its pinned commit
-./tools/build-zedcore.sh         # the Android core; needs Go 1.26.3 and NDK 28 or newer
+./tools/build-zvpncore.sh        # the Android core; needs Go 1.26.3 and NDK 28 or newer
 ./gradlew :app:assembleRelease   # three APKs, one per ABI
 ./gradlew :desktop:packageDeb    # or packageRpm, packageMsi, packageDmg
 ```

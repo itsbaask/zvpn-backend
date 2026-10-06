@@ -1,0 +1,311 @@
+package com.zvpn.desktop.platform
+
+import com.zvpn.core.LogBus
+import com.zvpn.core.SocksTunBridge
+import com.zvpn.core.SshController
+import com.zvpn.core.VpnManager
+import com.zvpn.data.config.ConfigRepository
+import com.zvpn.desktop.core.DesktopDnsTunnel
+import com.zvpn.desktop.core.HevBinary
+import com.zvpn.desktop.core.LocalPortPicker
+import com.zvpn.desktop.core.SystemProxy
+import com.zvpn.desktop.core.Os
+import com.zvpn.desktop.core.TunMode
+import com.zvpn.desktop.core.XrayCore
+import com.zvpn.domain.config.DnsTunnelProfile
+import com.zvpn.domain.config.LocalPorts
+import com.zvpn.domain.config.LocalProxy
+import com.zvpn.domain.config.SshProfile
+import com.zvpn.domain.config.autoSelectTuning
+import com.zvpn.domain.config.toBuildOptions
+import com.zvpn.domain.model.AppSettings
+import com.zvpn.domain.model.RunMode
+import java.io.File
+import java.net.InetAddress
+import kotlin.concurrent.thread
+
+object DesktopVpn {
+    private const val METRICS_PORT = LocalPorts.DESKTOP_METRICS
+    private const val SHIM_PORT = LocalPorts.SHIM
+    private const val SSH_PORT = LocalPorts.SSH
+    private const val DNS_PORT = LocalPorts.DNS_TUNNEL
+
+    private val work = File(System.getProperty("java.io.tmpdir"), "zvpn").apply { mkdirs() }
+    private var xray: XrayCore? = null
+    private var tun: TunMode? = null
+    private var stats: DesktopStats? = null
+    private var singBoxStats: DesktopSingBoxStats? = null
+    private var shim: SocksTunBridge? = null
+    private var ssh: SshController? = null
+    private var dnsTunnel: DesktopDnsTunnel? = null
+    @Volatile private var shimStatsRunning = false
+    private var usedSystemProxy = false
+
+    @Volatile var runMode: RunMode = RunMode.SystemProxy
+
+    @Volatile var settingsProvider: () -> AppSettings = { AppSettings() }
+
+    @Volatile
+
+    var chainConfigProvider: (com.zvpn.domain.config.VpnProfile, com.zvpn.domain.config.XrayJsonBuilder.BuildOptions) -> String? =
+        { _, _ -> null }
+
+    var ruleOutboundsProvider: (List<com.zvpn.domain.model.RulesetItem>) -> Map<String, com.zvpn.domain.config.ServerConfig> =
+        { emptyMap() }
+
+    private fun geoAssetsAvailable(): Boolean =
+        File(work, "geoip.dat").let { it.isFile && it.length() > 0 } &&
+            File(work, "geosite.dat").let { it.isFile && it.length() > 0 }
+
+    fun toggle(config: ConfigRepository) {
+        val state = VpnManager.status.value.state
+        if (state.isActive || state.isTransitioning) { stop(); return }
+        val profile = config.activeProfile() ?: run { VpnManager.onError("Select a server first"); return }
+
+        runMode = settingsProvider().runMode
+
+        when {
+            profile.dnsTunnelSettings() != null -> startDns(profile.name, profile.dnsTunnelSettings()!!)
+            profile.sshSettings() != null -> startSsh(profile.name, profile.sshSettings()!!)
+            profile.isSingBoxConfig -> startSingBoxConfig(profile.name, profile)
+            else -> startXray(profile.name, profile, config)
+        }
+    }
+
+    private fun startDns(name: String, dnsProfile: DnsTunnelProfile) {
+        VpnManager.onStarting(name)
+        thread(name = "desktop-dns") {
+            val dns = DesktopDnsTunnel(dnsProfile, work, listenPort = DNS_PORT)
+            dnsTunnel = dns
+            val port = dns.start()
+            if (port < 0) { VpnManager.onError("DNS tunnel failed to start"); return@thread }
+
+            val upstreamPort = if (dnsProfile.sshEnabled && dnsProfile.sshHost.isNotBlank()) {
+                val sshProfile = SshProfile(
+                    host = dnsProfile.sshHost, port = dnsProfile.sshPort, username = dnsProfile.sshUsername,
+                    authType = dnsProfile.sshAuthType, password = dnsProfile.sshPassword,
+                    privateKey = dnsProfile.sshPrivateKey, keyPassphrase = dnsProfile.sshKeyPassphrase,
+                )
+                val controller = SshController(
+                    profile = sshProfile, cipher = "auto", compression = false, listenPort = SSH_PORT,
+                    proxySocksHost = "127.0.0.1", proxySocksPort = port,
+                    proxySocksUser = dnsProfile.socksUser, proxySocksPass = dnsProfile.socksPass,
+                )
+                ssh = controller
+                val sshPort = controller.start()
+                if (sshPort < 0) { dns.stop(); ssh = null; VpnManager.onError("SSH-over-DNS failed to connect"); return@thread }
+                sshPort
+            } else port
+
+            val shimPort = localPort(SHIM_PORT, setOf(port, upstreamPort))
+            val bridge = SocksTunBridge("127.0.0.1", shimPort, "127.0.0.1", upstreamPort, dnsHost = "8.8.8.8")
+            shim = bridge
+            if (!bridge.start()) { stop(); VpnManager.onError("Shim failed to start"); return@thread }
+
+            val bypass = resolveHosts(dnsResolverHosts(dnsProfile) + listOfNotNull(dnsProfile.sshHost.takeIf { it.isNotBlank() }))
+            if (!route(shimPort, bypass, udpOverTcp = true)) {
+                stop(); VpnManager.onError("Could not route traffic (TUN + system proxy failed)"); return@thread
+            }
+            VpnManager.activeSocksPort = shimPort
+            startShimStats(bridge)
+            VpnManager.onConnected(name)
+        }
+    }
+
+    private fun dnsResolverHosts(p: DnsTunnelProfile): List<String> =
+        if (p.dnsTransport == DnsTunnelProfile.TRANSPORT_DOH) {
+            runCatching { java.net.URI(p.dohUrl.trim()).host }.getOrNull()?.let { listOf(it) } ?: emptyList()
+        } else {
+            p.resolvers.split(',', '\n').map { it.trim() }.filter { it.isNotEmpty() }.map { hp ->
+                if (hp.startsWith("[")) hp.substringAfter('[').substringBefore(']')
+                else hp.substringBefore(':')
+            }
+        }
+
+    private fun startXray(
+        name: String,
+        profile: com.zvpn.domain.config.VpnProfile,
+        config: ConfigRepository,
+    ) {
+        val settings = settingsProvider()
+        val options = settings.toBuildOptions(
+            geoAssetsAvailable = geoAssetsAvailable(),
+            ruleOutbounds = ruleOutboundsProvider(
+                com.zvpn.domain.config.RoutingMigration.effectiveRulesets(settings),
+            ),
+        )
+
+        com.zvpn.core.AutoSelect.clearPrepared()
+        val baseJson = runCatching {
+            if (profile.isAutoSelect) {
+                val build = config.buildAutoSelectConfig(
+                    profile,
+                    options,
+                    settings.autoSelectTuning(),
+                )
+                com.zvpn.core.AutoSelect.prepare(profile.id, build.memberProfiles)
+                build.json
+            } else if (profile.isProxyChain) {
+                chainConfigProvider(profile, options)
+                    ?: error("Proxy chain members are unavailable")
+            } else {
+                profile.toXrayConfigJson(options)
+            }
+        }.getOrElse {
+            VpnManager.onError(it.message ?: "This config type isn't supported on desktop yet"); return
+        }
+        val socksPort = localPort(LocalProxy.SOCKS_PORT)
+        val metricsPort = localPort(METRICS_PORT, setOf(socksPort))
+        val json = DesktopXray.augmentWithMetrics(
+            DesktopXray.withSocksPort(baseJson, LocalProxy.SOCKS_PORT, socksPort),
+            metricsPort,
+        )
+        VpnManager.onStarting(name)
+        thread(name = "desktop-xray") {
+            val core = XrayCore(work)
+            if (!core.start(json)) { VpnManager.onError("Core failed to start"); return@thread }
+            xray = core
+            com.zvpn.core.AutoSelect.activate()
+            val bypass = resolveHosts(DesktopXray.extractServerHosts(json))
+            if (!route(socksPort, bypass, udpOverTcp = false)) {
+                core.stop(); xray = null
+                VpnManager.onError("Could not route traffic (TUN + system proxy failed)"); return@thread
+            }
+            VpnManager.activeSocksPort = socksPort
+            DesktopStats(metricsPort).also { stats = it; it.start() }
+            VpnManager.onConnected(name)
+        }
+    }
+
+    private fun startSingBoxConfig(name: String, profile: com.zvpn.domain.config.VpnProfile) {
+        val source = profile.source as? com.zvpn.domain.config.ProfileSource.SingBoxConfig ?: return
+        val socksPort = localPort(LocalProxy.SOCKS_PORT)
+        val prepared = runCatching {
+            com.zvpn.domain.config.SingBoxConfigs.prepareForDesktop(
+                source.json,
+                socksPort = socksPort,
+                clashApiPort = localPort(METRICS_PORT, setOf(socksPort)),
+            )
+        }.getOrElse { VpnManager.onError(it.message ?: "Not a usable sing-box config"); return }
+        VpnManager.onStarting(name)
+        thread(name = "desktop-singbox") {
+            val core = XrayCore(work)
+            if (!core.startSingBox(prepared.json)) { VpnManager.onError("sing-box failed to start"); return@thread }
+            xray = core
+
+            val hosts = com.zvpn.domain.config.SingBoxJson.servers(source.json).mapNotNull { it.address }
+            if (!route(prepared.socksPort, resolveHosts(hosts), udpOverTcp = false)) {
+                core.stop(); xray = null
+                VpnManager.onError("Could not route traffic (TUN + system proxy failed)"); return@thread
+            }
+            VpnManager.activeSocksPort = prepared.socksPort
+            DesktopSingBoxStats(prepared.clashApi, prepared.clashSecret).also { singBoxStats = it; it.start() }
+            VpnManager.onConnected(name)
+        }
+    }
+
+    private fun startSsh(name: String, sshProfile: com.zvpn.domain.config.SshProfile) {
+        VpnManager.onStarting(name)
+        thread(name = "desktop-ssh") {
+            val controller = SshController(
+                profile = sshProfile,
+                cipher = "auto",
+                compression = false,
+                listenPort = SSH_PORT,
+            )
+            ssh = controller
+            val sshPort = controller.start()
+            if (sshPort < 0) { VpnManager.onError("SSH failed to connect"); return@thread }
+
+            val shimPort = localPort(SHIM_PORT, setOf(sshPort))
+            val bridge = SocksTunBridge("127.0.0.1", shimPort, "127.0.0.1", sshPort, dnsHost = "8.8.8.8")
+            shim = bridge
+            if (!bridge.start()) { controller.stop(); ssh = null; VpnManager.onError("Shim failed"); return@thread }
+            val bypass = resolveHosts(listOf(sshProfile.host))
+            if (!route(shimPort, bypass, udpOverTcp = true)) {
+                bridge.stop(); controller.stop(); ssh = null
+                VpnManager.onError("Could not route traffic"); return@thread
+            }
+            VpnManager.activeSocksPort = shimPort
+            startShimStats(bridge)
+            VpnManager.onConnected(name)
+        }
+    }
+
+    private fun localPort(preferred: Int, taken: Set<Int> = emptySet()): Int =
+        LocalPortPicker.pick(preferred, taken).also { port ->
+            if (port != preferred) {
+                LogBus.append("W/Desktop port $preferred is in use by another program; using $port instead")
+            }
+        }
+
+    private fun route(socksPort: Int, bypassIps: List<String>, udpOverTcp: Boolean): Boolean {
+        if (runMode == RunMode.ProxyOnly) {
+            LogBus.append("I/Desktop SOCKS and HTTP proxy on 127.0.0.1:$socksPort; the system proxy is left alone")
+            return true
+        }
+        val useTun = runMode == RunMode.Vpn
+        if (useTun && !TunMode.supported()) {
+            LogBus.append("W/Desktop VPN mode is not available on ${Os.current} yet; using the system proxy")
+        }
+        if (useTun && TunMode.supported()) {
+            val hev = HevBinary.extract(work)
+            if (hev != null) {
+                LogBus.append("I/Desktop TUN bypass: ${bypassIps.joinToString().ifEmpty { "(none)" }}")
+                val t = TunMode(
+                    hev, "127.0.0.1", socksPort, work,
+                    bypassIps = bypassIps, udpOverTcp = udpOverTcp, askPassword = AdminPassword::ask,
+                )
+                if (t.start()) { tun = t; return true }
+            }
+            LogBus.append("W/Desktop TUN unavailable — falling back to system proxy")
+        }
+        return if (SystemProxy.set("127.0.0.1", socksPort)) { usedSystemProxy = true; true } else false
+    }
+
+    private fun startShimStats(bridge: SocksTunBridge) {
+        shimStatsRunning = true
+        val startedAt = System.currentTimeMillis()
+        var totalDown = 0L; var totalUp = 0L; var lastAt = startedAt
+        thread(name = "desktop-shim-stats", isDaemon = true) {
+            while (shimStatsRunning) {
+                Thread.sleep(1000)
+                if (!shimStatsRunning) break
+                val (dDown, dUp) = bridge.readDelta()
+                totalDown += dDown; totalUp += dUp
+                val now = System.currentTimeMillis()
+                val dt = ((now - lastAt).coerceAtLeast(1)).toDouble() / 1000.0
+                lastAt = now
+                VpnManager.onMetrics(((now - startedAt) / 1000).toInt(), (dDown / dt).toLong(), (dUp / dt).toLong(), totalDown, totalUp)
+            }
+        }
+    }
+
+    private fun resolveHosts(hosts: List<String>): List<String> = hosts.flatMap { host ->
+        runCatching { InetAddress.getAllByName(host).map { it.hostAddress } }.getOrDefault(emptyList())
+    }.distinct()
+
+    fun stop() {
+        if (!VpnManager.onStopping()) return
+        thread(name = "desktop-vpn-stop") {
+            teardown()
+            VpnManager.onDisconnected()
+        }
+    }
+
+    fun shutdown() = teardown()
+
+    @Synchronized
+    private fun teardown() {
+        shimStatsRunning = false
+        stats?.stop(); stats = null
+        singBoxStats?.stop(); singBoxStats = null
+        tun?.stop(); tun = null
+        shim?.stop(); shim = null
+        ssh?.stop(); ssh = null
+        dnsTunnel?.stop(); dnsTunnel = null
+        if (usedSystemProxy) { runCatching { SystemProxy.clear() }; usedSystemProxy = false }
+        xray?.stop(); xray = null
+        com.zvpn.core.AutoSelect.end()
+    }
+}

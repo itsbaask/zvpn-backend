@@ -22,7 +22,7 @@
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
     <application
-        android:name=".ZvpnApp"
+        android:name=".ZVpnApp"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -57,9 +57,9 @@
                 <data android:scheme="file" />
                 <data android:host="*" />
                 <data android:mimeType="*/*" />
-                <data android:pathPattern=".*\\.zsx" />
-                <data android:pathPattern=".*\\..*\\.zsx" />
-                <data android:pathPattern=".*\\..*\\..*\\.zsx" />
+                <data android:pathPattern=".*\\.zvx" />
+                <data android:pathPattern=".*\\..*\\.zvx" />
+                <data android:pathPattern=".*\\..*\\..*\\.zvx" />
             </intent-filter>
             <intent-filter android:label="@string/vault_import">
                 <action android:name="android.intent.action.SEND" />
@@ -71,7 +71,7 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="zedsecure" />
+                <data android:scheme="zvpn" />
                 <data android:scheme="v2rayng" />
                 <data android:scheme="hiddify" />
                 <data android:scheme="sing-box" />
@@ -105,7 +105,7 @@
         </provider>
 
         <service
-            android:name=".core.ZedVpnService"
+            android:name=".core.ZVpnService"
             android:exported="false"
             android:foregroundServiceType="specialUse"
             android:permission="android.permission.BIND_VPN_SERVICE">
@@ -143,21 +143,21 @@
             android:permission="android.permission.BIND_JOB_SERVICE" />
 
         <receiver
-            android:name=".core.ZedWidgetProvider"
+            android:name=".core.ZWidgetProvider"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="dev.cluvex.zedsecure.widget.TOGGLE" />
+                <action android:name="com.zvpn.widget.TOGGLE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/appwidget_zed" />
+                android:resource="@xml/appwidget_z" />
         </receiver>
 
         <service
-            android:name=".core.ZedTileService"
+            android:name=".core.ZTileService"
             android:exported="true"
-            android:icon="@drawable/ic_tile_zed"
+            android:icon="@drawable/ic_tile_z"
             android:label="@string/tile_label"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>

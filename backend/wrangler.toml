@@ -1,0 +1,13 @@
+name = "zvpn-backend"
+main = "index.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+
+[[r2_buckets]]
+binding = "PUBLICVPN_BUCKET"
+bucket_name = "publicvpnlist-profiles"
+
+[[kv_namespaces]]
+binding = "VPN_DATA"
+id = "73219165768a41b6bb2f920ecb41ec06"

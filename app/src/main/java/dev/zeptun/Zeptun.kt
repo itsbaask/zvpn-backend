@@ -1,4 +1,4 @@
-package dev.zeptun
+﻿package dev.zeptun
 
 object Zeptun {
     external fun nativeStart(service: Any?, fd: Int, config: String?): Int

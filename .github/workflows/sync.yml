@@ -1,0 +1,66 @@
+name: Z VPN Unified Cloudflare Sync Engine
+
+on:
+  schedule:
+    - cron: '*/10 * * * *' # Sync & Health Check every 10 minutes
+  workflow_dispatch:
+    inputs:
+      sync_mode:
+        type: choice
+        description: 'Sync Mode'
+        required: true
+        default: 'auto'
+        options:
+          - 'auto'
+          - 'full_sync'
+          - 'dry_run'
+
+concurrency:
+  group: zvpn-unified-cloud-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          elif [ -f backend/requirements.txt ]; then
+            pip install -r backend/requirements.txt
+          fi
+
+      - name: Run Safety & Unit Tests
+        env:
+          PYTHONPATH: backend:.
+        run: |
+          if [ -d tests ]; then
+            python -m unittest discover tests
+          fi
+
+      - name: Execute Z VPN Unified Health Check & Sync Engine
+        env:
+          PYTHONPATH: backend:.
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_KV_NAMESPACE_ID: ${{ secrets.CLOUDFLARE_KV_NAMESPACE_ID }}
+          BACKEND_SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME || 'publicvpnlist-profiles' }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          DRY_RUN: ${{ github.event.inputs.sync_mode == 'dry_run' && 'true' || 'false' }}
+        run: |
+          if [ -f sync/main.py ]; then
+            python -m sync.main
+          else
+            python -m backend.sync.main
+          fi

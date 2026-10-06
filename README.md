@@ -48,7 +48,7 @@ Android has all of them. Linux, Windows and macOS carry Xray, sing-box, the DNS 
 - Auto-select keeps the tunnel on the fastest server and fails over on its own
 - Chains in both directions, for example Xray over Tor or Tor over Xray
 - Per-app routing, a geoip/geosite rule editor, and SNI spoofing on rooted devices
-- Vault: share a config as a `.zsx` file that connects without showing it, with an optional password and expiry date
+- Vault: share a config as a `.zvx` file that connects without showing it, with an optional password and expiry date
 - Speed test, MTU finder, DNS resolver scanner and a live log
 - Material 3 Expressive, light and dark, in English, Persian, Russian and Chinese
 
@@ -68,7 +68,7 @@ first time with right-click, then Open.
 
 ```sh
 ./tools/fetch-cores.sh           # every engine at its pinned commit
-./tools/build-zedcore.sh         # the Android core; needs Go 1.26.3 and NDK 28 or newer
+./tools/build-zvpncore.sh        # the Android core; needs Go 1.26.3 and NDK 28 or newer
 ./gradlew :app:assembleRelease   # three APKs, one per ABI
 ./gradlew :desktop:packageDeb    # or packageRpm, packageMsi, packageDmg
 ```

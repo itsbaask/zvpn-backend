@@ -17,16 +17,16 @@ val keystoreProperties = Properties().apply {
 val hasReleaseKeystore = keystorePropertiesFile.exists()
 
 android {
-    namespace = "dev.cluvex.zedsecure"
+    namespace = "com.zvpn"
 
     compileSdk {
         version = release(37)
     }
 
     defaultConfig {
-        applicationId = "com.zedsecure.vpn"
+        applicationId = "com.zvpn"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 35
         versionCode = (project.property("zvpn.versionCode") as String).toInt()
         versionName = project.property("zvpn.versionName") as String
 
@@ -156,7 +156,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.bouncycastle)
 
-    implementation(files("libs/zedcore.aar"))
+    implementation(files("libs/zvpncore.aar"))
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)

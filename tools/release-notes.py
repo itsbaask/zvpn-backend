@@ -6,7 +6,7 @@ import subprocess
 import sys
 import urllib.parse
 
-REPO = "CluvexStudio/ZedSecure"
+REPO = "TODO-github-repo"
 INK = "15170B"
 RAMP = ["C7F24E", "B6E23F", "A3D131", "8FBE24"]
 

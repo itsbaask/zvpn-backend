@@ -1,4 +1,4 @@
-<resources>
+﻿<resources>
     <string name="brand_tagline">خصوصی. سریع. مالِ خودت.</string>
 
     <string name="nav_home">خانه</string>
@@ -70,7 +70,7 @@
     <string name="vault_name_numbered">اگر چند سرور انتخاب شود، خودکار شماره‌گذاری می‌شود</string>
     <string name="vault_password">رمز</string>
     <string name="vault_toggle_password">نمایش یا پنهان کردن رمز</string>
-    <string name="nav_browser">مرورگر</string>
+    <string name="nav_locked">گاوصندوق</string>
     <string name="nav_settings">تنظیمات</string>
 
     <string name="state_idle">متصل نیستید</string>
@@ -86,8 +86,8 @@
     <string name="action_retry">تلاش دوباره</string>
 
     <string name="home_no_config_title">کانفیگ فعالی نیست</string>
-    <string name="home_no_config_body">برای شروع یک سرور انتخاب کنید.</string>
-    <string name="home_select_config">انتخاب سرور</string>
+    <string name="home_no_config_body">برای شروع یک کانفیگ اضافه کنید یا یک فایل گاوصندوق واردشده را باز کنید.</string>
+    <string name="home_select_config">انتخاب کانفیگ</string>
     <string name="home_upload">آپلود</string>
     <string name="home_download">دانلود</string>
     <string name="home_duration">مدت</string>
@@ -224,11 +224,11 @@
     <string name="vault_unlock">باز کن</string>
     <string name="vault_locked_configs">کانفیگ‌های قفل‌شده</string>
     <string name="locked_badge">قفل‌شده</string>
-    <string name="zsx_expired">این کانفیگ قفل‌شده منقضی شده است</string>
-    <string name="zsx_wrong_password">رمز نادرست است</string>
-    <string name="zsx_imported">کانفیگ قفل‌شده وارد شد</string>
-    <string name="zsx_invalid">فایل ‎.zsx‎ معتبر نیست</string>
-    <string name="zsx_legacy">این کانفیگ قفل‌شده با نسخهٔ قدیمی‌تر ZedSecure ساخته شده است. از فرستنده بخواهید نسخهٔ تازه‌ای بفرستد.</string>
+    <string name="zvx_expired">این کانفیگ قفل‌شده منقضی شده است</string>
+    <string name="zvx_wrong_password">رمز نادرست است</string>
+    <string name="zvx_imported">کانفیگ قفل‌شده وارد شد</string>
+    <string name="zvx_invalid">فایل ‎.zsx‎ معتبر نیست</string>
+    <string name="zvx_legacy">این کانفیگ قفل‌شده با نسخهٔ قدیمی‌تر Z VPN ساخته شده است. از فرستنده بخواهید نسخهٔ تازه‌ای بفرستد.</string>
 
     <string name="cd_app_logo">نشان زدسکیور</string>
     <string name="cd_connection_status">وضعیت اتصال</string>
@@ -405,7 +405,7 @@
     <string name="notif_totals">این نشست: %1$s دریافت · %2$s ارسال</string>
     <string name="subs_user_agent">User-Agent (اختیاری)</string>
     <string name="vault_no_password_needed">این فایل رمز ندارد. وارد شود؟</string>
-    <string name="zsx_import_action">ورود</string>
+    <string name="zvx_import_action">ورود</string>
     <string name="vault_selected">%1$s انتخاب شد</string>
     <string name="servers_delete_confirm_title">این کانفیگ حذف شود؟</string>
     <string name="servers_delete_confirm_body">«%1$s» حذف خواهد شد.</string>
@@ -608,6 +608,9 @@
     <string name="widget_no_server">سروری انتخاب نشده</string>
     <string name="chain_member_missing">اعضای گم‌شدهٔ زنجیره: %1$s</string>
     <string name="chain_udp_hop_unsupported">%1$s نمی‌تواند بعد از %2$s در زنجیره باشد — به UDP نیاز دارد</string>
+    <string name="chain_serverless_not_first">کانفیگ سرورلس فقط می‌تواند حلقهٔ اول زنجیره باشد</string>
+    <string name="chain_serverless_no_server">بعد از کانفیگ سرورلس یک سرور اضافه کنید</string>
+    <string name="chain_serverless_no_direct">کانفیگ سرورلس خروجی مستقیمی برای رسیدن به سرور بعدی ندارد</string>
     <string name="crosschain_outer_failed">تونل حامل نتوانست وصل شود</string>
     <string name="tor_bootstrap_timeout">تور نتوانست به‌موقع اتصالش را کامل کند. یک بریج امتحان کن یا تونل حامل را بررسی کن.</string>
     <string name="crosschain_inner_failed">تونل خروجی نتوانست از داخل حامل وصل شود</string>
@@ -628,6 +631,12 @@
     <string name="ikev2_blocked_by_always_on">اپ دیگری مالک VPN همیشه‌روشن است یا قفل VPN فعال است. در تنظیمات › شبکه › VPN پاکش کنید.</string>
     <string name="ikev2_failed_generic">راه‌اندازی IKEv2 ناموفق بود</string>
     <string name="ikev2_ike_error">دروازه اتصال را رد کرد. اطلاعات ورود، شناسه و گواهی را بررسی کنید.</string>
+    <string name="ikev2_err_auth">سرور ورود را رد کرد. نام کاربری و رمز را بررسی کنید. اگر سرور گواهی مخصوص خودش را دارد، گواهی CA آن را به پروفایل اضافه کنید.</string>
+    <string name="ikev2_err_proposal">این گوشی و سرور هیچ تنظیم رمزنگاری مشترکی ندارند. اندروید فقط AES با SHA-2 و گروه DH ۱۴ به بالا را پیشنهاد می‌دهد؛ سروری که فقط SHA-1 یا modp1024 را قبول می‌کند با آن وصل نمی‌شود.</string>
+    <string name="ikev2_err_address">سرور ورود را پذیرفت ولی به این گوشی آدرسی نداد. ممکن است مخزن IP مجازی آن پر باشد یا تنظیم نشده باشد.</string>
+    <string name="ikev2_err_ts">سرور مسیرهایی را که این گوشی درخواست کرد نپذیرفت.</string>
+    <string name="ikev2_ike_error_code">دروازه اتصال را رد کرد (خطای IKE شمارهٔ %1$d). اطلاعات ورود، شناسه و گواهی را بررسی کنید.</string>
+    <string name="ikev2_secret_unreadable">رمز ذخیره‌شدهٔ این پروفایل خوانده نشد. پروفایل را ویرایش کنید و رمز را دوباره وارد کنید.</string>
     <string name="ikev2_network_error">خطای شبکه هنگام اتصال</string>
     <string name="ikev2_err_unknown_host">آدرس دروازه resolve نشد</string>
     <string name="ikev2_err_timeout">دروازه پاسخ نداد</string>
@@ -660,8 +669,8 @@
     <string name="engine_invalid_config_dnstunnel">پیکربندی تونل DNS نامعتبر است</string>
     <string name="engine_invalid_config_masterdns">پیکربندی MasterDNS نامعتبر است</string>
     <string name="engine_invalid_config_openconnect">پیکربندی OpenConnect نامعتبر است</string>
-    <string name="deeplink_open_label">وارد کردن در ZedSecure</string>
-    <string name="engine_ikev2_needs_app">پروفایل IKEv2 را VPN همیشه‌روشن نمی‌تواند راه بیندازد. برای اتصال، ZedSecure را باز کنید.</string>
+    <string name="deeplink_open_label">وارد کردن در Z VPN</string>
+    <string name="engine_ikev2_needs_app">پروفایل IKEv2 را VPN همیشه‌روشن نمی‌تواند راه بیندازد. برای اتصال، Z VPN را باز کنید.</string>
     <string name="auto_notif_remark">خودکار · %1$s</string>
     <string name="auto_no_members">هیچ سروری در این گروه برای حالت خودکار قابل استفاده نیست</string>
     <string name="auto_group_all_short">همهٔ سرورها</string>

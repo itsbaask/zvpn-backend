@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Z VPN - World's Best High-Speed & Secure VPN</title>
+    <link rel="icon" type="image/png" href="assets/icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #090d16;
+            --bg-card: rgba(18, 26, 41, 0.7);
+            --bg-card-hover: rgba(30, 42, 66, 0.85);
+            --accent-primary: #3b82f6;
+            --accent-secondary: #8b5cf6;
+            --accent-glow: rgba(59, 130, 246, 0.35);
+            --accent-green: #10b981;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --radius-xl: 20px;
+            --radius-lg: 14px;
+            --font-en: 'Plus Jakarta Sans', sans-serif;
+            --font-ar: 'Alexandria', sans-serif;
+        }
+
+        [dir="rtl"] {
+            font-family: var(--font-ar);
+        }
+
+        [dir="ltr"] {
+            font-family: var(--font-en);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            transition: background-color 0.2s, border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* Ambient background glow */
+        .glow-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .glow-circle {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(140px);
+            opacity: 0.25;
+        }
+
+        .glow-1 {
+            top: -10%;
+            left: 20%;
+            width: 50vw;
+            height: 50vw;
+            background: radial-gradient(circle, #3b82f6, #8b5cf6);
+        }
+
+        .glow-2 {
+            bottom: -10%;
+            right: 10%;
+            width: 45vw;
+            height: 45vw;
+            background: radial-gradient(circle, #06b6d4, #3b82f6);
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Header / Navbar */
+        header {
+            position: sticky;
+            top: 0;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            background: rgba(9, 13, 22, 0.8);
+            border-bottom: 1px solid var(--border-color);
+            z-index: 1000;
+        }
+
+        .nav-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 80px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: #fff;
+            font-weight: 800;
+            font-size: 1.4rem;
+        }
+
+        .logo img {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px var(--accent-glow);
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 28px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .nav-links a:hover {
+            color: #fff;
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        /* Language Switcher Dropdown */
+        .lang-select {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 8px 14px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .lang-select option {
+            background: var(--bg-dark);
+            color: var(--text-main);
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 26px;
+            border-radius: var(--radius-lg);
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+            border: none;
+            font-size: 0.95rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: #fff;
+            box-shadow: 0 4px 20px var(--accent-glow);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 28px rgba(59, 130, 246, 0.5);
+        }
+
+        .btn-outline {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: #fff;
+        }
+
+        .btn-outline:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 90px 0 60px;
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 40px;
+            align-items: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            background: rgba(59, 130, 246, 0.12);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 30px;
+            color: #60a5fa;
+            font-size: 0.88rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        .hero-title {
+            font-size: 3.2rem;
+            font-weight: 800;
+            line-height: 1.15;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #ffffff 40%, #93c5fd 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-desc {
+            font-size: 1.15rem;
+            color: var(--text-muted);
+            margin-bottom: 32px;
+            max-width: 540px;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 40px;
+        }
+
+        .hero-showcase {
+            position: relative;
+            display: flex;
+            justify-content: center;
+        }
+
+        .hero-showcase img {
+            width: 100%;
+            max-width: 520px;
+            border-radius: var(--radius-xl);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 40px var(--accent-glow);
+            border: 1px solid var(--border-color);
+        }
+
+        /* Stats Grid */
+        .stats-section {
+            padding: 40px 0 80px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            padding: 32px;
+            border-radius: var(--radius-xl);
+            backdrop-filter: blur(12px);
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #38bdf8;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        /* Features Section */
+        .features-section {
+            padding: 80px 0;
+        }
+
+        .section-header {
+            text-align: center;
+            max-width: 650px;
+            margin: 0 auto 60px;
+        }
+
+        .section-title {
+            font-size: 2.4rem;
+            font-weight: 800;
+            margin-bottom: 14px;
+        }
+
+        .section-subtitle {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 28px;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-xl);
+            padding: 32px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card:hover {
+            background: var(--bg-card-hover);
+            transform: translateY(-6px);
+            border-color: rgba(59, 130, 246, 0.4);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .feature-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            background: rgba(59, 130, 246, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            margin-bottom: 20px;
+            color: #60a5fa;
+        }
+
+        .feature-card h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .feature-card p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        /* Pricing Section */
+        .pricing-section {
+            padding: 80px 0;
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 28px;
+            align-items: center;
+        }
+
+        .pricing-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-xl);
+            padding: 36px 30px;
+            position: relative;
+            text-align: center;
+        }
+
+        .pricing-card.featured {
+            background: linear-gradient(180deg, rgba(30, 42, 66, 0.9) 0%, rgba(18, 26, 41, 0.9) 100%);
+            border: 2px solid var(--accent-primary);
+            box-shadow: 0 10px 40px var(--accent-glow);
+            transform: scale(1.05);
+        }
+
+        .pricing-badge {
+            position: absolute;
+            top: -14px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: #fff;
+            padding: 4px 18px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .plan-name {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .plan-price {
+            font-size: 2.8rem;
+            font-weight: 800;
+            margin-bottom: 4px;
+            color: #fff;
+        }
+
+        .plan-price span {
+            font-size: 1rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .plan-desc {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 24px;
+        }
+
+        .plan-features {
+            list-style: none;
+            text-align: start;
+            margin-bottom: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .plan-features li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.92rem;
+            color: var(--text-main);
+        }
+
+        .plan-features li::before {
+            content: "✓";
+            color: var(--accent-green);
+            font-weight: 800;
+        }
+
+        /* Modal for Terms & Privacy */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-container {
+            background: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-xl);
+            max-width: 800px;
+            width: 100%;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+        }
+
+        .modal-header {
+            padding: 20px 28px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-header h2 {
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .modal-close:hover {
+            color: #fff;
+        }
+
+        .modal-body {
+            padding: 28px;
+            overflow-y: auto;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.7;
+        }
+
+        .modal-body h3 {
+            color: #fff;
+            margin: 20px 0 8px;
+            font-size: 1.1rem;
+        }
+
+        .modal-body p {
+            margin-bottom: 14px;
+        }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border-color);
+            padding: 60px 0 30px;
+            background: rgba(9, 13, 22, 0.95);
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr repeat(3, 1fr);
+            gap: 40px;
+            margin-bottom: 50px;
+        }
+
+        .footer-brand p {
+            color: var(--text-muted);
+            font-size: 0.92rem;
+            margin-top: 14px;
+            max-width: 320px;
+        }
+
+        .footer-col h4 {
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 18px;
+        }
+
+        .footer-col ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .footer-col a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .footer-col a:hover {
+            color: #fff;
+        }
+
+        .footer-bottom {
+            border-top: 1px solid var(--border-color);
+            padding-top: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: var(--text-muted);
+            font-size: 0.88rem;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 992px) {
+            .hero {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+            .hero-desc {
+                margin: 0 auto 32px;
+            }
+            .hero-buttons {
+                justify-content: center;
+            }
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .features-grid, .pricing-grid {
+                grid-template-columns: 1fr;
+            }
+            .pricing-card.featured {
+                transform: none;
+            }
+            .footer-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .nav-links {
+                display: none;
+            }
+            .hero-title {
+                font-size: 2.2rem;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .footer-grid {
+                grid-template-columns: 1fr;
+            }
+            .footer-bottom {
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Background Ambient Glow -->
+    <div class="glow-bg">
+        <div class="glow-circle glow-1"></div>
+        <div class="glow-circle glow-2"></div>
+    </div>
+
+    <!-- Navigation Bar -->
+    <header>
+        <div class="container nav-content">
+            <a href="#" class="logo">
+                <img src="assets/icon.png" alt="Z VPN Logo">
+                <span>Z VPN</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="#features" data-i18n="nav_features">Features</a></li>
+                <li><a href="#servers" data-i18n="nav_servers">Servers</a></li>
+                <li><a href="#pricing" data-i18n="nav_pricing">Pricing</a></li>
+                <li><a href="#" onclick="openModal('terms')" data-i18n="nav_terms">Terms & Privacy</a></li>
+            </ul>
+            <div class="nav-actions">
+                <select class="lang-select" id="langSelect" aria-label="Language Selector" onchange="changeLanguage(this.value)">
+                    <option value="en">English (EN)</option>
+                    <option value="ar">العربية (AR)</option>
+                    <option value="es">Español (ES)</option>
+                    <option value="zh">中文 (ZH)</option>
+                    <option value="fr">Français (FR)</option>
+                    <option value="ru">Русский (RU)</option>
+                    <option value="de">Deutsch (DE)</option>
+                </select>
+                <a href="#download" class="btn btn-primary" data-i18n="nav_download">Download App</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="container hero">
+        <div class="hero-text">
+            <div class="hero-badge">
+                <span>⚡</span>
+                <span data-i18n="hero_badge">World's #1 Ultra-Fast VPN Service</span>
+            </div>
+            <h1 class="hero-title" data-i18n="hero_title">5,000+ High-Speed VPN Servers at Competitive Prices</h1>
+            <p class="hero-desc" data-i18n="hero_desc">
+                Experience unmatched internet freedom, ultra-fast streaming, zero logs, and Next-Gen encryption across all your devices.
+            </p>
+            <div class="hero-buttons">
+                <a href="#download" class="btn btn-primary" data-i18n="btn_get_started">Get Started Now</a>
+                <a href="#pricing" class="btn btn-outline" data-i18n="btn_view_plans">View Pricing Plans</a>
+            </div>
+        </div>
+        <div class="hero-showcase">
+            <img src="assets/showcase.png" alt="Z VPN App Showcase">
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section id="servers" class="container stats-section">
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-number">5,000+</div>
+                <div class="stat-label" data-i18n="stat_servers">Global Servers</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">80+</div>
+                <div class="stat-label" data-i18n="stat_countries">Countries Covered</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">10 Gbps</div>
+                <div class="stat-label" data-i18n="stat_speed">Server Port Speeds</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">99.99%</div>
+                <div class="stat-label" data-i18n="stat_uptime">Uptime Guaranteed</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="container features-section">
+        <div class="section-header">
+            <h2 class="section-title" data-i18n="feat_title">Why Z VPN is the Best Choice</h2>
+            <p class="section-subtitle" data-i18n="feat_subtitle">Engineered with modern protocols and cutting-edge security for maximum privacy and performance.</p>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🚀</div>
+                <h3 data-i18n="f1_title">Ultra-Fast Speeds</h3>
+                <p data-i18n="f1_desc">Stream 4K videos, play online games, and download large files with zero buffering using 10Gbps servers.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🛡️</div>
+                <h3 data-i18n="f2_title">Strict No-Logs Policy</h3>
+                <p data-i18n="f2_desc">We respect your privacy. We do not track, collect, or share your browsing history or personal activity.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔒</div>
+                <h3 data-i18n="f3_title">Next-Gen Protocols</h3>
+                <p data-i18n="f3_desc">Powered by VLESS, Hysteria2, WireGuard, TUIC, and OpenVPN for impenetrable encryption and anti-blocking.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🌍</div>
+                <h3 data-i18n="f4_title">5,000+ Global Servers</h3>
+                <p data-i18n="f4_desc">Bypass censorship and geo-restrictions with access to servers in over 80 countries worldwide.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📱</div>
+                <h3 data-i18n="f5_title">Cross-Platform Apps</h3>
+                <p data-i18n="f5_desc">Native, easy-to-use apps for Android, Windows, macOS, and Linux with one-tap connection.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3 data-i18n="f6_title">Smart Auto-Routing</h3>
+                <p data-i18n="f6_desc">Automatic optimal server selection based on latency and load for seamless performance.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section id="pricing" class="container pricing-section">
+        <div class="section-header">
+            <h2 class="section-title" data-i18n="price_title">Competitive Pricing Plans</h2>
+            <p class="section-subtitle" data-i18n="price_subtitle">Premium global VPN protection at unmatched competitive rates.</p>
+        </div>
+        <div class="pricing-grid">
+            <!-- Monthly Plan -->
+            <div class="pricing-card">
+                <div class="plan-name" data-i18n="plan_1m_title">1 Month</div>
+                <div class="plan-price">$4.99 <span data-i18n="per_month">/mo</span></div>
+                <div class="plan-desc" data-i18n="plan_1m_desc">Standard monthly plan for flexible access.</div>
+                <ul class="plan-features">
+                    <li data-i18n="pf_5000">5,000+ High Speed Servers</li>
+                    <li data-i18n="pf_devices">Connect Unlimited Devices</li>
+                    <li data-i18n="pf_unlimited">Unlimited Bandwidth</li>
+                    <li data-i18n="pf_nologs">Strict No-Logs Policy</li>
+                    <li data-i18n="pf_support">24/7 Support</li>
+                </ul>
+                <a href="#download" class="btn btn-outline" style="width: 100%;" data-i18n="btn_choose_plan">Choose Plan</a>
+            </div>
+
+            <!-- Yearly Plan (Best Value) -->
+            <div class="pricing-card featured">
+                <div class="pricing-badge" data-i18n="badge_best_value">Best Value - Save 60%</div>
+                <div class="plan-name" data-i18n="plan_12m_title">1 Year Plan</div>
+                <div class="plan-price">$1.99 <span data-i18n="per_month">/mo</span></div>
+                <div class="plan-desc" data-i18n="plan_12m_desc">Billed $23.88 annually. Most popular choice.</div>
+                <ul class="plan-features">
+                    <li data-i18n="pf_5000">5,000+ High Speed Servers</li>
+                    <li data-i18n="pf_devices">Connect Unlimited Devices</li>
+                    <li data-i18n="pf_unlimited">Unlimited Bandwidth</li>
+                    <li data-i18n="pf_nologs">Strict No-Logs Policy</li>
+                    <li data-i18n="pf_support">24/7 VIP Support</li>
+                </ul>
+                <a href="#download" class="btn btn-primary" style="width: 100%;" data-i18n="btn_get_yearly">Get 1 Year Plan</a>
+            </div>
+
+            <!-- Lifetime Plan -->
+            <div class="pricing-card">
+                <div class="plan-name" data-i18n="plan_life_title">Lifetime Pass</div>
+                <div class="plan-price">$59.99 <span data-i18n="one_time">one-time</span></div>
+                <div class="plan-desc" data-i18n="plan_life_desc">Pay once, enjoy unlimited VPN access forever.</div>
+                <ul class="plan-features">
+                    <li data-i18n="pf_5000">5,000+ High Speed Servers</li>
+                    <li data-i18n="pf_devices">Connect Unlimited Devices</li>
+                    <li data-i18n="pf_unlimited">Unlimited Bandwidth</li>
+                    <li data-i18n="pf_nologs">Strict No-Logs Policy</li>
+                    <li data-i18n="pf_lifetime">Lifetime Updates Included</li>
+                </ul>
+                <a href="#download" class="btn btn-outline" style="width: 100%;" data-i18n="btn_choose_plan">Choose Plan</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Download CTA Section -->
+    <section id="download" class="container" style="padding: 60px 0 100px;">
+        <div style="background: linear-gradient(135deg, rgba(30, 58, 138, 0.6), rgba(88, 28, 135, 0.6)); border: 1px solid var(--border-color); border-radius: var(--radius-xl); padding: 60px 40px; text-align: center; backdrop-filter: blur(16px);">
+            <h2 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 16px;" data-i18n="cta_title">Download Z VPN for Any Device</h2>
+            <p style="color: var(--text-muted); max-width: 580px; margin: 0 auto 32px; font-size: 1.05rem;" data-i18n="cta_desc">Protect your digital privacy across phone, tablet, and computer with a single click.</p>
+            <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+                <a href="#" class="btn btn-primary" data-i18n="btn_download_android">🤖 Android (APK)</a>
+                <a href="#" class="btn btn-outline" data-i18n="btn_download_windows">💻 Windows / Desktop</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Modal overlay for Terms & Privacy -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2 id="modalTitle" data-i18n="terms_title">Terms of Service & Privacy Policy</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <h3 data-i18n="privacy_h1">1. Strict No-Logs Privacy Policy</h3>
+                <p data-i18n="privacy_p1">Z VPN is built with privacy at its core. We maintain a strict zero-logs policy. We do not monitor, record, log, or store any browsing data, IP addresses, DNS queries, or bandwidth history. Your online activity belongs solely to you.</p>
+
+                <h3 data-i18n="privacy_h2">2. Data Encryption and Security</h3>
+                <p data-i18n="privacy_p2">All connection traffic passing through Z VPN servers is encrypted using modern, authenticated cryptographic ciphers (including AES-256-GCM and ChaCha20-Poly1305) to ensure complete confidentiality against unauthorized interception.</p>
+
+                <h3 data-i18n="privacy_h3">3. Acceptable Use Terms</h3>
+                <p data-i18n="privacy_p3">Users agree to use Z VPN in compliance with applicable laws. Illegal activities, cyberattacks, unsolicited spamming, or abuse of server resources are strictly prohibited.</p>
+
+                <h3 data-i18n="privacy_h4">4. Subscriptions & Guarantees</h3>
+                <p data-i18n="privacy_p4">Subscriptions grant access to 5,000+ global servers. We offer a 30-day money-back guarantee if you are not completely satisfied with our service quality.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <a href="#" class="logo">
+                        <img src="assets/icon.png" alt="Z VPN Logo">
+                        <span>Z VPN</span>
+                    </a>
+                    <p data-i18n="footer_brand_desc">Empowering internet users worldwide with top-tier security, 5,000+ ultra-fast servers, and complete digital privacy.</p>
+                </div>
+                <div class="footer-col">
+                    <h4 data-i18n="footer_col_product">Product</h4>
+                    <ul>
+                        <li><a href="#features" data-i18n="nav_features">Features</a></li>
+                        <li><a href="#servers" data-i18n="nav_servers">5,000+ Servers</a></li>
+                        <li><a href="#pricing" data-i18n="nav_pricing">Pricing</a></li>
+                        <li><a href="#download" data-i18n="nav_download">Download</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4 data-i18n="footer_col_legal">Legal & Terms</h4>
+                    <ul>
+                        <li><a href="#" onclick="openModal('privacy')" data-i18n="link_privacy">Privacy Policy</a></li>
+                        <li><a href="#" onclick="openModal('terms')" data-i18n="link_terms">Terms of Service</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4 data-i18n="footer_col_languages">Languages</h4>
+                    <ul>
+                        <li><a href="#" onclick="changeLanguage('en')">English</a></li>
+                        <li><a href="#" onclick="changeLanguage('ar')">العربية</a></li>
+                        <li><a href="#" onclick="changeLanguage('es')">Español</a></li>
+                        <li><a href="#" onclick="changeLanguage('zh')">中文</a></li>
+                        <li><a href="#" onclick="changeLanguage('fr')">Français</a></li>
+                        <li><a href="#" onclick="changeLanguage('ru')">Русский</a></li>
+                        <li><a href="#" onclick="changeLanguage('de')">Deutsch</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <div>© 2026 Z VPN. All rights reserved.</div>
+                <div>Designed for global privacy and ultimate speed.</div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- i18n Translations Dictionary JavaScript -->
+    <script>
+        const i18n = {
+            en: {
+                nav_features: "Features",
+                nav_servers: "Servers",
+                nav_pricing: "Pricing",
+                nav_terms: "Terms & Privacy",
+                nav_download: "Download App",
+                hero_badge: "World's #1 Ultra-Fast VPN Service",
+                hero_title: "5,000+ High-Speed VPN Servers at Competitive Prices",
+                hero_desc: "Experience unmatched internet freedom, ultra-fast streaming, zero logs, and Next-Gen encryption across all your devices.",
+                btn_get_started: "Get Started Now",
+                btn_view_plans: "View Pricing Plans",
+                stat_servers: "Global Servers",
+                stat_countries: "Countries Covered",
+                stat_speed: "Server Port Speeds",
+                stat_uptime: "Uptime Guaranteed",
+                feat_title: "Why Z VPN is the Best Choice",
+                feat_subtitle: "Engineered with modern protocols and cutting-edge security for maximum privacy and performance.",
+                f1_title: "Ultra-Fast Speeds",
+                f1_desc: "Stream 4K videos, play online games, and download large files with zero buffering using 10Gbps servers.",
+                f2_title: "Strict No-Logs Policy",
+                f2_desc: "We respect your privacy. We do not track, collect, or share your browsing history or personal activity.",
+                f3_title: "Next-Gen Protocols",
+                f3_desc: "Powered by VLESS, Hysteria2, WireGuard, TUIC, and OpenVPN for impenetrable encryption and anti-blocking.",
+                f4_title: "5,000+ Global Servers",
+                f4_desc: "Bypass censorship and geo-restrictions with access to servers in over 80 countries worldwide.",
+                f5_title: "Cross-Platform Apps",
+                f5_desc: "Native, easy-to-use apps for Android, Windows, macOS, and Linux with one-tap connection.",
+                f6_title: "Smart Auto-Routing",
+                f6_desc: "Automatic optimal server selection based on latency and load for seamless performance.",
+                price_title: "Competitive Pricing Plans",
+                price_subtitle: "Premium global VPN protection at unmatched competitive rates.",
+                plan_1m_title: "1 Month",
+                plan_12m_title: "1 Year Plan",
+                plan_life_title: "Lifetime Pass",
+                per_month: "/mo",
+                one_time: "one-time",
+                plan_1m_desc: "Standard monthly plan for flexible access.",
+                plan_12m_desc: "Billed $23.88 annually. Most popular choice.",
+                plan_life_desc: "Pay once, enjoy unlimited VPN access forever.",
+                badge_best_value: "Best Value - Save 60%",
+                pf_5000: "5,000+ High Speed Servers",
+                pf_devices: "Connect Unlimited Devices",
+                pf_unlimited: "Unlimited Bandwidth",
+                pf_nologs: "Strict No-Logs Policy",
+                pf_support: "24/7 Support",
+                pf_lifetime: "Lifetime Updates Included",
+                btn_choose_plan: "Choose Plan",
+                btn_get_yearly: "Get 1 Year Plan",
+                cta_title: "Download Z VPN for Any Device",
+                cta_desc: "Protect your digital privacy across phone, tablet, and computer with a single click.",
+                btn_download_android: "🤖 Android (APK)",
+                btn_download_windows: "💻 Windows / Desktop",
+                terms_title: "Terms of Service & Privacy Policy",
+                privacy_h1: "1. Strict No-Logs Privacy Policy",
+                privacy_p1: "Z VPN is built with privacy at its core. We maintain a strict zero-logs policy. We do not monitor, record, log, or store any browsing data, IP addresses, DNS queries, or bandwidth history. Your online activity belongs solely to you.",
+                privacy_h2: "2. Data Encryption and Security",
+                privacy_p2: "All connection traffic passing through Z VPN servers is encrypted using modern, authenticated cryptographic ciphers (including AES-256-GCM and ChaCha20-Poly1305) to ensure complete confidentiality against unauthorized interception.",
+                privacy_h3: "3. Acceptable Use Terms",
+                privacy_p3: "Users agree to use Z VPN in compliance with applicable laws. Illegal activities, cyberattacks, unsolicited spamming, or abuse of server resources are strictly prohibited.",
+                privacy_h4: "4. Subscriptions & Guarantees",
+                privacy_p4: "Subscriptions grant access to 5,000+ global servers. We offer a 30-day money-back guarantee if you are not completely satisfied with our service quality.",
+                footer_brand_desc: "Empowering internet users worldwide with top-tier security, 5,000+ ultra-fast servers, and complete digital privacy.",
+                footer_col_product: "Product",
+                footer_col_legal: "Legal & Terms",
+                footer_col_languages: "Languages",
+                link_privacy: "Privacy Policy",
+                link_terms: "Terms of Service"
+            },
+            ar: {
+                nav_features: "المميزات",
+                nav_servers: "السيرفرات",
+                nav_pricing: "الأسعار",
+                nav_terms: "الشروط والخصوصية",
+                nav_download: "تحميل التطبيق",
+                hero_badge: "خدمة الـ VPN الأسرع والأفضل عالمياً ⚡",
+                hero_title: "أكثر من 5,000 سيرفر VPN عالمي بأسعار منافسة جداً",
+                hero_desc: "استمتع بحرية كاملة على الإنترنت، وبث فائق السرعة، مع سياسة صارمة لمنع تسجيل البيانات وتشفير من الجيل الجديد لجميع أجهزتك.",
+                btn_get_started: "ابدأ الآن",
+                btn_view_plans: "عرض خطط الأسعار",
+                stat_servers: "سيرفر عالمي",
+                stat_countries: "دولة حول العالم",
+                stat_speed: "سرعة المنافذ 10Gbps",
+                stat_uptime: "ضمان الاستقرار 99.99%",
+                feat_title: "لماذا تطبيق Z VPN هو الخيار الأفضل؟",
+                feat_subtitle: "مصمم بأحدث البروتوكولات الأمنية لحماية خصوصيتك وتحقيق أعلى أداء ممكن.",
+                f1_title: "سرعة فائقة للغاية",
+                f1_desc: "شاهد الفيديوهات بدقة 4K والعب عبر الإنترنت ونزل الملفات الكبيرة بدون أي تقطيع عبر سيرفرات 10Gbps.",
+                f2_title: "سياسة عدم حفظ البيانات (No-Logs)",
+                f2_desc: "نحن نحترم خصوصيتك بالكامل. لا نقوم بتتبع أو تسجيل أو مشاركة سجل تصفحك أو نشاطك الشخصي نهائياً.",
+                f3_title: "بروتوكولات الجيل الجديد",
+                f3_desc: "مدعوم ببروتوكولات VLESS و Hysteria2 و WireGuard و TUIC و OpenVPN لتشفير حصين وتخطي الحجب.",
+                f4_title: "أكثر من 5,000 سيرفر عالمي",
+                f4_desc: "تخطى الحظر والقيود الجغرافية مع الوصول لسيرفرات ممتدة في أكثر من 80 دولة حول العالم.",
+                f5_title: "تطبيقات لكافة المنصات",
+                f5_desc: "تطبيقات سهلة الاستخدام وبضغطة زر واحدة لأنظمة أندرويد و ويندوز وماك ولينكس.",
+                f6_title: "توجيه ذكي وتلقائي",
+                f6_desc: "اختيار تلقائي لأسرع سيرفر بناءً على سرعة الاستجابة والضغط لتحقيق أفضل تجربة.",
+                price_title: "خطط أسعار منافسة جداً",
+                price_subtitle: "حماية VPN عالمية فائقة بأفضل الأسعار التنافسية في السوق.",
+                plan_1m_title: "شهر واحد",
+                plan_12m_title: "خطة السنة الكاملة",
+                plan_life_title: "اشتراك مدى الحياة",
+                per_month: "/شهرياً",
+                one_time: "دفعة واحدة",
+                plan_1m_desc: "خطة شهرية مرنة تجدد حسب رغبتك.",
+                plan_12m_desc: "فاتورة سنوية بقيمة $23.88 فقط. الخيار الأكثر شعبية.",
+                plan_life_desc: "ادفع مرة واحدة واستمتع بـ VPN غير محدود مدى الحياة.",
+                badge_best_value: "الأفضل توفيراً - توفير 60%",
+                pf_5000: "أكثر من 5,000 سيرفر سريع",
+                pf_devices: "الاتصال بأجهزة غير محدودة",
+                pf_unlimited: "باندويث وسرعة غير محدودة",
+                pf_nologs: "سياسة عدم حفظ البيانات نهائياً",
+                pf_support: "دعم فني VIP على مدار 24/7",
+                pf_lifetime: "تحديثات مجانية مدى الحياة",
+                btn_choose_plan: "اختر الخطة",
+                btn_get_yearly: "احصل على خطة السنة",
+                cta_title: "حمل تطبيق Z VPN لكافة أجهزتك",
+                cta_desc: "احمِ خصوصيتك الرقمية على هاتفك وجهازك الكمبيوتر بضغطة زر واحدة.",
+                btn_download_android: "🤖 أندرويد (APK)",
+                btn_download_windows: "💻 ويندوز / كمبيوتر",
+                terms_title: "شروط الخدمة وسياسة الخصوصية",
+                privacy_h1: "1. سياسة الخصوصية وعدم حفظ السجلات",
+                privacy_p1: "تم بناء Z VPN مع وضع الخصوصية في المقدمة. نحن نطبق سياسة صارمة بعدم حفظ أي سجلات (Zero-Logs). لا نقوم بمراقبة أو تسجيل أو تخزين أي بيانات تصفح، أو عناوين IP، أو استعلامات DNS. نشاطك الرقمي ملك لك وحدك.",
+                privacy_h2: "2. تشفير البيانات والأمان",
+                privacy_p2: "جميع البيانات المارة عبر سيرفرات Z VPN مشفرة بأحدث شفرات التشفير المعتمدة عالمياً (بما في ذلك AES-256-GCM و ChaCha20-Poly1305) لضمان السرية التامة ومنع التجسس.",
+                privacy_h3: "3. شروط الاستخدام المقبول",
+                privacy_p3: "يتعهد المستخدمون باستخدام الخدمة وفقاً للقوانين المتبعة. يُمنع منعاً باتاً استخدام الخدمة في الأنشطة الهجومية أو الهجمات السيبرانية أو السبام.",
+                privacy_h4: "4. الاشتراكات والضمان",
+                privacy_p4: "تمنحك الاشتراكات إمكانية الوصول إلى أكثر من 5,000 سيرفر عالمي. نقدم ضمان استعادة الأموال لمدة 30 يوماً إذا لم تكن راضياً عن الخدمة.",
+                footer_brand_desc: "نمنح المستخدمين حول العالم حماية فائقة، وسيرفرات تتجاوز 5,000 سيرفر، وخصوصية رقمية مطلقة.",
+                footer_col_product: "المنتج",
+                footer_col_legal: "الشروط والخصوصية",
+                footer_col_languages: "اللغات",
+                link_privacy: "سياسة الخصوصية",
+                link_terms: "شروط الخدمة"
+            },
+            es: {
+                nav_features: "Características",
+                nav_servers: "Servidores",
+                nav_pricing: "Precios",
+                nav_terms: "Términos y Privacidad",
+                nav_download: "Descargar App",
+                hero_badge: "El servicio VPN ultra rápido #1 del mundo",
+                hero_title: "Más de 5,000 Servidores VPN a Precios Competitivos",
+                hero_desc: "Experimente libertad en internet, transmisión ultra rápida, cero registros y cifrado de última generación.",
+                btn_get_started: "Comenzar Ahora",
+                btn_view_plans: "Ver Planes de Precios",
+                stat_servers: "Servidores Globales",
+                stat_countries: "Países Cubiertos",
+                stat_speed: "Velocidad de Puerto 10Gbps",
+                stat_uptime: "Garantía de Disponibilidad",
+                feat_title: "¿Por qué Z VPN es la Mejor Opción?",
+                feat_subtitle: "Diseñado con protocolos modernos y seguridad de vanguardia para máxima privacidad.",
+                f1_title: "Velocidades Ultra Rápidas",
+                f1_desc: "Transmita en 4K y juegue en línea sin interrupciones con servidores de 10Gbps.",
+                f2_title: "Política Estricta Sin Registros",
+                f2_desc: "Respetamos su privacidad. No rastreamos ni compartimos su historial de navegación.",
+                f3_title: "Protocolos de Nueva Generación",
+                f3_desc: "Impulsado por VLESS, Hysteria2, WireGuard, TUIC y OpenVPN para cifrado impenetrable.",
+                f4_title: "Más de 5,000 Servidores",
+                f4_desc: "Evite la censura y restricciones geográficas con acceso en más de 80 países.",
+                f5_title: "Aplicaciones Multiplataforma",
+                f5_desc: "Aplicaciones nativas para Android, Windows, macOS y Linux con conexión de un solo toque.",
+                f6_title: "Enrutamiento Inteligente",
+                f6_desc: "Selección automática del servidor óptimo según latencia y carga.",
+                price_title: "Planes de Precios Competitivos",
+                price_subtitle: "Protección VPN global premium a tarifas competitivas imbatibles.",
+                plan_1m_title: "1 Mes",
+                plan_12m_title: "Plan de 1 Año",
+                plan_life_title: "Pase de Por Vida",
+                per_month: "/mes",
+                one_time: "pago único",
+                plan_1m_desc: "Plan mensual estándar para acceso flexible.",
+                plan_12m_desc: "Facturado $23.88 anualmente. La opción más popular.",
+                plan_life_desc: "Pague una vez y disfrute de VPN ilimitado para siempre.",
+                badge_best_value: "Mejor Valor - Ahorre 60%",
+                pf_5000: "Más de 5,000 Servidores Rápidos",
+                pf_devices: "Conecte Dispositivos Ilimitados",
+                pf_unlimited: "Ancho de Banda Ilimitado",
+                pf_nologs: "Política Estricta Sin Registros",
+                pf_support: "Soporte VIP 24/7",
+                pf_lifetime: "Actualizaciones de por Vida Incluidas",
+                btn_choose_plan: "Elegir Plan",
+                btn_get_yearly: "Obtener Plan de 1 Año",
+                cta_title: "Descargue Z VPN para Cualquier Dispositivo",
+                cta_desc: "Proteja su privacidad digital en teléfono, tableta y computadora con un solo clic.",
+                btn_download_android: "🤖 Android (APK)",
+                btn_download_windows: "💻 Windows / Escritorio",
+                terms_title: "Términos de Servicio y Política de Privacidad",
+                privacy_h1: "1. Política Estricta Sin Registros",
+                privacy_p1: "Z VPN está construido con la privacidad en su núcleo. Mantenemos una estricta política de cero registros. No rastreamos ni almacenamos datos de navegación o IP.",
+                privacy_h2: "2. Cifrado de Datos y Seguridad",
+                privacy_p2: "Todo el tráfico a través de los servidores de Z VPN está cifrado utilizando cifrados criptográficos modernos (AES-256-GCM y ChaCha20-Poly1305).",
+                privacy_h3: "3. Términos de Uso Aceptable",
+                privacy_p3: "Los usuarios aceptan utilizar Z VPN de conformidad con las leyes aplicables.",
+                privacy_h4: "4. Suscripciones y Garantías",
+                privacy_p4: "Las suscripciones otorgan acceso a más de 5,000 servidores globales. Ofrecemos garantía de devolución de dinero de 30 días.",
+                footer_brand_desc: "Empoderando a usuarios en todo el mundo con seguridad de primer nivel y privacidad digital completa.",
+                footer_col_product: "Producto",
+                footer_col_legal: "Legal y Términos",
+                footer_col_languages: "Idiomas",
+                link_privacy: "Política de Privacidad",
+                link_terms: "Términos de Servicio"
+            },
+            zh: {
+                nav_features: "功能特点",
+                nav_servers: "服务器",
+                nav_pricing: "价格方案",
+                nav_terms: "条款与隐私",
+                nav_download: "下载应用",
+                hero_badge: "全球 #1 超高速 VPN 服务 ⚡",
+                hero_title: "拥有 5,000+ 高速 VPN 服务器，超具竞争力的价格",
+                hero_desc: "在您的所有设备上体验无与伦比的网络自由、极速串流、无日志记录和次世代加密。",
+                btn_get_started: "立即开始",
+                btn_view_plans: "查看价格套餐",
+                stat_servers: "全球服务器",
+                stat_countries: "覆盖国家",
+                stat_speed: "10Gbps 端口速度",
+                stat_uptime: "99.99% 在线保证",
+                feat_title: "为什么 Z VPN 是最佳选择",
+                feat_subtitle: "采用现代协议和前沿安全技术，专为极致隐私和性能而设计。",
+                f1_title: "极致极速",
+                f1_desc: "使用 10Gbps 服务器，无缓冲流畅播放 4K 视频、畅玩在线游戏和下载大文件。",
+                f2_title: "严格无日志政策",
+                f2_desc: "我们尊重您的隐私。我们从不跟踪、收集或共享您的浏览历史或个人活动。",
+                f3_title: "次世代协议",
+                f3_desc: "由 VLESS, Hysteria2, WireGuard, TUIC 和 OpenVPN 提供强力支持，实现坚不可摧的加密。",
+                f4_title: "5,000+ 全球服务器",
+                f4_desc: "突破网络封锁和地理限制，轻松连接全球 80 多个国家的服务器。",
+                f5_title: "跨平台支持",
+                f5_desc: "为 Android、Windows、macOS 和 Linux 提供原生且易于使用的单键连接应用。",
+                f6_title: "智能自动路由",
+                f6_desc: "根据延迟和负载自动选择最佳服务器，确保顺畅的使用体验。",
+                price_title: "最具竞争力的价格方案",
+                price_subtitle: "以无可比拟的超低价格享受顶级的全球 VPN 保护。",
+                plan_1m_title: "1 个月套餐",
+                plan_12m_title: "1 年套餐",
+                plan_life_title: "终身套餐",
+                per_month: "/月",
+                one_time: "一次性付款",
+                plan_1m_desc: "标准月度方案，灵活无拘束。",
+                plan_12m_desc: "每年仅需 $23.88。最受欢迎的选择。",
+                plan_life_desc: "一次购买，终身无限享用 VPN。",
+                badge_best_value: "超值首选 - 立省 60%",
+                pf_5000: "5,000+ 高速服务器",
+                pf_devices: "连接无限台设备",
+                pf_unlimited: "无限流量与带宽",
+                pf_nologs: "严格无日志政策",
+                pf_support: "24/7 VIP 客户支持",
+                pf_lifetime: "包含终身免费更新",
+                btn_choose_plan: "选择方案",
+                btn_get_yearly: "获取 1 年方案",
+                cta_title: "为您的所有设备下载 Z VPN",
+                cta_desc: "只需轻轻一按，即可在手机、平板和电脑上保护您的数字隐私。",
+                btn_download_android: "🤖 Android (APK)",
+                btn_download_windows: "💻 Windows / 桌面端",
+                terms_title: "服务条款与隐私政策",
+                privacy_h1: "1. 严格无日志隐私政策",
+                privacy_p1: "Z VPN 核心构建于隐私保护之上。我们坚持严格的零日志政策，绝不记录或存储您的任何浏览数据或 IP 地址。",
+                privacy_h2: "2. 数据加密与安全",
+                privacy_p2: "通过 Z VPN 服务器的所有连接流量均经过高级加密（包括 AES-256-GCM 和 ChaCha20-Poly1305）。",
+                privacy_h3: "3. 合理使用条款",
+                privacy_p3: "用户同意在遵守适用法律的前提下使用 Z VPN，严禁用于任何非法活动或网络攻击。",
+                privacy_h4: "4. 订阅与退款保证",
+                privacy_p4: "订阅即可解锁 5,000+ 全球服务器。我们提供 30 天无理由退款保证。",
+                footer_brand_desc: "为全球用户提供顶级安全保障、5,000+ 极速服务器以及完整的数字隐私。",
+                footer_col_product: "产品",
+                footer_col_legal: "法律与条款",
+                footer_col_languages: "语言",
+                link_privacy: "隐私政策",
+                link_terms: "服务条款"
+            },
+            fr: {
+                nav_features: "Fonctionnalités",
+                nav_servers: "Serveurs",
+                nav_pricing: "Tarifs",
+                nav_terms: "Conditions & Confidentialité",
+                nav_download: "Télécharger",
+                hero_badge: "Le service VPN Ultra-Rapide N°1 au monde ⚡",
+                hero_title: "Plus de 5 000 Serveurs VPN à des Prix Compétitifs",
+                hero_desc: "Profitez d'une liberté sur Internet, d'un streaming ultra-rapide, d'un zéro journal et d'un chiffrement de nouvelle génération.",
+                btn_get_started: "Commencer Maintenant",
+                btn_view_plans: "Voir les Tarifs",
+                stat_servers: "Serveurs Mondiaux",
+                stat_countries: "Pays Couverts",
+                stat_speed: "Vitesse de Port 10Gbps",
+                stat_uptime: "Garantie de Disponibilité",
+                feat_title: "Pourquoi Z VPN est le Meilleur Choix",
+                feat_subtitle: "Conçu avec des protocoles modernes et une sécurité de pointe pour une confidentialité maximale.",
+                f1_title: "Vitesses Ultra-Rapides",
+                f1_desc: "Regardez des vidéos en 4K, jouez en ligne et téléchargez sans aucun ralentissement grâce aux serveurs 10Gbps.",
+                f2_title: "Politique Stricte Sans Journal (No-Logs)",
+                f2_desc: "Nous respectons votre vie privée. Nous ne suivons ni ne partageons votre historique de navigation.",
+                f3_title: "Protocoles Nouvelle Génération",
+                f3_desc: "Propulsé par VLESS, Hysteria2, WireGuard, TUIC et OpenVPN pour un chiffrement inviolable.",
+                f4_title: "5 000+ Serveurs Mondiaux",
+                f4_desc: "Contournez la censure et les géoblocages avec un accès dans plus de 80 pays.",
+                f5_title: "Applications Multiplateformes",
+                f5_desc: "Applications simples pour Android, Windows, macOS et Linux avec connexion en un clic.",
+                f6_title: "Routage Intelligent",
+                f6_desc: "Sélection automatique du meilleur serveur en fonction de la latence et de la charge.",
+                price_title: "Plans Tarifaires Compétitifs",
+                price_subtitle: "Protection VPN mondiale premium à des tarifs ultra compétitifs.",
+                plan_1m_title: "1 Mois",
+                plan_12m_title: "Plan 1 An",
+                plan_life_title: "Pass À Vie",
+                per_month: "/mois",
+                one_time: "paiement unique",
+                plan_1m_desc: "Plan mensuel standard pour un accès flexible.",
+                plan_12m_desc: "Facturé 23,88 $ par an. Le choix le plus populaire.",
+                plan_life_desc: "Payez une fois, profitez d'un VPN illimité pour toujours.",
+                badge_best_value: "Meilleure Offre - Économisez 60%",
+                pf_5000: "5 000+ Serveurs Ultra-Rapides",
+                pf_devices: "Connectez des Appareils Illimités",
+                pf_unlimited: "Bande Passante Illimitée",
+                pf_nologs: "Politique Stricte Sans Journal",
+                pf_support: "Support VIP 24/7",
+                pf_lifetime: "Mises à jour à vie incluses",
+                btn_choose_plan: "Choisir ce Plan",
+                btn_get_yearly: "Obtenir le Plan 1 An",
+                cta_title: "Téléchargez Z VPN pour Tous Vos Appareils",
+                cta_desc: "Protégez votre confidentialité numérique sur téléphone, tablette et ordinateur en un clic.",
+                btn_download_android: "🤖 Android (APK)",
+                btn_download_windows: "💻 Windows / PC",
+                terms_title: "Conditions d'Utilisation & Confidentialité",
+                privacy_h1: "1. Politique Stricte Sans Journal",
+                privacy_p1: "Z VPN garantit une confidentialité absolue grâce à une politique stricte de zéro journalisation.",
+                privacy_h2: "2. Chiffrement des Données",
+                privacy_p2: "Tout le trafic passant par Z VPN est chiffré via des algorithmes modernes (AES-256-GCM et ChaCha20-Poly1305).",
+                privacy_h3: "3. Conditions d'Utilisation",
+                privacy_p3: "Les utilisateurs s'engagent à utiliser Z VPN conformément aux lois en vigueur.",
+                privacy_h4: "4. Abonnements & Garanties",
+                privacy_p4: "Accès à plus de 5 000 serveurs. Garantie satisfait ou remboursé de 30 jours.",
+                footer_brand_desc: "Offrir aux utilisateurs du monde entier une sécurité de premier ordre et 5 000+ serveurs rapides.",
+                footer_col_product: "Produit",
+                footer_col_legal: "Légal & Conditions",
+                footer_col_languages: "Langues",
+                link_privacy: "Politique de Confidentialité",
+                link_terms: "Conditions d'Utilisation"
+            },
+            ru: {
+                nav_features: "Возможности",
+                nav_servers: "Серверы",
+                nav_pricing: "Тарифы",
+                nav_terms: "Условия и Конфиденциальность",
+                nav_download: "Скачать",
+                hero_badge: "Самый быстрый VPN-сервис в мире ⚡",
+                hero_title: "Более 5,000 высокоскоростных VPN-серверов по выгодным ценам",
+                hero_desc: "Испытайте полную свободу в Интернете, ультрабыстрый стриминг, отсутствие логов и шифрование нового поколения.",
+                btn_get_started: "Начать прямо сейчас",
+                btn_view_plans: "Посмотреть тарифы",
+                stat_servers: "Серверов по всему миру",
+                stat_countries: "Стран покрытия",
+                stat_speed: "Скорость портов 10 Гбит/с",
+                stat_uptime: "Гарантия аптайма 99.99%",
+                feat_title: "Почему Z VPN — лучший выбор?",
+                feat_subtitle: "Создан на основе современных протоколов и передовых технологий безопасности.",
+                f1_title: "Ультравысокая скорость",
+                f1_desc: "Смотрите видео в 4K, играйте в онлайн-игры и скачивайте файлы без задержек благодаря серверам 10 Гбит/с.",
+                f2_title: "Строгая политика без логов",
+                f2_desc: "Мы уважаем вашу приватность. Мы не отслеживаем и не сохраняем историю вашего посещения.",
+                f3_title: "Протоколы нового поколения",
+                f3_desc: "Работает на базе VLESS, Hysteria2, WireGuard, TUIC и OpenVPN для защиты от блокировок.",
+                f4_title: "5,000+ серверов по всему миру",
+                f4_desc: "Обходите цензуру и гео-ограничения с доступом к серверам в более чем 80 странах.",
+                f5_title: "Приложения для всех платформ",
+                f5_desc: "Удобные приложения для Android, Windows, macOS и Linux с подключением в один клик.",
+                f6_title: "Умный авто-маршрут",
+                f6_desc: "Автоматический выбор оптимального сервера на основе пинга и нагрузки.",
+                price_title: "Выгодные тарифные планы",
+                price_subtitle: "Премиальная защита VPN по самым конкурентным ценам на рынке.",
+                plan_1m_title: "1 Месяц",
+                plan_12m_title: "Тариф на 1 Год",
+                plan_life_title: "Пожизненный доступ",
+                per_month: "/мес",
+                one_time: "разовая оплата",
+                plan_1m_desc: "Стандартный месячный план для гибкого доступа.",
+                plan_12m_desc: "Списание $23.88 в год. Самый популярный выбор.",
+                plan_life_desc: "Оплатите один раз и пользуйтесь безлимитным VPN навсегда.",
+                badge_best_value: "Самый выгодно - Скидка 60%",
+                pf_5000: "5,000+ Скоростных серверов",
+                pf_devices: "Неограниченное число устройств",
+                pf_unlimited: "Безлимитный трафик",
+                pf_nologs: "Полное отсутствие логов",
+                pf_support: "Круглосуточная поддержка VIP 24/7",
+                pf_lifetime: "Пожизненные обновления включены",
+                btn_choose_plan: "Выбрать тариф",
+                btn_get_yearly: "Получить тариф на 1 Год",
+                cta_title: "Скачайте Z VPN для любого устройства",
+                cta_desc: "Защитите свою цифровую приватность на телефоне, планшете и компьютере в один клик.",
+                btn_download_android: "🤖 Android (APK)",
+                btn_download_windows: "💻 Windows / ПК",
+                terms_title: "Условия использования и Конфиденциальность",
+                privacy_h1: "1. Строгая политика без сохранения логов",
+                privacy_p1: "Z VPN создан с приоритетом на приватность. Мы соблюдаем строгую политику нулевых логов.",
+                privacy_h2: "2. Шифрование данных и безопасность",
+                privacy_p2: "Весь трафик шифруется с использованием современных алгоритмов (AES-256-GCM и ChaCha20-Poly1305).",
+                privacy_h3: "3. Условия использования",
+                privacy_p3: "Пользователи обязуются использовать Z VPN в соответствии с действующим законодательством.",
+                privacy_h4: "4. Подписки и гарантии",
+                privacy_p4: "Подписка дает доступ к 5,000+ серверам. Гарантия возврата средств в течение 30 дней.",
+                footer_brand_desc: "Обеспечиваем пользователей по всему миру безопасностью премиум-класса и 5,000+ серверами.",
+                footer_col_product: "Продукт",
+                footer_col_legal: "Правовая информация",
+                footer_col_languages: "Языки",
+                link_privacy: "Политика конфиденциальности",
+                link_terms: "Условия использования"
+            },
+            de: {
+                nav_features: "Funktionen",
+                nav_servers: "Server",
+                nav_pricing: "Preise",
+                nav_terms: "AGB & Datenschutz",
+                nav_download: "App Herunterladen",
+                hero_badge: "Deutschlands & Weltweit #1 Ultra-Schneller VPN ⚡",
+                hero_title: "Über 5.000 Highspeed-VPN-Server zu unschlagbaren Preisen",
+                hero_desc: "Erleben Sie unbegrenzte Internetfreiheit, ultra-schnelles Streaming, keine Protokollierung und Verschlüsselung der nächsten Generation.",
+                btn_get_started: "Jetzt Starten",
+                btn_view_plans: "Preise Ansehen",
+                stat_servers: "Globale Server",
+                stat_countries: "Länder Abgedeckt",
+                stat_speed: "10Gbps Port-Geschwindigkeit",
+                stat_uptime: "99.99% Betriebszeit",
+                feat_title: "Warum Z VPN die beste Wahl ist",
+                feat_subtitle: "Entwickelt mit modernen Protokollen und erstklassiger Sicherheit für maximale Privatsphäre.",
+                f1_title: "Ultra-Schnelle Geschwindigkeit",
+                f1_desc: "Streamen Sie 4K-Videos, spielen Sie Online-Spiele und laden Sie Dateien mit 10Gbps-Servern ohne Pufferung herunter.",
+                f2_title: "Strikte No-Logs-Richtlinie",
+                f2_desc: "Wir respektieren Ihre Privatsphäre. Wir speichern oder teilen niemals Ihren Browserverlauf.",
+                f3_title: "Protokolle der nächsten Generation",
+                f3_desc: "Unterstützt von VLESS, Hysteria2, WireGuard, TUIC und OpenVPN für unknackbare Verschlüsselung.",
+                f4_title: "Über 5.000 Globale Server",
+                f4_desc: "Umgehen Sie Zensur und Geoblockaden mit Zugang zu Servern in über 80 Ländern.",
+                f5_title: "Plattformübergreifende Apps",
+                f5_desc: "Einfache Apps für Android, Windows, macOS und Linux mit Ein-Klick-Verbindung.",
+                f6_title: "Intelligentes Auto-Routing",
+                f6_desc: "Automatische Auswahl des optimalen Servers basierend auf Latenz und Auslastung.",
+                price_title: "Wettbewerbsfähige Preise",
+                price_subtitle: "Erstklassiger globaler VPN-Schutz zu unschlagbar günstigen Preisen.",
+                plan_1m_title: "1 Monat",
+                plan_12m_title: "1-Jahres-Plan",
+                plan_life_title: "Lebenslanger Pass",
+                per_month: "/Monat",
+                one_time: "Einmalzahlung",
+                plan_1m_desc: "Standard-Monatsplan für flexible Nutzung.",
+                plan_12m_desc: "Jährlich $23.88. Die beliebteste Wahl.",
+                plan_life_desc: "Einmal zahlen, für immer unbegrenzten VPN genießen.",
+                badge_best_value: "Bester Wert - 60% Sparen",
+                pf_5000: "Über 5.000 Highspeed-Server",
+                pf_devices: "Unbegrenzte Geräte Verbinden",
+                pf_unlimited: "Unbegrenzte Bandbreite",
+                pf_nologs: "Strikte No-Logs-Richtlinie",
+                pf_support: "24/7 VIP-Kundenservice",
+                pf_lifetime: "Lebenslange Updates Inklusive",
+                btn_choose_plan: "Plan Wählen",
+                btn_get_yearly: "1-Jahres-Plan Holen",
+                cta_title: "Laden Sie Z VPN für jedes Gerät herunter",
+                cta_desc: "Schützen Sie Ihre digitale Privatsphäre auf Smartphone, Tablet und Computer mit einem Klick.",
+                btn_download_android: "🤖 Android (APK)",
+                btn_download_windows: "💻 Windows / Desktop",
+                terms_title: "Nutzungsbedingungen & Datenschutz",
+                privacy_h1: "1. Strikte No-Logs-Datenschutzrichtlinie",
+                privacy_p1: "Z VPN schützt Ihre Privatsphäre. Wir führen keine Protokolle über Ihre Online-Aktivitäten.",
+                privacy_h2: "2. Datenverschlüsselung",
+                privacy_p2: "Gesamter Datenverkehr wird mit modernen Verschlüsselungsstandards (AES-256-GCM, ChaCha20) geschützt.",
+                privacy_h3: "3. Nutzungsbedingungen",
+                privacy_p3: "Nutzer erklären sich bereit, Z VPN in Übereinstimmung mit den geltenden Gesetzen zu nutzen.",
+                privacy_h4: "4. Abonnements & Garantie",
+                privacy_p4: "Zugang zu über 5.000 Servern. 30 Tage Geld-zurück-Garantie.",
+                footer_brand_desc: "Höchste Sicherheit, über 5.000 schnelle Server und absolute digitale Privatsphäre für Nutzer weltweit.",
+                footer_col_product: "Produkt",
+                footer_col_legal: "Rechtliches & AGB",
+                footer_col_languages: "Sprachen",
+                link_privacy: "Datenschutzrichtlinie",
+                link_terms: "Nutzungsbedingungen"
+            }
+        };
+
+        function changeLanguage(lang) {
+            if (!i18n[lang]) lang = 'en';
+
+            // Set text direction (RTL for Arabic, LTR for others)
+            const html = document.documentElement;
+            if (lang === 'ar') {
+                html.setAttribute('dir', 'rtl');
+            } else {
+                html.setAttribute('dir', 'ltr');
+            }
+            html.setAttribute('lang', lang);
+
+            // Update dropdown
+            document.getElementById('langSelect').value = lang;
+
+            // Translate elements
+            const elements = document.querySelectorAll('[data-i18n]');
+            elements.forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[lang] && i18n[lang][key]) {
+                    el.textContent = i18n[lang][key];
+                }
+            });
+
+            // Save preference to localStorage
+            localStorage.setItem('zvpn_lang', lang);
+        }
+
+        function openModal(type) {
+            const overlay = document.getElementById('modalOverlay');
+            overlay.classList.add('active');
+        }
+
+        function closeModal() {
+            const overlay = document.getElementById('modalOverlay');
+            overlay.classList.remove('active');
+        }
+
+        // Close modal on outside click
+        window.onclick = function(event) {
+            const overlay = document.getElementById('modalOverlay');
+            if (event.target === overlay) {
+                closeModal();
+            }
+        };
+
+        // Initialize language from saved setting or browser language
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedLang = localStorage.getItem('zvpn_lang');
+            const browserLang = navigator.language.slice(0, 2);
+            const defaultLang = savedLang || (i18n[browserLang] ? browserLang : 'en');
+            changeLanguage(defaultLang);
+        });
+    </script>
+</body>
+</html>

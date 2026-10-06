@@ -1,9 +1,10 @@
-<resources>
+﻿<resources>
     <string name="app_name">Z VPN</string>
-    <string name="brand_tagline">PRIVATE. FAST. CONNECTED.</string>
+    <string name="brand_tagline">Private. Fast. Yours.</string>
 
     <string name="nav_home">Home</string>
     <string name="nav_servers">Servers</string>
+    <string name="nav_browser">Browser</string>
 
     <string name="servers_count">%1$d servers</string>
     <string name="servers_add">Add server</string>
@@ -64,6 +65,7 @@
     <string name="subs_name">Name</string>
     <string name="subs_url">URL</string>
     <string name="subs_update">Update</string>
+    <string name="subs_reorder">Drag to reorder</string>
     <string name="subs_update_all">Update all</string>
     <string name="subs_updated">Updated: %1$d servers</string>
     <string name="subs_failed">Subscription update failed</string>
@@ -87,7 +89,7 @@
     <string name="vault_name_numbered">Multiple servers are numbered automatically</string>
     <string name="vault_password">Password</string>
     <string name="vault_toggle_password">Show or hide password</string>
-    <string name="nav_browser">Browser</string>
+    <string name="nav_locked">Vault</string>
     <string name="nav_settings">Settings</string>
 
     <string name="state_idle">Not connected</string>
@@ -102,8 +104,8 @@
     <string name="action_cancel">Cancel</string>
     <string name="action_retry">Retry</string>
 
-    <string name="home_no_config_title">No active config</string>
-    <string name="home_no_config_body">Choose a server to connect to Z VPN.</string>
+    <string name="home_no_config_title">No active server</string>
+    <string name="home_no_config_body">Select a server to get started.</string>
     <string name="home_select_config">Select a server</string>
     <string name="home_upload">Upload</string>
     <string name="home_download">Download</string>
@@ -126,7 +128,7 @@
 
     <string name="vault_title">Vault</string>
     <string name="vault_intro_title">Locked configs</string>
-    <string name="vault_intro_body">Share a server as a .zsx file. The app connects without showing the config, but ZedSecure is open source, so this keeps it out of sight rather than secret. A password decides who can import it.</string>
+    <string name="vault_intro_body">Share a server as a .zsx file. The app connects without showing the config, but Z VPN is open source, so this keeps it out of sight rather than secret. A password decides who can import it.</string>
     <string name="vault_create">Create locked config</string>
     <string name="vault_import">Import .zsx file</string>
     <string name="vault_empty_title">Your vault is empty</string>
@@ -261,11 +263,11 @@
     <string name="vault_unlock">Unlock</string>
     <string name="vault_locked_configs">Locked configs</string>
     <string name="locked_badge">Locked</string>
-    <string name="zsx_expired">This locked config has expired</string>
-    <string name="zsx_wrong_password">Incorrect password</string>
-    <string name="zsx_imported">Locked config imported</string>
-    <string name="zsx_invalid">Not a valid .zsx file</string>
-    <string name="zsx_legacy">This locked config was made by an older version of Z VPN. Ask whoever shared it for a new copy.</string>
+    <string name="zvx_expired">This locked config has expired</string>
+    <string name="zvx_wrong_password">Incorrect password</string>
+    <string name="zvx_imported">Locked config imported</string>
+    <string name="zvx_invalid">Not a valid .zsx file</string>
+    <string name="zvx_legacy">This locked config was made by an older version of Z VPN. Ask whoever shared it for a new copy.</string>
 
     <string name="cd_app_logo">Z VPN logo</string>
     <string name="cd_connection_status">Connection status</string>
@@ -301,12 +303,12 @@
     <string name="mode_socks">SOCKS only</string>
     <string name="mode_socks_body">Only opens a local SOCKS and HTTP proxy on 127.0.0.1 and changes nothing else. Point each app at it yourself.</string>
     <string name="mode_tun">TUN (VPN)</string>
-    <string name="mode_tun_body">Sends every app through a virtual network adapter, including apps that ignore the system proxy. Asks for administrator rights. Linux only for now.</string>
+    <string name="mode_tun_body">Sends every app through a virtual network adapter, including apps that ignore the system proxy. Asks for administrator rights each time you connect. Tor and Psiphon keep using the system proxy.</string>
     <string name="group_all">All</string>
     <string name="group_manual">Manual</string>
 
     <string name="about_version">Version %1$s</string>
-    <string name="about_built_on">Built on the Xray core, with Psiphon, Tor, Snowflake, obfs4, Conjure, DNSTT, VayDNS, MasterDNS, AmneziaWG, OpenConnect and IKEv2.</string>
+    <string name="about_built_on">Fast, secure, and private VPN &amp; VPN Client application.</string>
     <string name="about_telegram">Telegram channel</string>
     <string name="about_github">GitHub</string>
     <string name="about_source_title">Open-source core</string>
@@ -346,6 +348,12 @@
     <string name="rule_port">Port</string>
     <string name="rule_network">Network</string>
     <string name="rule_network_any">Any</string>
+    <string name="rule_network_type">Network type</string>
+    <string name="rule_network_type_hint">The rule only applies while the phone is on one of the selected networks. Select none to apply it on every network.</string>
+    <string name="network_type_wifi">Wi-Fi</string>
+    <string name="network_type_cellular">Mobile data</string>
+    <string name="network_type_ethernet">Ethernet</string>
+    <string name="network_type_other">Other</string>
     <string name="rule_protocol">Protocol</string>
     <string name="routing_ruleset_menu">Ruleset options</string>
     <string name="routing_preset_iran">Replace with: Iran whitelist</string>
@@ -535,7 +543,7 @@
     <string name="title_pref_auto_sort_after_test">Sort by result after testing</string>
     <string name="subs_user_agent">User-Agent (optional)</string>
     <string name="vault_no_password_needed">This file has no password. Import it?</string>
-    <string name="zsx_import_action">Import</string>
+    <string name="zvx_import_action">Import</string>
     <string name="vault_selected">%1$s selected</string>
     <string name="servers_delete_confirm_title">Delete this config?</string>
     <string name="servers_delete_confirm_body">“%1$s” will be removed.</string>
@@ -837,12 +845,12 @@
 
     <string name="vault_experimental_badge">Experimental</string>
     <string name="vault_experimental_note">The Vault is still early — the format may change and it will get better over time.</string>
-    <string name="support_title">Support the project</string>
+    <string name="support_title">Our Support</string>
     <string name="support_subtitle">Help fund ongoing development</string>
     <string name="support_intro">Help fund the project's development — you can support via any of these:</string>
     <string name="support_usdt">USDT (TRC20)</string>
-    <string name="support_ton">TON (Gram)</string>
-    <string name="support_tron">TRON (TRX)</string>
+    <string name="support_ton">GRAM (TON)</string>
+    <string name="support_tron">TRON (TRC20)</string>
     <string name="support_usdt_note">Note: the USDT is on the TRON network, so the USDT (TRC20) and TRON addresses are the same wallet — that's intentional.</string>
     <string name="support_copied">Address copied</string>
     <string name="action_copy">Copy</string>
@@ -879,9 +887,9 @@
     <string name="update_checking">Checking…</string>
     <string name="update_up_to_date">You're on the latest version</string>
     <string name="update_check_failed">Couldn't check for updates</string>
-    <string name="rate_title">Rate ZedSecure</string>
+    <string name="rate_title">Rate Z VPN</string>
     <string name="rate_summary">Leave a rating and review on Google Play</string>
-    <string name="rate_prompt_title">Enjoying ZedSecure?</string>
+    <string name="rate_prompt_title">Enjoying Z VPN?</string>
     <string name="rate_prompt_body">A rating on Google Play helps other people find the app. It only takes a moment.</string>
     <string name="rate_action_rate">Rate</string>
     <string name="rate_action_later">Not now</string>
@@ -892,7 +900,7 @@
     <string name="personalize_upload_tile_sub">Colours the rectangle behind them</string>
     <string name="subs_ua_preset">User-Agent</string>
     <string name="subs_ua_v2rayng">v2rayNG (recommended)</string>
-    <string name="subs_ua_zedsecure">Z VPN</string>
+    <string name="subs_ua_zvpn">Z VPN</string>
     <string name="subs_ua_custom">Custom</string>
     <string name="subs_ua_hint">Many providers only send their JSON custom configs to the v2rayNG User-Agent, and send plain links to anything else.</string>
     <string name="subs_edit">Edit subscription</string>
@@ -950,8 +958,8 @@
     <string name="add_group_subscription">Subscription</string>
 
     <string name="battery_opt_title">Battery optimisation</string>
-    <string name="battery_opt_on">Battery optimisation is on for ZedSecure and can drop the tunnel in the background. Tap to open the system list and choose Don’t optimise.</string>
-    <string name="battery_opt_off">ZedSecure is exempt. The tunnel will not be paused to save battery.</string>
+    <string name="battery_opt_on">Battery optimisation is on for Z VPN and can drop the tunnel in the background. Tap to open the system list and choose Don’t optimise.</string>
+    <string name="battery_opt_off">Z VPN is exempt. The tunnel will not be paused to save battery.</string>
     <string name="chain_search">Search servers</string>
     <string name="chain_search_clear">Clear search</string>
     <string name="chain_group_xray">Xray servers</string>
@@ -1021,25 +1029,17 @@
     <string name="map_settings_sub">See where your connection starts and where it exits</string>
 
     <string name="privacy_title">Terms &amp; Privacy Policy</string>
-    <string name="privacy_settings_sub">What stays on your device, and what leaves it</string>
-    <string name="privacy_subtitle">A short, accurate summary — the full document is online</string>
-    <string name="privacy_headline">No account. No backend of ours. No analytics.</string>
-    <string name="privacy_client_title">A client, not a VPN service</string>
-    <string name="privacy_client_body">ZedSecure connects to servers, subscriptions and networks that you add. We operate none of them, and your traffic never reaches us.</string>
-    <string name="privacy_device_title">Stays on your device</string>
-    <string name="privacy_device_body">Configurations, credentials, settings, statistics and logs live in the app's private storage and are removed when you uninstall. Vault configurations are encrypted with AES-256-GCM.</string>
-    <string name="privacy_nocollect_title">Not collected</string>
-    <string name="privacy_nocollect_body">The app contains no analytics, telemetry, crash reporting, advertising or tracking libraries, and there is no account to identify you by.</string>
-    <string name="privacy_third_title">Optional features reach third parties</string>
-    <string name="privacy_third_body">The location lookup, the speed test (Cloudflare), routing-rule downloads (GitHub), the update check (the Play listing) and your chosen DNS or Tor infrastructure each connect out — and each necessarily sees your IP address.</string>
-    <string name="privacy_perm_title">Installed-app list</string>
-    <string name="privacy_perm_body">The per-app proxy reads your installed apps only to show you the list. It is read on the device and never transmitted; only your selection is saved.</string>
-    <string name="privacy_deviceid_title">Device ID</string>
-    <string name="privacy_deviceid_body">The identifier shown in Settings is Android's ANDROID_ID. The app never sends it anywhere — it exists so someone can bind a locked Vault config to your device if you choose to give it to them.</string>
-    <string name="privacy_limits_title">Honest limits</string>
-    <string name="privacy_limits_body">A rooted or compromised device offers no guarantees. Your privacy also depends on the provider you chose, and a VPN changes where your traffic appears from — it does not make you anonymous.</string>
-    <string name="privacy_read_full">Read the full policy</string>
-    <string name="privacy_read_full_sub">Opens in your browser</string>
+    <string name="privacy_settings_sub">Privacy and data security summary</string>
+    <string name="privacy_subtitle">A concise summary of our privacy and security policy</string>
+    <string name="privacy_headline">Fast, secure VPN &amp; Client with Google Sync and Private Browsing.</string>
+    <string name="privacy_client_title">Dedicated Infrastructure &amp; VPN Client</string>
+    <string name="privacy_client_body">Z VPN combines dedicated high-speed server infrastructure with a powerful client that allows adding custom configurations and servers securely.</string>
+    <string name="privacy_device_title">Google Sign-In &amp; Pro Subscription Sync</string>
+    <string name="privacy_device_body">Google Sign-In enables seamless synchronization of your Pro subscription across all your devices without collecting personal activity logs.</string>
+    <string name="privacy_nocollect_title">Built-in Private &amp; Incognito Browser</string>
+    <string name="privacy_nocollect_body">Includes a built-in incognito browser designed for zero-tracking, private browsing with automated DNS protection and circuit isolation.</string>
+    <string name="privacy_limits_title">Strict No-Logs &amp; Data Protection</string>
+    <string name="privacy_limits_body">We strictly do not collect, store, or track your browsing activity, visited websites, or personal traffic data.</string>
     <string name="mtu_optimize">Optimize</string>
     <string name="mtu_optimize_note">Turn the VPN off first and run this on your normal connection, otherwise the probes travel inside the tunnel and measure nothing.</string>
     <string name="mtu_measuring">Measuring…</string>
@@ -1048,6 +1048,10 @@
     <string name="mtu_probed_public">Your server did not answer probes, so %1$s was measured instead. Treat the result as an estimate for a different path.</string>
     <string name="mtu_overhead">Tunnel framing subtracted: %1$s</string>
     <string name="mtu_unconfirmed">The boundary could not be re-tested, so this is approximate. Run it again on a quieter network.</string>
+    <string name="my_ip_title">My IP Info</string>
+    <string name="my_ip_subtitle">Inspect public IP, ISP, location, and network failover APIs</string>
+    <string name="my_ip_copied">IP address copied</string>
+    <string name="my_ip_failover_note">Connected to 4 redundant geo-IP services (ipwho.is, ip.sb, ipapi.co, ipinfo.io) with instant failover and zero downtime.</string>
     <string name="mtu_link_known">Link MTU %1$d</string>
     <string name="mtu_vpn_active">A VPN is active. Disconnect first, then try again.</string>
     <string name="mtu_not_measurable">This network filters ICMP, so the path could not be measured. 1280 is the safe fallback.</string>
@@ -1083,6 +1087,9 @@
     <string name="action_share_qr">Share as QR</string>
     <string name="action_close">Close</string>
     <string name="copied">Copied</string>
+    <string name="home_local_proxy">Proxy · %1$s</string>
+    <string name="mode_local_proxy_title">Local proxy address</string>
+    <string name="mode_local_proxy_body">SOCKS5 and HTTP on %1$s. Tap to copy.</string>
     <string name="qr_too_large">This config is too large for a QR code. Use Share or Copy instead.</string>
     <string name="servers_add_scan_qr">Scan QR code</string>
     <string name="servers_add_scan_image">Scan QR from an image</string>
@@ -1136,7 +1143,10 @@
     <string name="title_pref_lan_port">LAN sharing port</string>
     <string name="title_pref_lan_username">LAN sharing username</string>
     <string name="title_pref_lan_password">LAN sharing password</string>
-    <string name="toast_lan_port_invalid">Use a port from 1024 to 65534 that ZedSecure does not use itself</string>
+    <string name="title_pref_lan_auth">Require a username and password</string>
+    <string name="summary_pref_lan_auth">When this is off, anyone on the same network can use the shared proxy.</string>
+    <string name="lan_share_no_auth">No username or password</string>
+    <string name="toast_lan_port_invalid">Use a port from 1024 to 65534 that Z VPN does not use itself</string>
     <string name="toast_lan_credential_required">LAN sharing needs both a username and a password</string>
     <string name="dns_prevent_fallback_always">Always on. Every resolver a DNS-based tunnel uses is routed into the tunnel, so a query can never fall back to your normal network.</string>
     <string name="settings_sub_interval_hour">Every hour</string>
@@ -1190,7 +1200,7 @@
     <string name="auto_members">Servers</string>
     <string name="auto_history">Recent switches</string>
     <string name="auto_how_title">How Auto works</string>
-    <string name="auto_how_body">The fastest server in the group carries new connections. If it stops answering, the connections that hit it continue on the next server within a second or two, and Auto stays there until a clearly faster server turns up — so your address does not keep changing. Auto uses ZedSecure’s own routing and DNS settings, also for custom configs.</string>
+    <string name="auto_how_body">The fastest server in the group carries new connections. If it stops answering, the connections that hit it continue on the next server within a second or two, and Auto stays there until a clearly faster server turns up — so your address does not keep changing. Auto uses Z VPN’s own routing and DNS settings, also for custom configs.</string>
     <string name="auto_ago_now">just now</string>
     <string name="auto_ago_minutes">%1$s min ago</string>
     <string name="auto_ago_hours">%1$s h ago</string>
@@ -1238,7 +1248,7 @@
     <string name="onb_next">Next</string>
     <string name="onb_back">Back</string>
     <string name="onb_theme_title">Light or dark?</string>
-    <string name="onb_theme_body">Pick how ZedSecure should look. You can change it any time in Settings.</string>
+    <string name="onb_theme_body">Pick how Z VPN should look. You can change it any time in Settings.</string>
     <string name="onb_preset_title">Choose a look</string>
     <string name="onb_preset_body">A ready-made colour set. Every colour stays editable afterwards.</string>
     <string name="onb_preset_stock">Stock</string>
@@ -1372,6 +1382,15 @@
     <string name="admin_password_body">TUN mode needs root to create the tunnel, and no system password prompt (polkit) is available. Enter the password you use with sudo. It goes only to sudo and is not saved.</string>
     <string name="admin_password_label">Password</string>
     <string name="admin_password_wrong">Wrong password. Try again.</string>
-    <string name="title_pref_software_rendering">Software rendering</string>
-    <string name="summary_pref_software_rendering">Draw the window without the graphics card, for when the screen flickers, goes black or the GPU acts up. Applies after a restart. You can also start the app with --software-rendering.</string>
+    <string name="title_pref_rendering">Rendering</string>
+    <string name="rendering_auto">Automatic</string>
+    <string name="rendering_gpu">Graphics card</string>
+    <string name="rendering_software">Software</string>
+    <string name="rendering_sub_auto_gpu">Automatic: the graphics card draws the window on this computer. Changes apply after a restart.</string>
+    <string name="rendering_sub_auto_windows">Automatic: software rendering, because some Windows graphics drivers draw this window without text, with flicker or not at all. Changes apply after a restart.</string>
+    <string name="rendering_sub_auto_nvidia">Automatic: software rendering, because NVIDIA drivers before 555 garble windows drawn by the graphics card under Wayland. Changes apply after a restart.</string>
+    <string name="rendering_sub_manual">Changes apply after a restart. Choose Software if the window flickers, shows static or has no text. You can also start the app with --software-rendering or --gpu-rendering.</string>
+    <string name="update_check_summary_github">Look for a newer version on GitHub</string>
+    <string name="rate_title_github">Z VPN on GitHub</string>
+    <string name="rate_summary_github">Open the project page to star it, report a problem or read the code</string>
 </resources>

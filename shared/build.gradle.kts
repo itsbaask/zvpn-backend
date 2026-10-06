@@ -14,7 +14,7 @@ kotlin {
     }
 
     android {
-        namespace = "dev.cluvex.zedsecure.shared"
+        namespace = "com.zvpn.shared"
         compileSdk = 37
         minSdk = 24
     }
@@ -80,12 +80,12 @@ configurations.configureEach {
 
 compose.resources {
     publicResClass = true
-    packageOfResClass = "dev.cluvex.zedsecure.shared.resources"
+    packageOfResClass = "com.zvpn.shared.resources"
     generateResClass = always
 }
 
 tasks.register<Copy>("copyComposeResForAndroid") {
     dependsOn("prepareComposeResourcesTaskForCommonMain")
     from(layout.buildDirectory.dir("generated/compose/resourceGenerator/preparedResources/commonMain/composeResources"))
-    into(layout.buildDirectory.dir("composeResForAndroid/composeResources/dev.cluvex.zedsecure.shared.resources"))
+    into(layout.buildDirectory.dir("composeResForAndroid/composeResources/com.zvpn.shared.resources"))
 }

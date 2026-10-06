@@ -32,17 +32,17 @@
 -dontwarn org.bouncycastle.**
 -dontwarn javax.naming.**
 
--keepclassmembers class dev.cluvex.zedsecure.** {
+-keepclassmembers class com.zvpn.** {
     *** Companion;
 }
--keep @kotlinx.serialization.Serializable class dev.cluvex.zedsecure.** { *; }
+-keep @kotlinx.serialization.Serializable class com.zvpn.** { *; }
 
 -allowaccessmodification
 
 -keep class ca.psiphon.** { *; }
 -keep class psi.** { *; }
 
--keep class zeddns.** { *; }
+-keep class zvpndns.** { *; }
 
 -keep class libbox.** { *; }
 
@@ -52,8 +52,8 @@
 -dontwarn com.jcraft.jsch.**
 
 -keep class org.infradead.libopenconnect.** { *; }
--keep class dev.cluvex.zedsecure.core.OpenConnectController { *; }
--keep class dev.cluvex.zedsecure.core.OpenConnectController$* { *; }
+-keep class com.zvpn.core.OpenConnectController { *; }
+-keep class com.zvpn.core.OpenConnectController$* { *; }
 
 -dontwarn com.google.zxing.**
 -keep class com.google.zxing.qrcode.** { *; }

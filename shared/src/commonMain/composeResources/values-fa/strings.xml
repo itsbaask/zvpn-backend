@@ -1,8 +1,9 @@
-<resources>
+﻿<resources>
     <string name="brand_tagline">خصوصی. سریع. مالِ خودت.</string>
 
     <string name="nav_home">خانه</string>
     <string name="nav_servers">سرورها</string>
+    <string name="nav_browser">مرورگر</string>
 
     <string name="servers_count">%1$d سرور</string>
     <string name="servers_add">افزودن سرور</string>
@@ -75,6 +76,7 @@
     <string name="subs_name">نام</string>
     <string name="subs_url">نشانی</string>
     <string name="subs_update">به‌روزرسانی</string>
+    <string name="subs_reorder">برای جابه‌جایی بکشید</string>
     <string name="subs_update_all">به‌روزرسانی همه</string>
     <string name="subs_updated">به‌روزرسانی شد: %1$d سرور</string>
     <string name="subs_failed">به‌روزرسانی سابسکریپشن ناموفق بود</string>
@@ -98,7 +100,7 @@
     <string name="vault_name_numbered">اگر چند سرور انتخاب شود، خودکار شماره‌گذاری می‌شود</string>
     <string name="vault_password">رمز</string>
     <string name="vault_toggle_password">نمایش یا پنهان کردن رمز</string>
-    <string name="nav_browser">مرورگر</string>
+    <string name="nav_locked">گاوصندوق</string>
     <string name="nav_settings">تنظیمات</string>
 
     <string name="state_idle">متصل نیستید</string>
@@ -113,8 +115,8 @@
     <string name="action_cancel">لغو</string>
     <string name="action_retry">تلاش دوباره</string>
 
-    <string name="home_no_config_title">کانفیگ فعالی نیست</string>
-    <string name="home_no_config_body">برای شروع یک سرور انتخاب کنید.</string>
+    <string name="home_no_config_title">هیچ سرور فعالی وجود ندارد</string>
+    <string name="home_no_config_body">یک سرور را برای شروع اتصال انتخاب کنید.</string>
     <string name="home_select_config">انتخاب سرور</string>
     <string name="home_upload">آپلود</string>
     <string name="home_download">دانلود</string>
@@ -137,7 +139,7 @@
 
     <string name="vault_title">گاوصندوق</string>
     <string name="vault_intro_title">کانفیگ‌های قفل‌شده</string>
-    <string name="vault_intro_body">یک سرور را به‌صورت فایل ‎.zsx‎ به اشتراک بگذارید. برنامه بدون نشان دادن کانفیگ وصل می‌شود، ولی ZedSecure متن‌باز است، پس این کار کانفیگ را فقط از دید پنهان می‌کند و محرمانه نگه نمی‌دارد. با رمز تعیین می‌کنید چه کسی بتواند آن را وارد کند.</string>
+    <string name="vault_intro_body">یک سرور را به‌صورت فایل ‎.zsx‎ به اشتراک بگذارید. برنامه بدون نشان دادن کانفیگ وصل می‌شود، ولی Z VPN متن‌باز است، پس این کار کانفیگ را فقط از دید پنهان می‌کند و محرمانه نگه نمی‌دارد. با رمز تعیین می‌کنید چه کسی بتواند آن را وارد کند.</string>
     <string name="vault_create">ساخت کانفیگ قفل‌شده</string>
     <string name="vault_import">وارد کردن فایل ‎.zsx‎</string>
     <string name="vault_empty_title">گاوصندوق شما خالی است</string>
@@ -256,11 +258,11 @@
     <string name="vault_unlock">باز کن</string>
     <string name="vault_locked_configs">کانفیگ‌های قفل‌شده</string>
     <string name="locked_badge">قفل‌شده</string>
-    <string name="zsx_expired">این کانفیگ قفل‌شده منقضی شده است</string>
-    <string name="zsx_wrong_password">رمز نادرست است</string>
-    <string name="zsx_imported">کانفیگ قفل‌شده وارد شد</string>
-    <string name="zsx_invalid">فایل ‎.zsx‎ معتبر نیست</string>
-    <string name="zsx_legacy">این کانفیگ قفل‌شده با نسخهٔ قدیمی‌تر ZedSecure ساخته شده است. از فرستنده بخواهید نسخهٔ تازه‌ای بفرستد.</string>
+    <string name="zvx_expired">این کانفیگ قفل‌شده منقضی شده است</string>
+    <string name="zvx_wrong_password">رمز نادرست است</string>
+    <string name="zvx_imported">کانفیگ قفل‌شده وارد شد</string>
+    <string name="zvx_invalid">فایل ‎.zsx‎ معتبر نیست</string>
+    <string name="zvx_legacy">این کانفیگ قفل‌شده با نسخهٔ قدیمی‌تر Z VPN ساخته شده است. از فرستنده بخواهید نسخهٔ تازه‌ای بفرستد.</string>
 
     <string name="cd_app_logo">نشان زدسکیور</string>
     <string name="cd_connection_status">وضعیت اتصال</string>
@@ -270,7 +272,7 @@
     <string name="group_manual">دستی</string>
 
     <string name="about_version">نسخه %1$s</string>
-    <string name="about_built_on">ساخته شده بر پایهٔ هستهٔ Xray، همراه با Psiphon، Tor، Snowflake، obfs4، Conjure، DNSTT، VayDNS، MasterDNS، AmneziaWG، OpenConnect و IKEv2.</string>
+    <string name="about_built_on">برنامه VPN و سرویس‌دهنده کلاینت سریع و امن برای حفاظت از حریم خصوصی و رمزنگاری پیشرفته.</string>
     <string name="about_telegram">کانال تلگرام</string>
     <string name="about_github">گیت‌هاب</string>
     <string name="about_source_title">هستهٔ اوپن‌سورس</string>
@@ -310,6 +312,12 @@
     <string name="rule_port">پورت</string>
     <string name="rule_network">شبکه</string>
     <string name="rule_network_any">هر کدام</string>
+    <string name="rule_network_type">نوع شبکه</string>
+    <string name="rule_network_type_hint">این قانون فقط وقتی اعمال می‌شود که گوشی به یکی از شبکه‌های انتخاب‌شده وصل است. اگر هیچ‌کدام را انتخاب نکنید، روی همهٔ شبکه‌ها اعمال می‌شود.</string>
+    <string name="network_type_wifi">وای‌فای</string>
+    <string name="network_type_cellular">دادهٔ همراه</string>
+    <string name="network_type_ethernet">اترنت</string>
+    <string name="network_type_other">سایر</string>
     <string name="rule_protocol">پروتکل</string>
     <string name="routing_ruleset_menu">گزینه‌های مجموعه قوانین</string>
     <string name="routing_preset_iran">جایگزینی با: لیست سفید ایران</string>
@@ -406,7 +414,7 @@
     <string name="mode_socks">فقط SOCKS</string>
     <string name="mode_socks_body">فقط یک پروکسی SOCKS و HTTP محلی روی 127.0.0.1 باز می‌کند و چیز دیگری را تغییر نمی‌دهد. هر برنامه را خودتان روی آن تنظیم کنید.</string>
     <string name="mode_tun">TUN (VPN)</string>
-    <string name="mode_tun_body">همهٔ برنامه‌ها را از یک کارت شبکهٔ مجازی عبور می‌دهد، حتی برنامه‌هایی که پروکسی سیستم را نادیده می‌گیرند. دسترسی مدیر می‌خواهد. فعلاً فقط روی لینوکس.</string>
+    <string name="mode_tun_body">همهٔ برنامه‌ها را از یک کارت شبکهٔ مجازی عبور می‌دهد، حتی برنامه‌هایی که پروکسی سیستم را نادیده می‌گیرند. هر بار که وصل می‌شوید دسترسی مدیر سیستم می‌خواهد. Tor و سایفون همچنان از پروکسی سیستم استفاده می‌کنند.</string>
     <string name="option_none">هیچ‌کدام</string>
 
     <string name="title_ui_settings">رابط کاربری</string>
@@ -528,7 +536,7 @@
     <string name="notif_totals">این نشست: %1$s دریافت · %2$s ارسال</string>
     <string name="subs_user_agent">User-Agent (اختیاری)</string>
     <string name="vault_no_password_needed">این فایل رمز ندارد. وارد شود؟</string>
-    <string name="zsx_import_action">ورود</string>
+    <string name="zvx_import_action">ورود</string>
     <string name="vault_selected">%1$s انتخاب شد</string>
     <string name="servers_delete_confirm_title">این کانفیگ حذف شود؟</string>
     <string name="servers_delete_confirm_body">«%1$s» حذف خواهد شد.</string>
@@ -830,12 +838,12 @@
 
     <string name="vault_experimental_badge">آزمایشی</string>
     <string name="vault_experimental_note">گاوصندوق هنوز در مراحل ابتدایی است — ممکن است قالبش تغییر کند و به‌مرور بهتر شود.</string>
-    <string name="support_title">حمایت مالی</string>
-    <string name="support_subtitle">کمک به توسعهٔ پروژه</string>
-    <string name="support_intro">برای کمک به توسعهٔ پروژه می‌توانید از هر یک از این راه‌ها حمایت کنید:</string>
-    <string name="support_usdt">تتر USDT (TRC20)</string>
-    <string name="support_ton">تون TON (Gram)</string>
-    <string name="support_tron">ترون TRON (TRX)</string>
+    <string name="support_title">دعمنا</string>
+    <string name="support_subtitle">مشارکت در حمایت و توسعه پروژه</string>
+    <string name="support_intro">شما می‌توانید از طریق هر یک از کیف‌پول‌های زیر به حمایت و توسعه پروژه کمک کنید:</string>
+    <string name="support_usdt">USDT (TRC20)</string>
+    <string name="support_ton">GRAM (TON)</string>
+    <string name="support_tron">TRON (TRC20)</string>
     <string name="support_usdt_note">توجه: این تتر روی شبکهٔ ترون (TRON) است، به همین دلیل آدرس USDT (TRC20) و TRON یکی هستند — این عمدی است و اشتباه نیست.</string>
     <string name="support_copied">آدرس کپی شد</string>
     <string name="action_copy">کپی</string>
@@ -872,9 +880,9 @@
     <string name="update_checking">در حال بررسی…</string>
     <string name="update_up_to_date">آخرین نسخه را دارید</string>
     <string name="update_check_failed">بررسی به‌روزرسانی ناموفق بود</string>
-    <string name="rate_title">امتیاز به ZedSecure</string>
+    <string name="rate_title">امتیاز به Z VPN</string>
     <string name="rate_summary">ثبت امتیاز و نظر در گوگل‌پلی</string>
-    <string name="rate_prompt_title">از ZedSecure راضی هستید؟</string>
+    <string name="rate_prompt_title">از Z VPN راضی هستید؟</string>
     <string name="rate_prompt_body">یک امتیاز در گوگل‌پلی کمک می‌کند بقیه هم اپ را پیدا کنند. فقط چند لحظه وقت می‌برد.</string>
     <string name="rate_action_rate">امتیاز می‌دهم</string>
     <string name="rate_action_later">الان نه</string>
@@ -885,7 +893,7 @@
     <string name="personalize_upload_tile_sub">رنگ مستطیلی که پشت آن‌هاست</string>
     <string name="subs_ua_preset">یوزر ایجنت</string>
     <string name="subs_ua_v2rayng">v2rayNG (پیشنهادی)</string>
-    <string name="subs_ua_zedsecure">ZedSecure</string>
+    <string name="subs_ua_zvpn">Z VPN</string>
     <string name="subs_ua_custom">دلخواه</string>
     <string name="subs_ua_hint">خیلی از ارائه‌دهنده‌ها کانفیگ‌های JSON سفارشی خود را فقط به یوزر ایجنت v2rayNG می‌دهند و به بقیه لینک ساده می‌دهند.</string>
     <string name="subs_edit">ویرایش سابسکریپشن</string>
@@ -943,8 +951,8 @@
     <string name="add_group_subscription">سابسکریپشن</string>
 
     <string name="battery_opt_title">بهینه‌سازی باتری</string>
-    <string name="battery_opt_on">بهینه‌سازی باتری برای ZedSecure روشن است و می‌تواند تونل را در پس‌زمینه قطع کند. برای باز کردن فهرست سیستم و انتخاب «بهینه نشود» بزنید.</string>
-    <string name="battery_opt_off">ZedSecure مستثنا شده است. تونل برای صرفه‌جویی در باتری متوقف نمی‌شود.</string>
+    <string name="battery_opt_on">بهینه‌سازی باتری برای Z VPN روشن است و می‌تواند تونل را در پس‌زمینه قطع کند. برای باز کردن فهرست سیستم و انتخاب «بهینه نشود» بزنید.</string>
+    <string name="battery_opt_off">Z VPN مستثنا شده است. تونل برای صرفه‌جویی در باتری متوقف نمی‌شود.</string>
     <string name="chain_search">جست‌وجوی سرور</string>
     <string name="chain_search_clear">پاک کردن جست‌وجو</string>
     <string name="chain_group_xray">سرورهای Xray</string>
@@ -1013,26 +1021,22 @@
     <string name="map_fab">باز کردن نقشه</string>
     <string name="map_settings_sub">ببین اتصالت از کجا شروع و از کجا خارج می‌شود</string>
 
-    <string name="privacy_title">شرایط و سیاست حریم خصوصی</string>
-    <string name="privacy_settings_sub">چه چیزی روی دستگاه می‌ماند و چه چیزی بیرون می‌رود</string>
-    <string name="privacy_subtitle">خلاصه‌ای کوتاه و دقیق — متن کامل آنلاین است</string>
-    <string name="privacy_headline">بدون حساب کاربری. بدون سرور ما. بدون آنالیتیکس.</string>
-    <string name="privacy_client_title">یک کلاینت، نه سرویس VPN</string>
-    <string name="privacy_client_body">ZedSecure به سرورها، سابسکریپشن‌ها و شبکه‌هایی وصل می‌شود که خودت اضافه می‌کنی. هیچ‌کدام را ما اداره نمی‌کنیم و ترافیک تو هرگز به ما نمی‌رسد.</string>
-    <string name="privacy_device_title">روی دستگاه تو می‌ماند</string>
-    <string name="privacy_device_body">کانفیگ‌ها، رمزها، تنظیمات، آمار و لاگ‌ها در فضای خصوصی اپ ذخیره می‌شوند و با حذف اپ پاک می‌شوند. کانفیگ‌های گاوصندوق با AES-256-GCM رمزنگاری می‌شوند.</string>
-    <string name="privacy_nocollect_title">جمع‌آوری نمی‌شود</string>
-    <string name="privacy_nocollect_body">اپ هیچ کتابخانهٔ آنالیتیکس، تله‌متری، گزارش کرش، تبلیغات یا ردیابی ندارد، و اصلاً حساب کاربری‌ای وجود ندارد که با آن شناسایی شوی.</string>
-    <string name="privacy_third_title">قابلیت‌های اختیاری با سرویس‌های دیگر تماس می‌گیرند</string>
-    <string name="privacy_third_body">تشخیص موقعیت، تست سرعت (کلودفلر)، دانلود قوانین مسیریابی (گیت‌هاب)، بررسی به‌روزرسانی (صفحهٔ گوگل‌پلی) و DNS یا زیرساخت Tor که انتخاب کرده‌ای، هرکدام بیرون تماس می‌گیرند — و هرکدام ناگزیر IP تو را می‌بینند.</string>
-    <string name="privacy_perm_title">فهرست اپ‌های نصب‌شده</string>
-    <string name="privacy_perm_body">پروکسی per-app فقط برای نمایش فهرست، اپ‌های نصب‌شده را می‌خواند. این کار روی خود دستگاه انجام می‌شود و هرگز ارسال نمی‌شود؛ فقط انتخاب تو ذخیره می‌شود.</string>
-    <string name="privacy_deviceid_title">شناسهٔ دستگاه</string>
-    <string name="privacy_deviceid_body">شناسه‌ای که در تنظیمات می‌بینی همان ANDROID_ID اندروید است. اپ هرگز آن را جایی نمی‌فرستد — فقط برای این است که اگر خودت خواستی، کسی بتواند یک کانفیگ قفل‌شده را به دستگاه تو محدود کند.</string>
-    <string name="privacy_limits_title">محدودیت‌های صادقانه</string>
-    <string name="privacy_limits_body">دستگاه روت‌شده یا آلوده هیچ تضمینی ندارد. حریم خصوصی تو به ارائه‌دهنده‌ای هم که انتخاب کرده‌ای بستگی دارد، و VPN فقط محل خروج ترافیک را عوض می‌کند — تو را ناشناس نمی‌کند.</string>
-    <string name="privacy_read_full">خواندن متن کامل</string>
-    <string name="privacy_read_full_sub">در مرورگر باز می‌شود</string>
+    <string name="privacy_title">سياسة الخصوصية والشروط</string>
+    <string name="privacy_settings_sub">ملخص الخصوصية وحماية البيانات</string>
+    <string name="privacy_subtitle">ملخص شامل وموجز لسياسة الخصوصية والأمان</string>
+    <string name="privacy_headline">تطبيق VPN + VPN Client مشفر مع تزامن حساب جوجل ومتصفح خفي مدمج.</string>
+    <string name="privacy_client_title">خوادم معتمدة مخصصة + VPN Client</string>
+    <string name="privacy_client_body">يوفر Z VPN خوادم معتمدة فائقة السرعة مع إمكانية إضافة وإدارة اشتراكاتك وخوادمك الخاصة كـ Client بكل سهولة وأمان.</string>
+    <string name="privacy_device_title">تسجيل دخول جوجل وتزامن اشتراك Pro</string>
+    <string name="privacy_device_body">يدعم التطبيق تسجيل الدخول عبر حساب جوجل لربط وحفظ اشتراكك الممتاز (Pro) واستخدامه بسلاسة عند فتح التطبيق من أي جهاز آخر.</string>
+    <string name="privacy_nocollect_title">متصفح خفي مشفر مدمج</string>
+    <string name="privacy_nocollect_body">يتضمن التطبيق متصفحاً خفياً آمنياً للتصفح الخاص دون حفظ السجلات أو تتبع النشاط مع حماية تلقائية للـ DNS.</string>
+    <string name="privacy_limits_title">سياسة عدم الحفظ وحماية الخصوصية</string>
+    <string name="privacy_limits_body">التطبيق ملتزم بعدم تتبع أو حفظ أو مشاركة بيانات التصفح أو السجلات الخاصة بنشاطك على الإطلاق.</string>
+    <string name="my_ip_title">معلومات الـ IP والاتصال</string>
+    <string name="my_ip_subtitle">عرض تفاصيل الـ IP، المزود، الموقع، والخدمات المربوطة</string>
+    <string name="my_ip_copied">تم نسخ عنوان الـ IP</string>
+    <string name="my_ip_failover_note">مربوط بـ 4 خدمات IP عالمية مجانية (ipwho.is, ip.sb, ipapi.co, ipinfo.io) مع تبديل وتوزيع تلقائي عند حدوث أي انقطاع.</string>
     <string name="mtu_optimize">بهینه‌سازی</string>
     <string name="mtu_optimize_note">اول VPN را خاموش کنید و این کار را روی اینترنت اصلی انجام دهید؛ وگرنه بسته‌های آزمایشی از داخل تونل رد می‌شوند و چیزی اندازه‌گیری نمی‌شود.</string>
     <string name="mtu_measuring">در حال اندازه‌گیری…</string>
@@ -1076,6 +1080,9 @@
     <string name="action_share_qr">اشتراک با QR</string>
     <string name="action_close">بستن</string>
     <string name="copied">کپی شد</string>
+    <string name="home_local_proxy">پروکسی · %1$s</string>
+    <string name="mode_local_proxy_title">آدرس پروکسی محلی</string>
+    <string name="mode_local_proxy_body">SOCKS5 و HTTP روی %1$s. برای کپی بزنید.</string>
     <string name="qr_too_large">این کانفیگ برای کد QR بزرگ است. از اشتراک‌گذاری یا کپی استفاده کنید.</string>
     <string name="servers_add_scan_qr">اسکن کد QR</string>
     <string name="servers_add_scan_image">اسکن QR از روی تصویر</string>
@@ -1129,7 +1136,10 @@
     <string name="title_pref_lan_port">پورت اشتراک در شبکهٔ محلی</string>
     <string name="title_pref_lan_username">نام کاربری اشتراک در شبکهٔ محلی</string>
     <string name="title_pref_lan_password">رمز اشتراک در شبکهٔ محلی</string>
-    <string name="toast_lan_port_invalid">پورتی بین ۱۰۲۴ و ۶۵۵۳۴ انتخاب کنید که خود ZedSecure از آن استفاده نمی‌کند</string>
+    <string name="title_pref_lan_auth">نیاز به نام کاربری و رمز</string>
+    <string name="summary_pref_lan_auth">اگر خاموش باشد، هر کسی در همین شبکه می‌تواند از پروکسی اشتراکی استفاده کند.</string>
+    <string name="lan_share_no_auth">بدون نام کاربری و رمز</string>
+    <string name="toast_lan_port_invalid">پورتی بین ۱۰۲۴ و ۶۵۵۳۴ انتخاب کنید که خود Z VPN از آن استفاده نمی‌کند</string>
     <string name="toast_lan_credential_required">اشتراک در شبکهٔ محلی هم نام کاربری لازم دارد و هم رمز</string>
     <string name="dns_prevent_fallback_always">همیشه فعال است. همهٔ resolverهای تونل‌های مبتنی بر DNS از داخل تونل عبور می‌کنند، پس هیچ پرس‌وجویی به شبکهٔ عادی شما برنمی‌گردد.</string>
     <string name="settings_sub_interval_hour">هر ساعت</string>
@@ -1183,7 +1193,7 @@
     <string name="auto_members">سرورها</string>
     <string name="auto_history">جابه‌جایی‌های اخیر</string>
     <string name="auto_how_title">خودکار چطور کار می‌کند</string>
-    <string name="auto_how_body">سریع‌ترین سرورِ گروه اتصال‌های تازه را حمل می‌کند. اگر پاسخ ندهد، اتصال‌هایی که به آن خورده‌اند ظرف یکی‌دو ثانیه روی سرور بعدی ادامه پیدا می‌کنند، و خودکار همان‌جا می‌ماند تا سروری به‌وضوح سریع‌تر پیدا شود — پس آدرس شما پشت‌سرهم عوض نمی‌شود. خودکار از تنظیمات مسیریابی و DNS خودِ ZedSecure استفاده می‌کند، حتی برای کانفیگ‌های سفارشی.</string>
+    <string name="auto_how_body">سریع‌ترین سرورِ گروه اتصال‌های تازه را حمل می‌کند. اگر پاسخ ندهد، اتصال‌هایی که به آن خورده‌اند ظرف یکی‌دو ثانیه روی سرور بعدی ادامه پیدا می‌کنند، و خودکار همان‌جا می‌ماند تا سروری به‌وضوح سریع‌تر پیدا شود — پس آدرس شما پشت‌سرهم عوض نمی‌شود. خودکار از تنظیمات مسیریابی و DNS خودِ Z VPN استفاده می‌کند، حتی برای کانفیگ‌های سفارشی.</string>
     <string name="auto_ago_now">همین حالا</string>
     <string name="auto_ago_minutes">%1$s دقیقه پیش</string>
     <string name="auto_ago_hours">%1$s ساعت پیش</string>
@@ -1231,7 +1241,7 @@
     <string name="onb_next">بعدی</string>
     <string name="onb_back">قبلی</string>
     <string name="onb_theme_title">روشن یا تیره؟</string>
-    <string name="onb_theme_body">انتخاب کن ZedSecure چطور دیده شود. هر وقت خواستی در تنظیمات عوضش کن.</string>
+    <string name="onb_theme_body">انتخاب کن Z VPN چطور دیده شود. هر وقت خواستی در تنظیمات عوضش کن.</string>
     <string name="onb_preset_title">یک پوسته انتخاب کن</string>
     <string name="onb_preset_body">یک ست رنگ آماده. بعداً همهٔ رنگ‌ها قابل تغییرند.</string>
     <string name="onb_preset_stock">پیش‌فرض</string>
@@ -1365,6 +1375,15 @@
     <string name="admin_password_body">حالت TUN برای ساختن تونل به دسترسی روت نیاز دارد و پنجرهٔ رمز سیستم (polkit) در دسترس نیست. رمز عبوری را که برای sudo استفاده می‌کنید وارد کنید. این رمز فقط به sudo داده می‌شود و ذخیره نمی‌شود.</string>
     <string name="admin_password_label">رمز عبور</string>
     <string name="admin_password_wrong">رمز عبور اشتباه است. دوباره امتحان کنید.</string>
-    <string name="title_pref_software_rendering">رندر نرم‌افزاری</string>
-    <string name="summary_pref_software_rendering">پنجره را بدون کارت گرافیک رسم می‌کند؛ برای وقتی که صفحه چشمک می‌زند، سیاه می‌شود یا کارت گرافیک مشکل پیدا می‌کند. بعد از اجرای دوباره اعمال می‌شود. می‌توانید برنامه را با --software-rendering هم اجرا کنید.</string>
+    <string name="title_pref_rendering">رندر صفحه</string>
+    <string name="rendering_auto">خودکار</string>
+    <string name="rendering_gpu">کارت گرافیک</string>
+    <string name="rendering_software">نرم‌افزاری</string>
+    <string name="rendering_sub_auto_gpu">خودکار: روی این کامپیوتر کارت گرافیک پنجره را رسم می‌کند. تغییرات بعد از اجرای دوباره اعمال می‌شوند.</string>
+    <string name="rendering_sub_auto_windows">خودکار: رندر نرم‌افزاری، چون بعضی درایورهای گرافیک ویندوز این پنجره را بدون متن، با چشمک یا اصلاً رسم نمی‌کنند. تغییرات بعد از اجرای دوباره اعمال می‌شوند.</string>
+    <string name="rendering_sub_auto_nvidia">خودکار: رندر نرم‌افزاری، چون درایورهای NVIDIA قبل از ۵۵۵ زیر Wayland پنجره‌ای را که کارت گرافیک رسم می‌کند به‌هم‌ریخته و برفکی نشان می‌دهند. تغییرات بعد از اجرای دوباره اعمال می‌شوند.</string>
+    <string name="rendering_sub_manual">تغییرات بعد از اجرای دوباره اعمال می‌شوند. اگر پنجره چشمک می‌زند، برفکی است یا متن ندارد، «نرم‌افزاری» را انتخاب کنید. می‌توانید برنامه را با --software-rendering یا --gpu-rendering هم اجرا کنید.</string>
+    <string name="update_check_summary_github">جست‌وجوی نسخهٔ جدیدتر در گیت‌هاب</string>
+    <string name="rate_title_github">Z VPN در گیت‌هاب</string>
+    <string name="rate_summary_github">صفحهٔ پروژه را باز کنید تا ستاره بدهید، مشکلی را گزارش کنید یا کد را ببینید</string>
 </resources>

@@ -17,18 +17,18 @@ kotlin {
     }
 }
 
-val zedVersion = project.property("zvpn.desktopVersionName") as String
+val zvpnVersion = project.property("zvpn.desktopVersionName") as String
 
 val generateVersion by tasks.registering {
     val out = layout.buildDirectory.dir("generated/version")
-    val version = zedVersion
+    val version = zvpnVersion
     inputs.property("version", version)
     outputs.dir(out)
     doLast {
-        val dir = out.get().asFile.resolve("dev/cluvex/zedsecure/desktop")
+        val dir = out.get().asFile.resolve("com/zvpn/desktop")
         dir.mkdirs()
         dir.resolve("BuildVersion.kt").writeText(
-            "package dev.cluvex.zedsecure.desktop\n\ninternal const val BUILD_VERSION = \"$version\"\n",
+            "package com.zvpn.desktop\n\ninternal const val BUILD_VERSION = \"$version\"\n",
         )
     }
 }
@@ -70,27 +70,27 @@ dependencies {
 
 compose.desktop {
     application {
-        mainClass = "dev.cluvex.zedsecure.desktop.GuiKt"
+        mainClass = "com.zvpn.desktop.GuiKt"
         nativeDistributions {
             targetFormats(TargetFormat.Deb, TargetFormat.Rpm, TargetFormat.AppImage, TargetFormat.Msi, TargetFormat.Dmg)
-            packageName = "ZedSecure"
-            packageVersion = zedVersion
-            description = "ZedSecure VPN client"
-            vendor = "Cluvex Studio"
+            packageName = "ZVPN"
+            packageVersion = zvpnVersion
+            description = "Z VPN client"
+            vendor = "Z VPN"
             linux {
-                iconFile.set(project.file("icons/zedsecure.png"))
-                packageName = "zedsecure"
+                iconFile.set(project.file("icons/zvpn.png"))
+                packageName = "zvpn"
                 menuGroup = "Network"
                 shortcut = true
             }
             windows {
-                iconFile.set(project.file("icons/zedsecure.ico"))
-                menuGroup = "ZedSecure"
+                iconFile.set(project.file("icons/zvpn.ico"))
+                menuGroup = "Z VPN"
                 shortcut = true
             }
             macOS {
-                iconFile.set(project.file("icons/zedsecure.icns"))
-                bundleID = "dev.cluvex.zedsecure"
+                iconFile.set(project.file("icons/zvpn.icns"))
+                bundleID = "com.zvpn"
             }
         }
     }
