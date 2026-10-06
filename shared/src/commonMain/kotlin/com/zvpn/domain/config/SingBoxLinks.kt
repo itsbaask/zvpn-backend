@@ -188,10 +188,11 @@ object SingBoxLinks {
             if (insecure) put("insecure", true)
             if (q["disable_sni"]?.truthy() == true) put("disable_sni", true)
             if (alpn.isNotEmpty()) putJsonArray("alpn") { alpn.forEach { add(it) } }
-            q["fp"]?.takeIf { it.isNotBlank() }?.let { fp ->
+            val fp = q["fp"]?.takeIf { it.isNotBlank() } ?: if (!insecure) "chrome" else null
+            fp?.let {
                 putJsonObject("utls") {
                     put("enabled", true)
-                    put("fingerprint", fp)
+                    put("fingerprint", it)
                 }
             }
         }
