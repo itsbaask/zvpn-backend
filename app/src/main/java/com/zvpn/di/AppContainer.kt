@@ -65,6 +65,13 @@ class AppContainer(context: Context) {
             runCatching { GeoAssetsRepository(context).seedBundled(BuildConfig.VERSION_CODE.toLong()) }
         }
 
+        scope.launch(Dispatchers.IO) {
+            val sub = configRepository.ensureOfficialSubscription()
+            if (configRepository.profiles.value.isEmpty()) {
+                runCatching { configRepository.updateSubscription(sub.id) }
+            }
+        }
+
         runCatching {
             com.zvpn.domain.config.RoutingMigration
                 .seedIfFresh(settingsRepository.settings.value)
