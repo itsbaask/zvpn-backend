@@ -115,7 +115,7 @@ object OvpnConfig {
 
                 directives.first("cipher")?.firstOrNull()?.let { put("cipher", it) }
             } else {
-                put("tls", tls(directives, blocks) ?: buildJsonObject {})
+                put("tls", tls(directives, blocks) ?: buildJsonObject { put("insecure", true) })
                 (username ?: inline?.first)?.takeIf { it.isNotBlank() }?.let { put("username", it) }
                 (password ?: inline?.second)?.takeIf { it.isNotBlank() }?.let { put("password", it) }
                 directives.first("static-challenge")?.let { args ->
@@ -276,6 +276,9 @@ object OvpnConfig {
             return null
         }
         return buildJsonObject {
+            if (ca == null && fingerprints == null) {
+                put("insecure", true)
+            }
             ca?.let { putJsonArray("certificate") { it.forEach { line -> add(line) } } }
             cert?.let { putJsonArray("client_certificate") { it.forEach { line -> add(line) } } }
             key?.let { putJsonArray("client_key") { it.forEach { line -> add(line) } } }
