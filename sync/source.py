@@ -117,7 +117,6 @@ class ServerInfo:
         self.ovpn_content = sanitize_openvpn_content(ovpn_content or "")
         self.config_uri = config_uri or ""
 
-        # Apply Data Sanitizer to clean server name
         self.name = sanitize_server_name(
             raw_name=self.source_id,
             country_code=self.country_code,
@@ -186,7 +185,7 @@ class MultiSourceHarvester:
             seen_dedup_keys.add(dedup_key)
             harvested[server.source_id] = server
 
-        # 1. PublicVPNList v1 API (ALL protocols supported by Z VPN)
+        # 1. PublicVPNList v1 API (ALL protocols)
         try:
             pvl_servers = self._fetch_publicvpnlist_v1_api()
             logger.info(f"PublicVPNList v1 harvested {len(pvl_servers)} multi-protocol servers.")
@@ -213,15 +212,46 @@ class MultiSourceHarvester:
         except Exception as e:
             logger.warning(f"Auto-OVPN harvest error: {e}")
 
+        # 4. VPNBook
+        try:
+            vpnbook_servers = self._fetch_vpnbook()
+            logger.info(f"VPNBook harvested {len(vpnbook_servers)} servers.")
+            for s in vpnbook_servers.values():
+                add_server(s)
+        except Exception as e:
+            logger.warning(f"VPNBook harvest error: {e}")
+
+        # 5. Riseup VPN
+        try:
+            riseup_servers = self._fetch_riseup_vpn()
+            logger.info(f"Riseup VPN harvested {len(riseup_servers)} servers.")
+            for s in riseup_servers.values():
+                add_server(s)
+        except Exception as e:
+            logger.warning(f"Riseup VPN harvest error: {e}")
+
+        # 6. PublicVPNList Legacy Native API
+        try:
+            native_servers = self._fetch_publicvpnlist_native()
+            logger.info(f"PublicVPNList Legacy Native API harvested {len(native_servers)} servers.")
+            for s in native_servers.values():
+                add_server(s)
+        except Exception as e:
+            logger.warning(f"PublicVPNList Legacy Native API harvest error: {e}")
+
+        # 7. OMGVPN (3,000+ Multi-source Servers)
+        try:
+            omgvpn_servers = self._fetch_omgvpn()
+            logger.info(f"OMGVPN harvested {len(omgvpn_servers)} servers.")
+            for s in omgvpn_servers.values():
+                add_server(s)
+        except Exception as e:
+            logger.warning(f"OMGVPN harvest error: {e}")
+
         return harvested
 
     def _fetch_publicvpnlist_v1_api(self) -> Dict[str, ServerInfo]:
-        """
-        Harvests ALL protocol types supported by Z VPN from publicvpnlist.com API:
-        openvpn, vless, vmess, shadowsocks, trojan, hysteria, hysteria2, wireguard, tuic, anytls, socks5, http.
-        """
         servers: Dict[str, ServerInfo] = {}
-        # Complete list of protocols supported by Z VPN engine
         protocols = [
             "openvpn", "vless", "vmess", "shadowsocks", "trojan",
             "hysteria", "hysteria2", "wireguard", "tuic", "anytls", "socks5", "http"
@@ -270,6 +300,44 @@ class MultiSourceHarvester:
                         )
             except Exception as e:
                 logger.warning(f"Failed to fetch protocol {proto} from publicvpnlist: {e}")
+
+        return servers
+
+    def _fetch_publicvpnlist_native(self) -> Dict[str, ServerInfo]:
+        url = "https://publicvpnlist.com/local/api/vpn-data.php"
+        res = self.session.get(url, headers={"X-Requested-With": "XMLHttpRequest"}, timeout=(10, 25))
+        if res.status_code != 200:
+            return {}
+
+        servers: Dict[str, ServerInfo] = {}
+        data = res.json()
+        if isinstance(data, list):
+            for item in data:
+                if not isinstance(item, dict) or item.get("active") is not True:
+                    continue
+                sid_num = str(item.get("id", ""))
+                if not sid_num:
+                    continue
+
+                sid = f"pvl_{sid_num}"
+                host = str(item.get("host") or item.get("ip") or "")
+                port = int(item.get("port") or 1194)
+                dl_url = f"https://publicvpnlist.com/download/{sid_num}/"
+
+                servers[sid] = ServerInfo(
+                    source_id=sid,
+                    source_name="publicvpnlist",
+                    profile_id=sid_num,
+                    profile_source_url=dl_url,
+                    server_page_url=dl_url,
+                    country_code=str(item.get("country") or "XX").upper(),
+                    country_name=str(item.get("countryName") or "Global"),
+                    host=host,
+                    port=port,
+                    transport=str(item.get("proto") or "udp").lower(),
+                    protocol="openvpn",
+                    speed_mbps=float(item.get("speed") or 0.0)
+                )
 
         return servers
 
@@ -339,4 +407,118 @@ class MultiSourceHarvester:
                         )
                     except Exception:
                         pass
+        return servers
+
+    def _fetch_vpnbook(self) -> Dict[str, ServerInfo]:
+        url = "https://www.vpnbook.com/freevpn/openvpn"
+        res = self.session.get(url, timeout=(10, 25))
+        if res.status_code != 200:
+            return {}
+
+        soup = BeautifulSoup(res.text, "html.parser")
+        page_text = soup.get_text()
+
+        username = "vpnbook"
+        password = ""
+        pass_match = re.search(r'Password\s*([a-zA-Z0-9]+)', page_text, re.I)
+        if pass_match:
+            password = pass_match.group(1).strip()
+
+        server_matches = re.findall(r'([A-Za-z]+\s+Server\s+\d+)[^\w]*([a-z0-9\.-]+\.vpnbook\.com)', page_text, re.I)
+        servers: Dict[str, ServerInfo] = {}
+        for label, host in server_matches:
+            sid = f"vpnbook_{host.replace('.', '_')}_1194_udp"
+            ovpn_config = f"client\ndev tun\nproto udp\remote {host} 1194\n<auth-user-pass>\n{username}\n{password}\n</auth-user-pass>"
+            servers[sid] = ServerInfo(
+                source_id=sid,
+                source_name="vpnbook",
+                host=host,
+                port=1194,
+                protocol="openvpn",
+                ovpn_content=ovpn_config
+            )
+        return servers
+
+    def _fetch_riseup_vpn(self) -> Dict[str, ServerInfo]:
+        url = "https://black.riseup.net/3/config/eip-service.json"
+        servers: Dict[str, ServerInfo] = {}
+        try:
+            res = self.session.get(url, timeout=(10, 25))
+            if res.status_code == 200:
+                data = res.json()
+                for gw in data.get("gateways", []):
+                    ip = gw.get("ip_address")
+                    if ip:
+                        sid = f"riseup_{ip}_1194_udp"
+                        servers[sid] = ServerInfo(
+                            source_id=sid,
+                            source_name="riseup_vpn",
+                            host=ip,
+                            port=1194,
+                            protocol="openvpn",
+                            ovpn_content=f"client\ndev tun\nremote {ip} 1194"
+                        )
+        except Exception:
+            pass
+        return servers
+
+    def _fetch_omgvpn(self) -> Dict[str, ServerInfo]:
+        url = "https://omgvpn.com/"
+        servers: Dict[str, ServerInfo] = {}
+        try:
+            res = self.session.get(url, timeout=(10, 25))
+            if res.status_code != 200:
+                return servers
+
+            html = res.text
+            def extract_array(name: str) -> List[str]:
+                pattern = rf"\blet\s+{re.escape(name)}\s*=\s*(\[.*?\]);"
+                match = re.search(pattern, html, re.S)
+                if not match:
+                    return []
+                try:
+                    return [str(v).strip() for v in json.loads(match.group(1)) if str(v).strip()]
+                except Exception:
+                    return []
+
+            arr1 = extract_array("array1")
+            arr2 = extract_array("array2")
+
+            for raw in arr1:
+                cleaned = raw.strip().rstrip("↓").strip()
+                parts = [p.strip().rstrip("↓").strip() for p in cleaned.split("•")]
+                if len(parts) >= 7:
+                    hostname = parts[1]
+                    ipv4 = parts[6]
+                    host = hostname or ipv4
+                    if host:
+                        sid = f"omgvpn_a1_{host}"
+                        servers[sid] = ServerInfo(
+                            source_id=sid,
+                            source_name="omgvpn_vpngate",
+                            host=host,
+                            port=1194,
+                            protocol="openvpn",
+                            ovpn_content=f"client\ndev tun\nremote {host} 1194"
+                        )
+
+            for raw in arr2:
+                cleaned = raw.strip().rstrip("↓").strip()
+                parts = [p.strip().rstrip("↓").strip() for p in cleaned.split("•")]
+                if len(parts) >= 6:
+                    hostname = parts[3]
+                    ipv4 = parts[5]
+                    host = hostname or ipv4
+                    if host:
+                        sid = f"omgvpn_a2_{host}"
+                        servers[sid] = ServerInfo(
+                            source_id=sid,
+                            source_name="omgvpn_giamping",
+                            host=host,
+                            port=1194,
+                            protocol="openvpn",
+                            ovpn_content=f"client\ndev tun\nremote {host} 1194"
+                        )
+        except Exception:
+            pass
         return servers

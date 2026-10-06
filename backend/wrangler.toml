@@ -1,4 +1,4 @@
-name = "zvpn-backend"
+name = "vpn-backend"
 main = "index.js"
 compatibility_date = "2024-01-01"
 
