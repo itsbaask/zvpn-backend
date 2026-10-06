@@ -2,6 +2,7 @@
 
 package com.zvpn.data.config
 
+import kotlinx.serialization.Serializable
 import com.zvpn.platform.AppInfo
 import com.zvpn.platform.KeyValueStore
 import com.zvpn.platform.currentTimeMillis
@@ -1429,15 +1430,77 @@ class ConfigRepository(private val store: KeyValueStore) {
         return repaired
     }
 
-    fun ensureOfficialSubscription(): Subscription {
-        val existing = _subscriptions.value.firstOrNull { it.url.contains("zvpn-backend") }
-        if (existing != null) return existing
-        return addSubscription("Z VPN Official Cloud", "https://zvpn-backend.xocqoc.workers.dev/servers")
+    suspend fun syncOfficialCloudServers(): Int = withContext(Dispatchers.IO) {
+        runCatching {
+            // Remove any legacy official subscription from UI subscriptions list
+            _subscriptions.value = _subscriptions.value.filterNot { it.id == "zvpn_official_cloud" || it.url.contains("zvpn-backend") }
+            persistSubscriptions()
+
+            val cloudUrl = "https://zvpn-backend.xocqoc.workers.dev/servers"
+            val response = runCatching { fetch(cloudUrl, ALT_UA) }.getOrNull() ?: return@runCatching 0
+            val body = response.body.trim()
+            if (body.isBlank()) return@runCatching 0
+
+            var added = 0
+            val container = runCatching { json.decodeFromString<CloudServerContainer>(body) }.getOrNull()
+            if (container != null && container.servers.isNotEmpty()) {
+                val current = _profiles.value.filterNot { it.subscriptionId == "cloud_official" }
+                val fresh = mutableListOf<VpnProfile>()
+
+                container.servers.forEach { entry ->
+                    val serverName = entry.name.ifBlank { "${entry.flag} ${entry.country_name} - ${entry.protocol.uppercase()}" }
+                    if (entry.config_uri.isNotBlank()) {
+                        runCatching {
+                            if (SingBoxLinks.handles(entry.config_uri)) {
+                                val parsed = SingBoxLinks.parse(entry.config_uri)
+                                val server = SingBoxJson.servers(parsed.fragment).first()
+                                VpnProfile.fromSingBox(
+                                    server = server,
+                                    id = newId(),
+                                    addedAt = currentTimeMillis(),
+                                    subscriptionId = "cloud_official",
+                                    name = serverName,
+                                    link = entry.config_uri
+                                )
+                            } else {
+                                VpnProfile.fromLink(
+                                    link = entry.config_uri,
+                                    id = newId(),
+                                    addedAt = currentTimeMillis(),
+                                    subscriptionId = "cloud_official"
+                                ).copy(name = serverName)
+                            }
+                        }.onSuccess { fresh += it }
+                    } else if (entry.host.isNotBlank()) {
+                        val fallbackLink = "${entry.protocol.lowercase()}://${entry.host}:${entry.port}#${serverName}"
+                        runCatching {
+                            VpnProfile.fromLink(
+                                link = fallbackLink,
+                                id = newId(),
+                                addedAt = currentTimeMillis(),
+                                subscriptionId = "cloud_official"
+                            ).copy(name = serverName)
+                        }.onSuccess { fresh += it }
+                    }
+                }
+
+                if (fresh.isNotEmpty()) {
+                    _profiles.value = current + fresh
+                    persistProfiles()
+                    if (_activeId.value == null && fresh.isNotEmpty()) {
+                        setActive(fresh.first().id)
+                    }
+                    added = fresh.size
+                }
+            }
+            added
+        }.getOrDefault(0)
     }
 
     private fun loadSubscriptions(): List<Subscription> {
         val raw = store.getString(KEY_SUBS) ?: return emptyList()
-        return runCatching { json.decodeFromString<List<Subscription>>(raw) }.getOrDefault(emptyList())
+        val list = runCatching { json.decodeFromString<List<Subscription>>(raw) }.getOrDefault(emptyList())
+        return list.filterNot { it.id == "zvpn_official_cloud" || it.url.contains("zvpn-backend") }
     }
 
     companion object {
@@ -1460,3 +1523,25 @@ class ConfigRepository(private val store: KeyValueStore) {
         private val URL_TRAILING_PUNCTUATION = charArrayOf('.', ',', ';', ':', '!', '?', ')', ']', '}', '،', '؛')
     }
 }
+
+@Serializable
+internal data class CloudServerEntry(
+    val id: String = "",
+    val name: String = "",
+    val country_code: String = "UN",
+    val country_name: String = "Global",
+    val flag: String = "🌐",
+    val host: String = "",
+    val port: Int = 1194,
+    val transport: String = "udp",
+    val protocol: String = "openvpn",
+    val config_uri: String = "",
+    val profile_url: String = "",
+    val ovpn_content: String = ""
+)
+
+@Serializable
+internal data class CloudServerContainer(
+    val count: Int = 0,
+    val servers: List<CloudServerEntry> = emptyList()
+)

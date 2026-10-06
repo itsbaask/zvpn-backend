@@ -66,10 +66,7 @@ class AppContainer(context: Context) {
         }
 
         scope.launch(Dispatchers.IO) {
-            val sub = configRepository.ensureOfficialSubscription()
-            if (configRepository.profiles.value.isEmpty()) {
-                runCatching { configRepository.updateSubscription(sub.id) }
-            }
+            runCatching { configRepository.syncOfficialCloudServers() }
         }
 
         runCatching {
