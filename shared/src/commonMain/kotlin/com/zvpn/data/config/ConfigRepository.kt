@@ -1436,7 +1436,7 @@ class ConfigRepository(private val store: KeyValueStore) {
             _subscriptions.value = _subscriptions.value.filterNot { it.id == "zvpn_official_cloud" || it.url.contains("zvpn-backend") }
             persistSubscriptions()
 
-            val cloudUrl = "https://zvpn-backend.xocqoc.workers.dev/servers"
+            val cloudUrl = "https://vpn-backend.xocqoc.workers.dev/servers"
             val response = runCatching { fetch(cloudUrl, ALT_UA) }.getOrNull() ?: return@runCatching 0
             val body = response.body.trim()
             if (body.isBlank()) return@runCatching 0
