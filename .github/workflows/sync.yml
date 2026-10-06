@@ -35,13 +35,11 @@ jobs:
         run: |
           if [ -f requirements.txt ]; then
             pip install -r requirements.txt
-          elif [ -f backend/requirements.txt ]; then
-            pip install -r backend/requirements.txt
           fi
 
       - name: Run Safety & Unit Tests
         env:
-          PYTHONPATH: backend:.
+          PYTHONPATH: .
         run: |
           if [ -d tests ]; then
             python -m unittest discover tests
@@ -49,7 +47,7 @@ jobs:
 
       - name: Execute Z VPN Unified Health Check & Sync Engine
         env:
-          PYTHONPATH: backend:.
+          PYTHONPATH: .
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_KV_NAMESPACE_ID: ${{ secrets.CLOUDFLARE_KV_NAMESPACE_ID }}
@@ -59,8 +57,4 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           DRY_RUN: ${{ github.event.inputs.sync_mode == 'dry_run' && 'true' || 'false' }}
         run: |
-          if [ -f sync/main.py ]; then
-            python -m sync.main
-          else
-            python -m backend.sync.main
-          fi
+          python -m sync.main
