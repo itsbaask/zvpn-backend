@@ -1449,7 +1449,33 @@ class ConfigRepository(private val store: KeyValueStore) {
 
                 container.servers.forEach { entry ->
                     val serverName = entry.name.ifBlank { "${entry.flag} ${entry.country_name} - ${entry.protocol.uppercase()}" }
-                    if (entry.config_uri.isNotBlank()) {
+                    if (entry.protocol.equals("openvpn", ignoreCase = true) || entry.config_uri.isBlank()) {
+                        val ovpnConfig = if (entry.ovpn_content.isNotBlank()) {
+                            entry.ovpn_content
+                        } else {
+                            """client
+dev tun
+proto ${entry.transport.ifBlank { "udp" }}
+remote ${entry.host} ${if (entry.port > 0) entry.port else 1194}
+resolv-retry infinite
+nobind
+persist-key
+persist-tun
+remote-cert-tls server
+cipher AES-256-GCM
+data-ciphers AES-256-GCM:AES-128-GCM:AES-256-CBC
+<auth-user-pass>
+vpn
+vpn
+</auth-user-pass>
+"""
+                        }
+                        runCatching {
+                            addOvpn(ovpnConfig, name = serverName, subscriptionId = "cloud_official").getOrNull()
+                        }.onSuccess { p ->
+                            if (p != null) fresh += p
+                        }
+                    } else if (entry.config_uri.isNotBlank()) {
                         runCatching {
                             if (SingBoxLinks.handles(entry.config_uri)) {
                                 val parsed = SingBoxLinks.parse(entry.config_uri)
@@ -1470,16 +1496,6 @@ class ConfigRepository(private val store: KeyValueStore) {
                                     subscriptionId = "cloud_official"
                                 ).copy(name = serverName)
                             }
-                        }.onSuccess { fresh += it }
-                    } else if (entry.host.isNotBlank()) {
-                        val fallbackLink = "${entry.protocol.lowercase()}://${entry.host}:${entry.port}#${serverName}"
-                        runCatching {
-                            VpnProfile.fromLink(
-                                link = fallbackLink,
-                                id = newId(),
-                                addedAt = currentTimeMillis(),
-                                subscriptionId = "cloud_official"
-                            ).copy(name = serverName)
                         }.onSuccess { fresh += it }
                     }
                 }
