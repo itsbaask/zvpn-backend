@@ -262,44 +262,56 @@ class MultiSourceHarvester:
         }
 
         for proto in protocols:
-            url = f"https://publicvpnlist.com/api/v1/servers?protocol={proto}&status=online&per_page=100"
-            try:
-                res = self.session.get(url, headers=headers, timeout=(10, 25))
-                if res.status_code == 200:
-                    payload = res.json()
-                    data_list = payload.get("data", [])
-                    for item in data_list:
-                        if not isinstance(item, dict):
-                            continue
-                        sid = str(item.get("id") or "").strip()
-                        if not sid:
-                            continue
+            page = 1
+            while page <= 100:
+                url = f"https://publicvpnlist.com/api/v1/servers?protocol={proto}&status=online&per_page=100&page={page}"
+                try:
+                    res = self.session.get(url, headers=headers, timeout=(10, 25))
+                    if res.status_code == 200:
+                        payload = res.json()
+                        data_list = payload.get("data", [])
+                        if not data_list:
+                            break
+                        for item in data_list:
+                            if not isinstance(item, dict):
+                                continue
+                            sid = str(item.get("id") or "").strip()
+                            if not sid:
+                                continue
 
-                        ip = str(item.get("ip") or item.get("exit_ip") or "")
-                        port = int(item.get("port") or 443)
-                        transport = str(item.get("transport") or "tcp").lower()
-                        c_code = str(item.get("country_code") or "").upper()
-                        c_name = str(item.get("country_name") or "")
-                        speed = float(item.get("speed_mbps") or 0.0)
-                        latency = int(item.get("latency_ms") or 0)
-                        config_uri = str(item.get("config_uri") or item.get("config_download_url") or "")
+                            ip = str(item.get("ip") or item.get("exit_ip") or "")
+                            port = int(item.get("port") or 443)
+                            transport = str(item.get("transport") or "tcp").lower()
+                            c_code = str(item.get("country_code") or "").upper()
+                            c_name = str(item.get("country_name") or "")
+                            speed = float(item.get("speed_mbps") or 0.0)
+                            latency = int(item.get("latency_ms") or 0)
+                            config_uri = str(item.get("config_uri") or item.get("config_download_url") or "")
 
-                        servers[sid] = ServerInfo(
-                            source_id=sid,
-                            source_name="publicvpnlist_v1",
-                            country_code=c_code,
-                            country_name=c_name,
-                            host=ip,
-                            port=port,
-                            transport=transport,
-                            protocol=proto,
-                            exit_ip=ip,
-                            speed_mbps=speed,
-                            latency_ms=latency,
-                            config_uri=config_uri
-                        )
-            except Exception as e:
-                logger.warning(f"Failed to fetch protocol {proto} from publicvpnlist: {e}")
+                            servers[sid] = ServerInfo(
+                                source_id=sid,
+                                source_name="publicvpnlist_v1",
+                                country_code=c_code,
+                                country_name=c_name,
+                                host=ip,
+                                port=port,
+                                transport=transport,
+                                protocol=proto,
+                                exit_ip=ip,
+                                speed_mbps=speed,
+                                latency_ms=latency,
+                                config_uri=config_uri
+                            )
+
+                        last_page = payload.get("last_page") or (payload.get("meta", {}).get("last_page") if isinstance(payload.get("meta"), dict) else 1) or 1
+                        if page >= last_page:
+                            break
+                        page += 1
+                    else:
+                        break
+                except Exception as e:
+                    logger.warning(f"Failed to fetch protocol {proto} page {page} from publicvpnlist: {e}")
+                    break
 
         return servers
 
