@@ -217,20 +217,26 @@ object OvpnConfig {
     fun fixXrayDnsForOpenVpn(configJson: String): String {
         return try {
             val root = SingBoxJson.parse(configJson) as? JsonObject ?: return configJson
+            val dns = (root["dns"] as? JsonObject) ?: JsonObject(emptyMap())
+            val hosts = (dns["hosts"] as? JsonObject) ?: JsonObject(emptyMap())
 
-            val dns = root["dns"] as? JsonObject ?: return configJson
-            val servers = (dns["servers"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }.orEmpty()
-            val hasCloudflare = servers.any { it.contains("cloudflare-dns.com", ignoreCase = true) }
-            if (!hasCloudflare) return configJson
-
-            val hosts = dns["hosts"] as? JsonObject
-            if (hosts != null && hosts.containsKey("cloudflare-dns.com")) return configJson
+            if (hosts.containsKey("cloudflare-dns.com") && hosts.containsKey("dns.google")) {
+                return configJson
+            }
 
             val newHosts = buildJsonObject {
-                hosts?.forEach { (k, v) -> put(k, v) }
-                putJsonArray("cloudflare-dns.com") {
-                    add("1.1.1.1")
-                    add("1.0.0.1")
+                hosts.forEach { (k, v) -> put(k, v) }
+                if (!hosts.containsKey("cloudflare-dns.com")) {
+                    putJsonArray("cloudflare-dns.com") {
+                        add("1.1.1.1")
+                        add("1.0.0.1")
+                    }
+                }
+                if (!hosts.containsKey("dns.google")) {
+                    putJsonArray("dns.google") {
+                        add("8.8.8.8")
+                        add("8.8.4.4")
+                    }
                 }
             }
             val newDns = JsonObject(dns + ("hosts" to newHosts))
