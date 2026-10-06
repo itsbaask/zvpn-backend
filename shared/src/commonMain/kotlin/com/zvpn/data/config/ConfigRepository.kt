@@ -1429,6 +1429,12 @@ class ConfigRepository(private val store: KeyValueStore) {
         return repaired
     }
 
+    fun ensureOfficialSubscription(): Subscription {
+        val existing = _subscriptions.value.firstOrNull { it.url.contains("zvpn-backend") }
+        if (existing != null) return existing
+        return addSubscription("Z VPN Official Cloud", "https://zvpn-backend.xocqoc.workers.dev/servers")
+    }
+
     private fun loadSubscriptions(): List<Subscription> {
         val raw = store.getString(KEY_SUBS) ?: return emptyList()
         return runCatching { json.decodeFromString<List<Subscription>>(raw) }.getOrDefault(emptyList())
