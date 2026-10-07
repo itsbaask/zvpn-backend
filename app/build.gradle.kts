@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    id("com.google.gms.google-services")
 }
 
 val keystorePropertiesFile = rootProject.file("keystore.properties")
@@ -173,4 +174,15 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.rules)
+
+    // ── Google Play Billing ──────────────────────────────────────────────────
+    implementation("com.android.billingclient:billing-ktx:7.1.1")
+
+    // ── Firebase ─────────────────────────────────────────────────────────────
+    implementation(platform("com.google.firebase:firebase-bom:33.5.1"))
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-analytics-ktx")
+
+    // ── Google Sign-In ───────────────────────────────────────────────────────
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
 }
