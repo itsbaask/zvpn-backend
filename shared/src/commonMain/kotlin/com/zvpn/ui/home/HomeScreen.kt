@@ -526,7 +526,10 @@ private fun StageColumn(
 }
 
 @Composable
-private fun DecorativeBackdrop(reduceMotion: Boolean) {
+private fun DecorativeBackdrop(
+    reduceMotion: Boolean,
+    onSecretUnlocked: () -> Unit = {},
+) {
     val transition = rememberInfiniteTransition(label = "backdrop")
     val spin by transition.animateFloat(
         initialValue = 0f,
@@ -540,14 +543,50 @@ private fun DecorativeBackdrop(reduceMotion: Boolean) {
         animationSpec = infiniteRepeatable(tween(4_000, easing = FastOutSlowInEasing), RepeatMode.Reverse),
         label = "scalePulse",
     )
+
+    var taps by remember { mutableIntStateOf(0) }
+    var lastTap by remember { mutableLongStateOf(0L) }
+    val haptics = LocalHapticFeedback.current
+
     OrganicSurface(
         brush = ZGradients.idle,
         modifier = Modifier
-            .size(310.dp)
-            .offset(x = 175.dp, y = (-125).dp)
+            .size(320.dp)
+            .offset(x = 165.dp, y = (-125).dp)
             .scale(if (reduceMotion) 1f else scalePulse)
             .rotate(if (reduceMotion) 0f else spin),
-    )
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(bottom = 54.dp, start = 44.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                ) {
+                    val now = System.currentTimeMillis()
+                    taps = if (now - lastTap < TAP_WINDOW_MS) taps + 1 else 1
+                    lastTap = now
+                    if (taps >= TAPS_TO_UNLOCK) {
+                        taps = 0
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onSecretUnlocked()
+                    } else if (taps > 1) {
+                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    }
+                }
+        ) {
+            Text(
+                text = stringResource(Res.string.app_name),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 1.2.sp,
+                color = Color.White.copy(alpha = 0.95f),
+                maxLines = 1,
+                softWrap = false,
+            )
+        }
+    }
 }
 
 @Composable
@@ -656,10 +695,6 @@ private fun BrandHeader(
     onSecretUnlocked: () -> Unit,
     onShowLogs: () -> Unit,
 ) {
-    var taps by remember { mutableIntStateOf(0) }
-    var lastTap by remember { mutableLongStateOf(0L) }
-    val haptics = LocalHapticFeedback.current
-
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -678,32 +713,6 @@ private fun BrandHeader(
                 )
             }
         }
-        Text(
-            text = stringResource(Res.string.app_name),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            softWrap = false,
-            color = if (state.isActive || state == ConnectionState.Disconnecting) Color.White
-            else MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                ) {
-                    val now = System.currentTimeMillis()
-                    taps = if (now - lastTap < TAP_WINDOW_MS) taps + 1 else 1
-                    lastTap = now
-                    if (taps >= TAPS_TO_UNLOCK) {
-                        taps = 0
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onSecretUnlocked()
-                    } else if (taps > 1) {
-                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    }
-                }
-                .padding(horizontal = 8.dp, vertical = 6.dp),
-        )
     }
 }
 
