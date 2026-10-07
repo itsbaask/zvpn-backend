@@ -6,6 +6,83 @@ from typing import Dict, List, Any, Tuple
 
 SUPPORTED_PROTOCOLS = {"openvpn", "vless", "vmess", "trojan", "shadowsocks", "hysteria2", "tuic", "wireguard", "hysteria", "anytls", "socks5", "http"}
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Server Display Name Sanitization
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Internal fields never sent to the app
+_STRIP_FIELDS = {
+    "source_name", "source_id", "profile_id", "storage_id",
+    "profile_source_url", "server_page_url", "config_sha256",
+    "ovpn_content",                   # large — not needed after upload
+    "deduplication_key", "raw_id",
+    "exit_ip",                         # same as host, redundant
+    "network_score",                   # internal sorting only
+}
+
+# Protocol → clean display label
+_PROTO_LABELS = {
+    "openvpn":     "OpenVPN",
+    "vless":       "VLESS",
+    "vmess":       "VMess",
+    "trojan":      "Trojan",
+    "shadowsocks": "Shadowsocks",
+    "hysteria2":   "Hysteria2",
+    "hysteria":    "Hysteria",
+    "tuic":        "TUIC",
+    "wireguard":   "WireGuard",
+    "anytls":      "AnyTLS",
+    "socks5":      "SOCKS5",
+    "http":        "HTTP",
+}
+
+# Tier → sort order (lower = shown first)
+_TIER_ORDER = {"free": 0, "premium": 1, "premium_plus": 2}
+
+
+def _build_display_name(country_name: str, protocol: str) -> str:
+    """
+    Returns a clean, professional server display name.
+    Example: 'Japan — VLESS'  |  'United States — OpenVPN'
+    """
+    country = (country_name or "").strip()
+    if not country or country.lower() in ("unknown", "global", "xx", ""):
+        country = "Global"
+    proto_label = _PROTO_LABELS.get((protocol or "").lower(), (protocol or "VPN").upper())
+    return f"{country} — {proto_label}"
+
+
+def _clean_server_for_app(srv: dict) -> dict:
+    """
+    Returns a sanitised copy of a server dict safe to send to the app.
+    - Removes all internal/source fields
+    - Ensures display_name, flag, protocol_label are set
+    - Normalises speed/ping to clean integers
+    """
+    out = {k: v for k, v in srv.items() if k not in _STRIP_FIELDS}
+
+    proto = (out.get("protocol") or "openvpn").lower()
+    country = (out.get("country_name") or "Global").strip()
+    flag = (out.get("flag") or "").strip()
+
+    # Build clean display name
+    out["display_name"] = _build_display_name(country, proto)
+    out["protocol_label"] = _PROTO_LABELS.get(proto, proto.upper())
+
+    # Normalise numeric fields
+    out["speed_mbps"] = round(float(out.get("speed_mbps") or 0.0), 1)
+    out["latency_ms"] = int(out.get("latency_ms") or 0)
+    out["port"]       = int(out.get("port") or 1194)
+
+    # Ensure country is clean
+    if not country or country.lower() in ("unknown", "global", ""):
+        out["country_name"] = "Global"
+        out["country_code"] = "XX"
+    out["country_code"] = (out.get("country_code") or "XX").upper()[:2]
+
+    return out
+
+
 def generate_version_string(ts: datetime) -> str:
     iso_ts = ts.strftime("%Y-%m-%dT%H:%M:%SZ")
     random_suffix = hashlib.sha256(iso_ts.encode("utf-8")).hexdigest()[:6]
@@ -97,20 +174,30 @@ class ManifestBuilder:
             comp_score = (speed_val * 100.0) + (score_val / 1000.0) + max(0.0, 100.0 - lat_val) + source_boost
             country_groups[country].append((sid, comp_score))
 
+        PREMIUM_COUNTRIES = {
+            "United States", "United Kingdom", "Germany", "France", "Netherlands",
+            "Switzerland", "Sweden", "Norway", "Singapore", "Japan", "Australia",
+            "Canada", "South Korea", "Hong Kong"
+        }
         tier_assignment = {}
         for country, s_list in country_groups.items():
             s_list.sort(key=lambda x: x[1], reverse=True)
             n = len(s_list)
-            n_free = max(2, int(n * 0.15))
-            n_premium = max(2, int(n * 0.60))
-
-            for idx, (sid, comp_score) in enumerate(s_list):
-                if idx < n_free:
-                    tier_assignment[sid] = "free"
-                elif idx < n_premium:
-                    tier_assignment[sid] = "premium"
-                else:
-                    tier_assignment[sid] = "premium_plus"
+            is_premium_country = country in PREMIUM_COUNTRIES
+            if is_premium_country:
+                n_premium_plus = max(1, int(n * 0.10))
+                for idx, (sid, _) in enumerate(s_list):
+                    tier_assignment[sid] = "premium_plus" if idx < n_premium_plus else "premium"
+            else:
+                n_free = max(2, int(n * 0.15))
+                n_premium = max(2, int(n * 0.60))
+                for idx, (sid, _) in enumerate(s_list):
+                    if idx < n_free:
+                        tier_assignment[sid] = "free"
+                    elif idx < n_premium:
+                        tier_assignment[sid] = "premium"
+                    else:
+                        tier_assignment[sid] = "premium_plus"
 
         # Step 3: Build Manifest and Server DTOs
         manifest_servers = {}
@@ -125,7 +212,8 @@ class ManifestBuilder:
             pid = meta.get("profile_id")
             storage_id = str(pid) if (pid and str(pid).isdigit()) else sid.removeprefix("pvl_")
             profile_rel_path = f"profiles/{storage_id}.ovpn"
-            profile_full_url = meta.get("profile_url") or f"/v1/profiles/{storage_id}.ovpn"
+            raw_url = meta.get("profile_url") or f"/v1/profiles/{storage_id}.ovpn"
+            profile_full_url = raw_url if raw_url.startswith("http") else f"https://zvpn-backend.xocqoc.workers.dev{raw_url}"
 
             manifest_servers[sid] = {
                 "profile": profile_rel_path,
@@ -148,16 +236,17 @@ class ManifestBuilder:
             srv_copy["status"] = meta.get("status") or "verified"
             srv_copy["checked_at"] = meta.get("checked_at") or iso_now
 
+            # Clean: strip internal fields, add display_name, protocol_label
+            srv_copy = _clean_server_for_app(srv_copy)
             servers_list.append(srv_copy)
 
-        # Step 4: Quality Sorting
+        # Step 4: Quality Sorting (by tier → speed → latency → country)
         def sort_key(s):
-            is_giamping = 1 if "giamping" in str(s.get("source_name", "")).lower() else 0
+            tier_order = _TIER_ORDER.get(s.get("tier", "free"), 0)
             speed = float(s.get("speed_mbps", 0.0) or 0.0)
-            score = float(s.get("network_score", 0) or 0)
             ping = float(s.get("latency_ms", 999) or 999)
             country = str(s.get("country_name", ""))
-            return (-is_giamping, -speed, -score, ping, country)
+            return (tier_order, -speed, ping, country)
 
         servers_list.sort(key=sort_key)
 
