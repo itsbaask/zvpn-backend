@@ -75,7 +75,12 @@ def run_sync():
     # Retain common servers that already exist in previous manifest
     for sid in diff.common_ids:
         prev_info = prev_servers[sid]
+        prev_meta = prev_info.get("metadata", {}) if isinstance(prev_info, dict) else {}
         server_meta = downloadable_servers[sid].to_dict()
+        if prev_meta.get("ovpn_content") and not server_meta.get("ovpn_content"):
+            server_meta["ovpn_content"] = prev_meta["ovpn_content"]
+        if prev_meta.get("config_uri") and not server_meta.get("config_uri"):
+            server_meta["config_uri"] = prev_meta["config_uri"]
         active_entries[sid] = {
             "metadata": server_meta,
             "sha256": prev_info.get("sha256", ""),
@@ -104,7 +109,7 @@ def run_sync():
         if result.is_success and result.content and result.sha256:
             storage.upload_profile(server_info.storage_id, result.content, result.sha256)
             meta = server_info.to_dict()
-            if result.content and (result.target_type == "inline_decoded_profile" or len(result.content) < 5000):
+            if result.content and len(result.content) < 50000:
                 meta["ovpn_content"] = result.content
             return sid, {
                 "metadata": meta,
