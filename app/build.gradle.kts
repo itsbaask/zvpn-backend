@@ -185,4 +185,10 @@ dependencies {
 
     // ── Google Sign-In ───────────────────────────────────────────────────────
     implementation("com.google.android.gms:play-services-auth:21.2.0")
+
+    // ── Unity Ads SDK ────────────────────────────────────────────────────────
+    implementation("com.unity3d.ads:unity-ads:4.12.2")
+
+    // ── Material Icons Extended (for Lock, Search, Close icons in UI) ────────
+    implementation("androidx.compose.material:material-icons-extended:1.7.5")
 }
