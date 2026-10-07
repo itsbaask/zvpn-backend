@@ -61,9 +61,7 @@ jobs:
           fi
 
       - name: Execute Cloud Sync
-        # ✅ Fix #5: step had no timeout — a single stuck HTTP call could hang
-        #    the whole job. 20 min gives the sync plenty of time.
-        timeout-minutes: 20
+        timeout-minutes: 35
         env:
           PYTHONPATH: .
           # Cloudflare R2 credentials

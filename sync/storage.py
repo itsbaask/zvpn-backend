@@ -129,3 +129,23 @@ class R2StorageAdapter:
         except Exception as e:
             logger.warning(f"Failed to delete profile {key} from R2: {e}")
             return False
+
+    def delete_profiles_batch(self, server_ids: List[str]) -> bool:
+        if not server_ids:
+            return True
+        if self.dry_run or not self.s3_client:
+            logger.info(f"[DRY-RUN] Batch delete {len(server_ids)} profiles from R2")
+            return True
+
+        batch_size = 1000
+        for i in range(0, len(server_ids), batch_size):
+            chunk = server_ids[i:i + batch_size]
+            delete_keys = [{'Key': f"v1/profiles/{sid}.ovpn"} for sid in chunk]
+            try:
+                self.s3_client.delete_objects(
+                    Bucket=self.bucket,
+                    Delete={'Objects': delete_keys, 'Quiet': True}
+                )
+            except Exception as e:
+                logger.warning(f"Failed to batch delete profiles chunk from R2: {e}")
+        return True

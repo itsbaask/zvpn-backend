@@ -180,9 +180,8 @@ def run_sync():
 
     # 8. Delete removed server profiles from R2 after successful publish
     if diff.removed_ids and test_profile_limit == 0:
-        logger.info(f"Cleaning up {len(diff.removed_ids)} removed profiles from R2...")
-        for sid in diff.removed_ids:
-            storage.delete_profile(sid)
+        logger.info(f"Cleaning up {len(diff.removed_ids)} removed profiles from R2 in batch...")
+        storage.delete_profiles_batch(diff.removed_ids)
 
     logger.info("Multi-source Cloud Sync completed successfully!")
     logger.info(f"Summary: Total Active={len(active_entries)}, Version={manifest_data.get('version')}")

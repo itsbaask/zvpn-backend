@@ -23,7 +23,7 @@ class Config:
     r2_secret_access_key: Optional[str] = os.getenv("R2_SECRET_ACCESS_KEY")
 
     # Rate limiting & Safety
-    max_workers: int = int(os.getenv("MAX_WORKERS", "4"))
+    max_workers: int = int(os.getenv("MAX_WORKERS", "16"))
     min_server_ratio: float = float(os.getenv("MIN_SERVER_RATIO", "0.10"))
     min_absolute_servers: int = int(os.getenv("MIN_ABSOLUTE_SERVERS", "1"))
     dry_run: bool = os.getenv("DRY_RUN", "false").lower() in ("true", "1", "yes")
