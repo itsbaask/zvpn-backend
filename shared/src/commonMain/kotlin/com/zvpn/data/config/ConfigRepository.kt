@@ -1567,10 +1567,24 @@ class ConfigRepository(private val store: KeyValueStore) {
                             else -> "https://zvpn-backend.xocqoc.workers.dev/v1/profiles/${entry.id}.ovpn"
                         }
 
-                        val realOvpnText = if (entry.ovpn_content.isNotBlank()) {
-                            entry.ovpn_content
-                        } else {
-                            runCatching { fetch(fullProfileUrl, ALT_UA).body.trim() }.getOrNull()
+                        val realOvpnText = when {
+                            entry.ovpn_content.isNotBlank() -> entry.ovpn_content
+                            else -> runCatching { fetch(fullProfileUrl, ALT_UA).body.trim() }.getOrNull()
+                                ?: if (entry.host.isNotBlank()) {
+                                    """client
+dev tun
+proto ${entry.transport.ifBlank { "udp" }}
+remote ${entry.host} ${if (entry.port > 0) entry.port else 1194}
+resolv-retry infinite
+nobind
+persist-key
+persist-tun
+auth-user-pass
+cipher AES-256-GCM
+data-ciphers AES-256-GCM:AES-128-GCM:CHACHA20-POLY1305
+verb 3
+"""
+                                } else null
                         }
 
                         if (!realOvpnText.isNullOrBlank() && OvpnConfig.looksLikeOvpn(realOvpnText)) {
