@@ -34,19 +34,25 @@ fun UnityBannerAdView(
     AndroidView(
         modifier = modifier,
         factory = { context ->
-            BannerView(context, placementId, UnityBannerSize.getDynamicSize()).apply {
-                layoutParams = ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                )
-                listener = object : BannerView.IListener {
-                    override fun onBannerLoaded(bannerAdView: BannerView) {}
-                    override fun onBannerShown(bannerAdView: BannerView) {}
-                    override fun onBannerClick(bannerAdView: BannerView) {}
-                    override fun onBannerFailedToLoad(bannerAdView: BannerView, errorInfo: BannerErrorInfo) {}
-                    override fun onBannerLeftApplication(bannerAdView: BannerView) {}
+            val activity = (context as? android.app.Activity)
+                ?: (context as? android.content.ContextWrapper)?.baseContext as? android.app.Activity
+            if (activity != null) {
+                BannerView(activity, placementId, UnityBannerSize.getDynamicSize(context)).apply {
+                    layoutParams = ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                    )
+                    listener = object : BannerView.IListener {
+                        override fun onBannerLoaded(bannerAdView: BannerView) {}
+                        override fun onBannerShown(bannerAdView: BannerView) {}
+                        override fun onBannerClick(bannerAdView: BannerView) {}
+                        override fun onBannerFailedToLoad(bannerAdView: BannerView, errorInfo: BannerErrorInfo) {}
+                        override fun onBannerLeftApplication(bannerAdView: BannerView) {}
+                    }
+                    load()
                 }
-                load()
+            } else {
+                android.view.View(context)
             }
         },
         update = { /* Banner auto-refreshes */ },

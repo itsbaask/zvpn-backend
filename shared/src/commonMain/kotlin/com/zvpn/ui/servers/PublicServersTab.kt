@@ -17,6 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.zvpn.domain.billing.UserTier
+import com.zvpn.shared.resources.*
+import org.jetbrains.compose.resources.painterResource
 
 enum class ServerTab(val label: String, val emoji: String) {
     Free("Free", "🆓"),
@@ -55,14 +57,17 @@ fun PublicServersTab(
             shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
             leadingIcon = {
                 Icon(
-                    imageVector = androidx.compose.material.icons.Icons.Default.Search,
+                    painter = painterResource(Res.drawable.ic_search),
                     contentDescription = null,
                 )
             },
             trailingIcon = {
                 if (searchQuery.isNotEmpty()) {
                     IconButton(onClick = { searchQuery = "" }) {
-                        Icon(androidx.compose.material.icons.Icons.Default.Close, contentDescription = "Clear")
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_close),
+                            contentDescription = "Clear",
+                        )
                     }
                 }
             },

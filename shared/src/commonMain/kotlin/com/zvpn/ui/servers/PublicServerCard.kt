@@ -20,6 +20,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zvpn.domain.billing.UserTier
+import com.zvpn.shared.resources.*
+import org.jetbrains.compose.resources.painterResource
 
 /**
  * Data class for displaying a public server (from backend servers.json).
@@ -190,7 +192,7 @@ fun PublicServerCard(
                 // Lock icon if inaccessible
                 if (locked) {
                     Icon(
-                        imageVector = androidx.compose.material.icons.Icons.Filled.Lock,
+                        painter = painterResource(Res.drawable.ic_lock),
                         contentDescription = "Locked",
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.outline,
