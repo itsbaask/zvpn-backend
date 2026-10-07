@@ -137,9 +137,10 @@ class R2StorageAdapter:
             logger.info(f"[DRY-RUN] Batch delete {len(server_ids)} profiles from R2")
             return True
 
+        ids_list = list(server_ids)
         batch_size = 1000
-        for i in range(0, len(server_ids), batch_size):
-            chunk = server_ids[i:i + batch_size]
+        for i in range(0, len(ids_list), batch_size):
+            chunk = ids_list[i:i + batch_size]
             delete_keys = [{'Key': f"v1/profiles/{sid}.ovpn"} for sid in chunk]
             try:
                 self.s3_client.delete_objects(

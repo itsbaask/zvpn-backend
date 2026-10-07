@@ -7,7 +7,7 @@ from typing import Dict, Any
 
 from sync.config import Config
 from sync.source import MultiSourceHarvester, ServerInfo
-from sync.ovpn import OvpnDownloader, DownloadResult
+from sync.ovpn import OvpnDownloader, DownloadResult, compute_sha256
 from sync.diff import compute_diff
 from sync.safety import validate_sync_safety, SafetyValidationError
 from sync.manifest import ManifestBuilder
@@ -102,18 +102,26 @@ def run_sync():
         server_info = downloadable_servers[sid]
         result = downloader.download_profile(server_info)
         if result.is_success and result.content and result.sha256:
-            uploaded = storage.upload_profile(server_info.storage_id, result.content, result.sha256)
-            if uploaded:
-                meta = server_info.to_dict()
-                # Embed inline content so app can parse without extra HTTP fetch
-                if result.target_type == "inline_decoded_profile" and result.content:
-                    meta["ovpn_content"] = result.content
-                return sid, {
-                    "metadata": meta,
-                    "sha256": result.sha256,
-                    "size": result.bytes_downloaded,
-                    "updated_at": now_iso
-                }
+            storage.upload_profile(server_info.storage_id, result.content, result.sha256)
+            meta = server_info.to_dict()
+            if result.content and (result.target_type == "inline_decoded_profile" or len(result.content) < 5000):
+                meta["ovpn_content"] = result.content
+            return sid, {
+                "metadata": meta,
+                "sha256": result.sha256,
+                "size": result.bytes_downloaded,
+                "updated_at": now_iso
+            }
+        elif server_info.config_uri or server_info.ovpn_content:
+            meta = server_info.to_dict()
+            content = server_info.config_uri or server_info.ovpn_content
+            sha256_val = compute_sha256(content)
+            return sid, {
+                "metadata": meta,
+                "sha256": sha256_val,
+                "size": len(content.encode("utf-8")),
+                "updated_at": now_iso
+            }
         return sid, None
 
     priority_new_ids = [sid for sid in target_new_ids if downloadable_servers[sid].source_name != "publicvpnlist"]
