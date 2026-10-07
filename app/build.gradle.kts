@@ -27,7 +27,7 @@ android {
     defaultConfig {
         applicationId = "com.zvpn"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         versionCode = (project.property("zvpn.versionCode") as String).toInt()
         versionName = project.property("zvpn.versionName") as String
 
@@ -176,7 +176,7 @@ dependencies {
     androidTestImplementation(libs.androidx.test.rules)
 
     // ── Google Play Billing ──────────────────────────────────────────────────
-    implementation("com.android.billingclient:billing-ktx:7.1.1")
+    implementation("com.android.billingclient:billing-ktx:8.0.0")
 
     // ── Firebase ─────────────────────────────────────────────────────────────
     implementation(platform("com.google.firebase:firebase-bom:33.5.1"))

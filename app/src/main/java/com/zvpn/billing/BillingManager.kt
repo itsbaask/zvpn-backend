@@ -70,7 +70,7 @@ class BillingManager(private val context: Context) : PurchasesUpdatedListener {
         if (activePurchase != null) {
             val productId = activePurchase.products.firstOrNull() ?: ""
             _userTier.value = when {
-                productId == BillingConfig.PRODUCT_PREMIUM_YEARLY && productId.contains("plus") -> UserTier.PremiumPlus
+                productId == BillingConfig.PRODUCT_PREMIUM_PLUS_YEARLY || productId.contains("plus") -> UserTier.PremiumPlus
                 else -> UserTier.Premium
             }
             // Acknowledge if not already
@@ -101,7 +101,8 @@ class BillingManager(private val context: Context) : PurchasesUpdatedListener {
             scope.launch {
                 purchases.forEach { purchase ->
                     if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
-                        _userTier.value = UserTier.Premium
+                        val productId = purchase.products.firstOrNull() ?: ""
+                        _userTier.value = if (productId == BillingConfig.PRODUCT_PREMIUM_PLUS_YEARLY || productId.contains("plus")) UserTier.PremiumPlus else UserTier.Premium
                         if (!purchase.isAcknowledged) {
                             billingClient.acknowledgePurchase(
                                 AcknowledgePurchaseParams.newBuilder().setPurchaseToken(purchase.purchaseToken).build()

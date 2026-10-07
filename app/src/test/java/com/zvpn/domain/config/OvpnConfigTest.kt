@@ -6,6 +6,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -180,5 +181,135 @@ class OvpnConfigTest {
             reason("remote a.example 1194\nproto udp\npkcs12 bundle.p12\n"),
         )
         assertEquals(OvpnConfig.Reason.NoRemote, reason("client\nproto udp\n<ca>\nx\n</ca>\n"))
+    }
+
+    @Test
+    fun `Test A - OVPN with valid inline CA produces non-empty tls certificate`() {
+        val ovpn = """
+            client
+            dev tun
+            remote server.test 1194
+            <ca>
+            -----BEGIN CERTIFICATE-----
+            MIIBcaLine1
+            -----END CERTIFICATE-----
+            </ca>
+        """.trimIndent()
+        val e = endpoint(OvpnConfig.toSingBoxFragment(ovpn))
+        val tls = e["tls"]!!.jsonObject
+        val certs = tls["certificate"]?.jsonArray
+        assertNotNull(certs)
+        assertTrue(certs!!.isNotEmpty())
+        assertTrue(certs.first().jsonPrimitive.content.startsWith("-----BEGIN"))
+    }
+
+    @Test
+    fun `Test B - OVPN with CRLF and escaped newlines in CA is parsed correctly`() {
+        val ovpn = "client\r\ndev tun\r\nremote server.test 1194\r\n<ca>\r\n-----BEGIN CERTIFICATE-----\\nMIIBcaLine1\\n-----END CERTIFICATE-----\r\n</ca>\r\n"
+        val e = endpoint(OvpnConfig.toSingBoxFragment(ovpn))
+        val tls = e["tls"]!!.jsonObject
+        val certs = tls["certificate"]?.jsonArray
+        assertNotNull(certs)
+        assertTrue(certs!!.size >= 3)
+    }
+
+    @Test
+    fun `Test C - OVPN with peer-fingerprint without CA produces tls peer_fingerprint and no certificate`() {
+        val ovpn = """
+            client
+            dev tun
+            remote server.test 1194
+            peer-fingerprint AA:BB:CC:DD:EE:FF:11:22:33:44:55:66:77:88:99:00:AA:BB:CC:DD:EE:FF:11:22:33:44:55:66:77:88:99:00
+        """.trimIndent()
+        val e = endpoint(OvpnConfig.toSingBoxFragment(ovpn))
+        val tls = e["tls"]!!.jsonObject
+        assertNull(tls["certificate"])
+        val fp = tls["peer_fingerprint"]?.jsonArray
+        assertNotNull(fp)
+        assertEquals(1, fp!!.size)
+        assertEquals(64, fp.first().jsonPrimitive.content.length)
+    }
+
+    @Test
+    fun `Test D - OVPN without CA and without fingerprint is rejected early`() {
+        val ovpn = """
+            client
+            dev tun
+            remote server.test 1194
+        """.trimIndent()
+        val err = runCatching { OvpnConfig.toSingBoxFragment(ovpn) }.exceptionOrNull()
+        assertTrue(err is OvpnConfig.UnsupportedException)
+        assertEquals(OvpnConfig.Reason.ExternalFiles, (err as OvpnConfig.UnsupportedException).reason)
+    }
+
+    @Test
+    fun `Test E - OVPN with external ca ca-crt without inline ca is rejected as ExternalFiles`() {
+        val ovpn = """
+            client
+            dev tun
+            remote server.test 1194
+            ca ca.crt
+        """.trimIndent()
+        val err = runCatching { OvpnConfig.toSingBoxFragment(ovpn) }.exceptionOrNull()
+        assertTrue(err is OvpnConfig.UnsupportedException)
+        assertEquals(OvpnConfig.Reason.ExternalFiles, (err as OvpnConfig.UnsupportedException).reason)
+    }
+
+    @Test
+    fun `Test F - OVPN with cert and key produces client_certificate and client_key`() {
+        val ovpn = """
+            client
+            dev tun
+            remote server.test 1194
+            <ca>
+            -----BEGIN CERTIFICATE-----
+            MIIBcaLine1
+            -----END CERTIFICATE-----
+            </ca>
+            <cert>
+            -----BEGIN CERTIFICATE-----
+            MIICertLine1
+            -----END CERTIFICATE-----
+            </cert>
+            <key>
+            -----BEGIN PRIVATE KEY-----
+            MIIKeyLine1
+            -----END PRIVATE KEY-----
+            </key>
+        """.trimIndent()
+        val e = endpoint(OvpnConfig.toSingBoxFragment(ovpn))
+        val tls = e["tls"]!!.jsonObject
+        assertNotNull(tls["client_certificate"])
+        assertNotNull(tls["client_key"])
+    }
+
+    @Test
+    fun `Test G - Malformed CA is rejected early`() {
+        val ovpn = """
+            client
+            dev tun
+            remote server.test 1194
+            <ca>
+            -----BEGIN CERTIFICATE-----
+            NotValidBase64!!@@
+            -----END CERTIFICATE-----
+            </ca>
+        """.trimIndent()
+        val err = runCatching { OvpnConfig.toSingBoxFragment(ovpn) }.exceptionOrNull()
+        assertTrue(err is OvpnConfig.UnsupportedException)
+        assertEquals(OvpnConfig.Reason.ExternalFiles, (err as OvpnConfig.UnsupportedException).reason)
+    }
+
+    @Test
+    fun `Test H - Malformed fingerprint is rejected early`() {
+        val ovpn = """
+            client
+            dev tun
+            remote server.test 1194
+            peer-fingerprint SHORT
+        """.trimIndent()
+        val err = runCatching { OvpnConfig.toSingBoxFragment(ovpn) }.exceptionOrNull()
+        assertTrue(err is OvpnConfig.UnsupportedException)
+        assertEquals(OvpnConfig.Reason.ExternalFiles, (err as OvpnConfig.UnsupportedException).reason)
     }
 }

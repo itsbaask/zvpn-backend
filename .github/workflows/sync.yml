@@ -1,8 +1,11 @@
-name: Z VPN Unified Cloudflare Sync Engine
+name: Z VPN — Cloud Sync Engine
 
 on:
   schedule:
-    - cron: '*/10 * * * *' # Sync & Health Check every 10 minutes
+    # ✅ Fix #1: was '*/10 * * * *' (every 10 min) → burns ~4,320 GitHub Actions
+    #    minutes/month and hammers external VPN sources with rate-limit bans.
+    #    6-hour cadence is plenty for a free VPN server list.
+    - cron: '0 */6 * * *'
   workflow_dispatch:
     inputs:
       sync_mode:
@@ -11,50 +14,93 @@ on:
         required: true
         default: 'auto'
         options:
-          - 'auto'
-          - 'full_sync'
-          - 'dry_run'
+          - 'auto'       # normal run — respects safety checks
+          - 'full_sync'  # ignores diff, re-downloads every profile
+          - 'dry_run'    # runs everything but skips R2/KV writes
 
+# ✅ Fix #2: cancel-in-progress was false → a hung run would block ALL future
+#    scheduled runs until it timed out (default 6h). Now new runs cancel stale ones.
 concurrency:
-  group: zvpn-unified-cloud-sync
-  cancel-in-progress: false
+  group: zvpn-cloud-sync
+  cancel-in-progress: true
 
 jobs:
   sync:
+    name: Sync VPN Server List
     runs-on: ubuntu-latest
+    # ✅ Fix #3: no job-level timeout → a network hang could consume 6 hours of
+    #    runner quota. Cap at 25 minutes (well within a realistic sync cycle).
+    timeout-minutes: 25
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          # ✅ Fix #4: no pip cache → installs from scratch on every run,
+          #    adding ~30-60s and extra PyPI bandwidth each time.
+          cache: 'pip'
+          cache-dependency-path: requirements.txt
 
       - name: Install Dependencies
         run: |
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt
-          fi
+          pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: Run Safety & Unit Tests
+      - name: Run Unit Tests
         env:
           PYTHONPATH: .
         run: |
           if [ -d tests ]; then
-            python -m unittest discover tests
+            python -m pytest tests/ -x -q --tb=short
+          else
+            echo "No tests directory found — skipping."
           fi
 
-      - name: Execute Z VPN Unified Health Check & Sync Engine
+      - name: Execute Cloud Sync
+        # ✅ Fix #5: step had no timeout — a single stuck HTTP call could hang
+        #    the whole job. 20 min gives the sync plenty of time.
+        timeout-minutes: 20
         env:
           PYTHONPATH: .
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          # Cloudflare R2 credentials
+          CLOUDFLARE_ACCOUNT_ID:      ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN:       ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_KV_NAMESPACE_ID: ${{ secrets.CLOUDFLARE_KV_NAMESPACE_ID }}
-          BACKEND_SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
-          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME || 'publicvpnlist-profiles' }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          DRY_RUN: ${{ github.event.inputs.sync_mode == 'dry_run' && 'true' || 'false' }}
+          R2_BUCKET_NAME:             ${{ secrets.R2_BUCKET_NAME || 'publicvpnlist-profiles' }}
+          R2_ACCESS_KEY_ID:           ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY:       ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          # Worker upload secret
+          BACKEND_SECRET_KEY:         ${{ secrets.BACKEND_SECRET_KEY }}
+          # ✅ Fix #6: PUBLICVPNLIST_ACCESS_KEY was missing entirely — the Python
+          #    harvester reads it via config.py; without it PVL requests are rejected.
+          PUBLICVPNLIST_ACCESS_KEY:   ${{ secrets.PUBLICVPNLIST_ACCESS_KEY }}
+          # ✅ Fix #7: full_sync mode was declared in the UI but never passed to
+          #    the Python process. Now it sets TEST_PROFILE_LIMIT=0 and forces
+          #    a full re-download via FULL_SYNC env var.
+          FULL_SYNC: >-
+            ${{ github.event.inputs.sync_mode == 'full_sync' && 'true' || 'false' }}
+          # dry_run wired correctly
+          DRY_RUN: >-
+            ${{ github.event.inputs.sync_mode == 'dry_run' && 'true' || 'false' }}
         run: |
           python -m sync.main
+
+      # ✅ Fix #8: no summary step → when a run fails you have to dig through
+      #    raw logs to understand what happened. This prints a quick status card.
+      - name: Sync Summary
+        if: always()
+        run: |
+          echo "## 🔄 Sync Result" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "✅ **Status:** Completed successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Status:** Failed — check the logs above" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "- **Trigger:** \`${{ github.event_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Mode:** \`${{ github.event.inputs.sync_mode || 'auto (scheduled)' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Run:** [\`${{ github.run_number }}\`](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY

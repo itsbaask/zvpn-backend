@@ -57,6 +57,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
@@ -157,6 +158,7 @@ fun HomeScreen(
     exitGeneration: Int = 0,
     onToggleConnection: () -> Unit,
     onBrowseConfigs: () -> Unit,
+    onOpenMap: () -> Unit = {},
     onSecretUnlocked: () -> Unit,
     modifier: Modifier = Modifier,
     lockedNote: String? = null,
@@ -411,6 +413,7 @@ fun HomeScreen(
                     detail = activeConfigDetail,
                     locked = activeLocked,
                     onClick = onBrowseConfigs,
+                    onOpenMap = onOpenMap,
                     personalization = personalization,
                 )
                 Spacer(Modifier.height(if (compact) 8.dp else 14.dp))
@@ -1412,6 +1415,7 @@ private fun ActiveConfigCard(
     detail: String? = null,
     locked: Boolean,
     onClick: () -> Unit,
+    onOpenMap: () -> Unit = {},
     personalization: Personalization = Personalization.Default,
     modifier: Modifier = Modifier,
 ) {
@@ -1479,6 +1483,15 @@ private fun ActiveConfigCard(
                             ?: MaterialTheme.colorScheme.onPrimaryContainer).copy(alpha = 0.75f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                )
+            }
+            IconButton(onClick = onOpenMap) {
+                Icon(
+                    painter = painterResource(Res.drawable.ic_map),
+                    contentDescription = stringResource(Res.string.map_title),
+                    tint = personalization.configCardTextColor
+                        ?: MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(22.dp),
                 )
             }
             Icon(

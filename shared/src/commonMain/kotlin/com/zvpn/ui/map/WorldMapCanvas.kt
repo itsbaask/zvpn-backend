@@ -10,14 +10,22 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.absoluteOffset
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -43,6 +51,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -52,6 +61,7 @@ import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zvpn.data.map.WorldMap
+import com.zvpn.domain.config.VpnProfile
 import com.zvpn.ui.components.FlagBadge
 import kotlin.math.abs
 import kotlin.math.hypot
@@ -62,17 +72,25 @@ import kotlin.math.roundToInt
 data class MapPoint(val x: Float, val y: Float, val label: String, val code: String = "")
 
 data class MapLabel(
-
     val x: Float,
     val y: Float,
     val text: String,
-
     val span: Float,
+)
+
+data class ServerPin(
+    val id: String,
+    val countryCode: String,
+    val countryName: String,
+    val point: MapPoint,
+    val count: Int,
+    val bestPingMs: Int?,
+    val profile: VpnProfile
 )
 
 private data class View(val scale: Float, val offset: Offset)
 
-private val MARKER: Dp = 26.dp
+private val MARKER: Dp = 28.dp
 
 private const val MIN_CAPTION_PX = 10f
 
@@ -81,14 +99,14 @@ fun WorldMapCanvas(
     countries: List<WorldMap.Country>,
     origin: MapPoint?,
     exit: MapPoint?,
-
+    serverPins: List<ServerPin> = emptyList(),
+    selectedPin: ServerPin? = null,
+    onSelectPin: (ServerPin) -> Unit = {},
+    onSelectCountry: (code: String, name: String) -> Unit = { _, _ -> },
     accent: Color,
-
     originColor: Color,
-
     landColor: Color,
     reduceMotion: Boolean,
-
     labels: List<MapLabel> = emptyList(),
     modifier: Modifier = Modifier,
 ) {
@@ -124,9 +142,14 @@ fun WorldMapCanvas(
     var canvas by remember { mutableStateOf(Size.Zero) }
     var view by remember { mutableStateOf<View?>(null) }
 
-    LaunchedEffect(canvas, origin, exit) {
+    // Auto-frame onto origin, exit, or selected pin
+    LaunchedEffect(canvas, origin, exit, selectedPin) {
         if (canvas.width > 0f && canvas.height > 0f) {
-            view = framing(canvas, listOfNotNull(origin, exit))
+            val focusPoints = mutableListOf<MapPoint>()
+            origin?.let { focusPoints.add(it) }
+            exit?.let { focusPoints.add(it) }
+            selectedPin?.let { focusPoints.add(it.point) }
+            view = framing(canvas, focusPoints)
         }
     }
 
@@ -146,9 +169,15 @@ fun WorldMapCanvas(
         modifier
             .fillMaxSize()
             .onSizeChanged { canvas = Size(it.width.toFloat(), it.height.toFloat()) }
-            .pointerInput(origin, exit) {
+            .pointerInput(origin, exit, selectedPin) {
                 detectTapGestures(
-                    onDoubleTap = { view = framing(canvas, listOfNotNull(origin, exit)) },
+                    onDoubleTap = {
+                        val focusPoints = mutableListOf<MapPoint>()
+                        origin?.let { focusPoints.add(it) }
+                        exit?.let { focusPoints.add(it) }
+                        selectedPin?.let { focusPoints.add(it.point) }
+                        view = framing(canvas, focusPoints)
+                    },
                 )
             }
             .pointerInput(origin, exit) {
@@ -205,6 +234,7 @@ fun WorldMapCanvas(
 
                 origin?.let { halo(it, originColor, breathe, px) }
                 exit?.let { halo(it, accent, breathe, px) }
+                selectedPin?.let { halo(it.point, accent, breathe, px) }
             }
         }
 
@@ -213,9 +243,102 @@ fun WorldMapCanvas(
                 Box(Modifier.fillMaxSize()) {
                     origin?.let { FlagMarker(it, v, canvas, originColor, markerPx, MARKER) }
                     exit?.let { FlagMarker(it, v, canvas, accent, markerPx, MARKER) }
+
+                    val serverCountryCodes = remember(serverPins) {
+                        serverPins.map { it.countryCode.uppercase() }.toSet()
+                    }
+
+                    // Render All 195+ World Country Dots
+                    WorldMap.WORLD_COUNTRY_POINTS.forEach { cp ->
+                        if (cp.code.uppercase() !in serverCountryCodes) {
+                            CountryDotMarker(
+                                country = cp,
+                                view = v,
+                                canvas = canvas,
+                                onClick = { onSelectCountry(cp.code, cp.name) }
+                            )
+                        }
+                    }
+
+                    // Render All Interactive Server Pins
+                    serverPins.forEach { pin ->
+                        val isSelected = selectedPin?.id == pin.id
+                        ServerPinMarker(
+                            pin = pin,
+                            view = v,
+                            canvas = canvas,
+                            isSelected = isSelected,
+                            accent = accent,
+                            markerPx = markerPx,
+                            size = if (isSelected) 34.dp else 26.dp,
+                            onClick = { onSelectPin(pin) }
+                        )
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CountryDotMarker(
+    country: com.zvpn.data.map.CountryPoint,
+    view: View,
+    canvas: Size,
+    onClick: () -> Unit
+) {
+    val (gridX, gridY) = WorldMap.gridOf(country.lon, country.lat)
+    val x = view.offset.x + gridX * view.scale
+    val y = view.offset.y + gridY * view.scale
+    val margin = 20f
+    if (x < -margin || y < -margin || x > canvas.width + margin || y > canvas.height + margin) return
+
+    Box(
+        Modifier
+            .absoluteOffset { IntOffset((x - 8f).roundToInt(), (y - 8f).roundToInt()) }
+            .size(16.dp)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
+            modifier = Modifier.size(5.dp)
+        ) {}
+    }
+}
+
+@Composable
+private fun ServerPinMarker(
+    pin: ServerPin,
+    view: View,
+    canvas: Size,
+    isSelected: Boolean,
+    accent: Color,
+    markerPx: Float,
+    size: Dp,
+    onClick: () -> Unit
+) {
+    val x = view.offset.x + pin.point.x * view.scale
+    val y = view.offset.y + pin.point.y * view.scale
+    val half = markerPx / 2f
+    val margin = markerPx
+    if (x < -margin || y < -margin || x > canvas.width + margin || y > canvas.height + margin) return
+    if (pin.countryCode.length != 2) return
+
+    val borderTint = if (isSelected) accent else MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+
+    Box(
+        Modifier
+            .absoluteOffset { IntOffset((x - half).roundToInt(), (y - half).roundToInt()) }
+            .size(size)
+            .clip(CircleShape)
+            .background(if (isSelected) accent.copy(alpha = 0.40f) else Color.Black.copy(alpha = 0.30f))
+            .border(if (isSelected) 3.dp else 1.5.dp, borderTint, CircleShape)
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center,
+    ) {
+        FlagBadge(pin.countryCode, size = size, modifier = Modifier.clip(CircleShape))
     }
 }
 

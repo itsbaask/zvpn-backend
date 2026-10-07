@@ -1,4 +1,4 @@
-﻿@file:OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
+@file:OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
 
 package com.zvpn.data.config
 
@@ -50,6 +50,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 
 class ProxyChainMemberMissingException(val missing: List<String>) :
     Exception("Proxy chain is missing ${missing.size} member(s): ${missing.joinToString(", ")}")
@@ -66,8 +68,8 @@ class CrossChainUdpUnsupportedException(val protocol: String, val carrier: Strin
     Exception("$protocol needs UDP, which $carrier cannot relay")
 
 class ConfigRepository(private val store: KeyValueStore) {
-    private val json = Json { ignoreUnknownKeys = true }
-    private val lenientJson = Json { ignoreUnknownKeys = true; isLenient = true }
+    private val json = Json { ignoreUnknownKeys = true; isLenient = true; coerceInputValues = true }
+    private val lenientJson = Json { ignoreUnknownKeys = true; isLenient = true; coerceInputValues = true }
 
     private val _profiles = MutableStateFlow(loadProfiles())
     val profiles: StateFlow<List<VpnProfile>> = _profiles.asStateFlow()
@@ -172,6 +174,10 @@ class ConfigRepository(private val store: KeyValueStore) {
         }.distinct()
 
         bodies.forEach { body ->
+            importServerJson(body, subscriptionId)?.let { return@runCatching it }
+        }
+
+        bodies.forEach { body ->
 
             importSingBoxJson(body, subscriptionId)?.let { return@runCatching it }
         }
@@ -253,6 +259,101 @@ class ConfigRepository(private val store: KeyValueStore) {
             if (duplicate) duplicates++ else fresh += profile
         }
         lastImportDuplicates = duplicates
+        _profiles.value = if (subscriptionId.isBlank()) fresh + current else current + fresh
+        persistProfiles()
+        if (_activeId.value == null) setActive(_profiles.value.firstOrNull()?.id)
+        return fresh.size
+    }
+
+    /**
+     * Parses the backend's servers.json schema:
+     * { "schema_version": 1, "servers": [ { "engine": "OPENVPN", "ovpn_content": "...", ... } ] }
+     *
+     * Returns the number of imported profiles, or null if the body is not in this schema.
+     */
+    private fun importServerJson(body: String, subscriptionId: String): Int? {
+        val trimmed = body.trim()
+        if (!trimmed.startsWith("{")) return null
+        val root = runCatching { lenientJson.parseToJsonElement(trimmed) }.getOrNull() as? JsonObject
+            ?: return null
+
+        // Must have a "servers" array to be our backend schema
+        val serversArray = root["servers"] as? JsonArray ?: return null
+        if (serversArray.isEmpty()) return null
+
+        // Validate it's our schema: must have schema_version OR first server must have "engine" field
+        val hasSchemaVersion = root["schema_version"] != null
+        val firstServer = serversArray.firstOrNull() as? JsonObject
+        val hasEngine = firstServer?.containsKey("engine") == true
+        if (!hasSchemaVersion && !hasEngine) return null
+
+        val current = _profiles.value
+        val fresh = mutableListOf<VpnProfile>()
+        var duplicates = 0
+        val now = currentTimeMillis()
+
+        serversArray.forEach { element ->
+            val server = element as? JsonObject ?: return@forEach
+            val engine = (server["engine"] as? JsonPrimitive)?.contentOrNull?.uppercase() ?: "OPENVPN"
+            val name = (server["name"] as? JsonPrimitive)?.contentOrNull
+
+            runCatching {
+                when {
+                    engine == "OPENVPN" -> {
+                        // Use inline ovpn_content when available
+                        val ovpnContent = (server["ovpn_content"] as? JsonPrimitive)?.contentOrNull
+                            ?.takeIf { it.isNotBlank() && OvpnConfig.looksLikeOvpn(it) }
+                            ?: return@runCatching
+                        val fragment = OvpnConfig.toSingBoxFragment(ovpnContent, name = name)
+                        val singServer = SingBoxJson.servers(fragment).firstOrNull()
+                            ?: return@runCatching
+                        val profile = VpnProfile.fromSingBox(
+                            server = singServer,
+                            id = newId(),
+                            addedAt = now,
+                            subscriptionId = subscriptionId,
+                            name = name,
+                        )
+                        val duplicate = (current + fresh).any {
+                            it.subscriptionId == subscriptionId &&
+                                (it.source as? ProfileSource.SingBox)?.json == singServer.fragment
+                        }
+                        if (duplicate) duplicates++ else fresh += profile
+                    }
+                    else -> {
+                        // Non-OpenVPN (VLESS, VMess, Trojan, etc.): use config_uri
+                        val configUri = (server["config_uri"] as? JsonPrimitive)?.contentOrNull
+                            ?.takeIf { it.isNotBlank() && ConfigParser.isSupportedLink(it) }
+                            ?: return@runCatching
+                        val profile = if (SingBoxLinks.handles(configUri)) {
+                            val parsed = SingBoxLinks.parse(configUri)
+                            val singServer2 = SingBoxJson.servers(parsed.fragment).first()
+                            VpnProfile.fromSingBox(
+                                server = singServer2,
+                                id = newId(),
+                                addedAt = now,
+                                subscriptionId = subscriptionId,
+                                name = name ?: parsed.name,
+                            )
+                        } else {
+                            VpnProfile.fromLink(
+                                link = configUri,
+                                id = newId(),
+                                addedAt = now,
+                                subscriptionId = subscriptionId,
+                            )
+                        }
+                        val duplicate = (current + fresh).any {
+                            it.rawPayload() == configUri && it.subscriptionId == subscriptionId
+                        }
+                        if (duplicate) duplicates++ else fresh += profile
+                    }
+                }
+            } // skip individual invalid entries silently
+        }
+
+        lastImportDuplicates += duplicates
+        if (fresh.isEmpty() && duplicates == 0) return null
         _profiles.value = if (subscriptionId.isBlank()) fresh + current else current + fresh
         persistProfiles()
         if (_activeId.value == null) setActive(_profiles.value.firstOrNull()?.id)
@@ -1436,54 +1537,58 @@ class ConfigRepository(private val store: KeyValueStore) {
             _subscriptions.value = _subscriptions.value.filterNot { it.id == "zvpn_official_cloud" || it.url.contains("zvpn-backend") }
             persistSubscriptions()
 
-            val cloudUrl = "https://vpn-backend.xocqoc.workers.dev/servers"
+            val cloudUrl = "https://zvpn-backend.xocqoc.workers.dev/v1/servers.json"
             val response = runCatching { fetch(cloudUrl, ALT_UA) }.getOrNull() ?: return@runCatching 0
             val body = response.body.trim()
             if (body.isBlank()) return@runCatching 0
 
+            val cloudJson = Json { ignoreUnknownKeys = true; isLenient = true; coerceInputValues = true }
+            val entries = runCatching {
+                val container = cloudJson.decodeFromString<CloudServerContainer>(body)
+                container.servers.ifEmpty { cloudJson.decodeFromString<List<CloudServerEntry>>(body) }
+            }.getOrElse {
+                runCatching { cloudJson.decodeFromString<List<CloudServerEntry>>(body) }.getOrDefault(emptyList())
+            }
+
             var added = 0
-            val container = runCatching { json.decodeFromString<CloudServerContainer>(body) }.getOrNull()
-            if (container != null && container.servers.isNotEmpty()) {
+            if (entries.isNotEmpty()) {
                 val currentOtherProfiles = _profiles.value.filterNot { it.subscriptionId == "cloud_official" }
                 val fresh = mutableListOf<VpnProfile>()
 
-                container.servers.forEach { entry ->
+                entries.forEach { entry ->
                     val serverName = entry.name.ifBlank { "${entry.flag} ${entry.country_name} - ${entry.protocol.uppercase()}" }
                     val profileId = "cloud_" + (entry.id.ifBlank { "${entry.host}_${entry.port}_${entry.protocol}" }).replace(Regex("[^a-zA-Z0-9_]"), "_")
 
                     if (entry.protocol.equals("openvpn", ignoreCase = true) || entry.config_uri.isBlank()) {
-                        val ovpnConfig = if (entry.ovpn_content.isNotBlank()) {
+                        val fullProfileUrl = when {
+                            entry.profile_url.startsWith("http") -> entry.profile_url
+                            entry.profile_url.startsWith("/") -> "https://zvpn-backend.xocqoc.workers.dev${entry.profile_url}"
+                            entry.profile_url.isNotBlank() -> "https://zvpn-backend.xocqoc.workers.dev/v1/profiles/${entry.profile_url}"
+                            else -> "https://zvpn-backend.xocqoc.workers.dev/v1/profiles/${entry.id}.ovpn"
+                        }
+
+                        val realOvpnText = if (entry.ovpn_content.isNotBlank()) {
                             entry.ovpn_content
                         } else {
-                            """client
-dev tun
-proto ${entry.transport.ifBlank { "udp" }}
-remote ${entry.host} ${if (entry.port > 0) entry.port else 1194}
-resolv-retry infinite
-nobind
-persist-key
-persist-tun
-remote-cert-tls server
-cipher AES-256-GCM
-data-ciphers AES-256-GCM:AES-128-GCM:AES-256-CBC
-<auth-user-pass>
-vpn
-vpn
-</auth-user-pass>
-"""
+                            runCatching { fetch(fullProfileUrl, ALT_UA).body.trim() }.getOrNull()
                         }
-                        val p = runCatching {
-                            val fragment = OvpnConfig.toSingBoxFragment(ovpnConfig, name = serverName)
-                            val server = SingBoxJson.servers(fragment).firstOrNull() ?: return@runCatching null
-                            VpnProfile.fromSingBox(
-                                server = server,
-                                id = profileId,
-                                addedAt = currentTimeMillis(),
-                                subscriptionId = "cloud_official",
-                                name = serverName
-                            )
-                        }.getOrNull()
-                        if (p != null) fresh.add(p)
+
+                        if (!realOvpnText.isNullOrBlank() && OvpnConfig.looksLikeOvpn(realOvpnText)) {
+                            val p = runCatching {
+                                val fragment = OvpnConfig.toSingBoxFragment(realOvpnText, name = serverName)
+                                val server = SingBoxJson.servers(fragment).firstOrNull() ?: return@runCatching null
+                                VpnProfile.fromSingBox(
+                                    server = server,
+                                    id = profileId,
+                                    addedAt = currentTimeMillis(),
+                                    subscriptionId = "cloud_official",
+                                    name = serverName
+                                ).copy(
+                                    countryCode = entry.country_code.ifBlank { null }
+                                )
+                            }.getOrNull()
+                            if (p != null) fresh.add(p)
+                        }
                     } else if (entry.config_uri.isNotBlank()) {
                         val p = runCatching {
                             if (SingBoxLinks.handles(entry.config_uri)) {
@@ -1496,6 +1601,8 @@ vpn
                                     subscriptionId = "cloud_official",
                                     name = serverName,
                                     link = entry.config_uri
+                                ).copy(
+                                    countryCode = entry.country_code.ifBlank { null }
                                 )
                             } else {
                                 VpnProfile.fromLink(
@@ -1503,7 +1610,10 @@ vpn
                                     id = profileId,
                                     addedAt = currentTimeMillis(),
                                     subscriptionId = "cloud_official"
-                                ).copy(name = serverName)
+                                ).copy(
+                                    name = serverName,
+                                    countryCode = entry.country_code.ifBlank { null }
+                                )
                             }
                         }.getOrNull()
                         if (p != null) fresh.add(p)

@@ -47,8 +47,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import com.zvpn.data.map.Continent
+import com.zvpn.data.map.continentOf
+import com.zvpn.ui.components.FlagBadge
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -134,6 +140,7 @@ fun ServersScreen(
     autoSortAfterTest: Boolean = false,
 
     personalization: Personalization = Personalization.Default,
+    onOpenMap: () -> Unit = {},
 ) {
     val platform = LocalPlatform.current
     val scope = rememberCoroutineScope()
@@ -571,6 +578,15 @@ fun ServersScreen(
                         contentDescription = stringResource(Res.string.subs_title),
                     )
                 }
+                IconButton(
+                    onClick = onOpenMap,
+                ) {
+                    Icon(
+                        painterResource(Res.drawable.ic_map),
+                        contentDescription = stringResource(Res.string.map_title),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
                 Box {
                     IconButton(
                         onClick = { overflowOpen = true },
@@ -637,37 +653,6 @@ fun ServersScreen(
                             },
                         )
                         HorizontalDivider()
-                        DropdownMenuItem(
-                            text = { Text(stringResource(Res.string.del_duplicates)) },
-                            leadingIcon = { Icon(painterResource(Res.drawable.ic_delete), null) },
-                            onClick = {
-                                overflowOpen = false
-                                val n = repository.removeDuplicates()
-                                toastRes(Res.string.removed_count, n)
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(Res.string.del_invalid)) },
-                            leadingIcon = { Icon(painterResource(Res.drawable.ic_delete), null) },
-                            onClick = {
-                                overflowOpen = false
-
-                                confirmDeleteInvalid = repository.invalidCount()
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(Res.string.export_all)) },
-                            leadingIcon = { Icon(painterResource(Res.drawable.ic_ios_share), null) },
-                            onClick = {
-                                overflowOpen = false
-                                val payload = repository.exportAllPayloads()
-                                if (payload.isBlank()) {
-                                    toastRes(Res.string.nothing_to_export)
-                                } else {
-                                    platform.shareText(payload)
-                                }
-                            },
-                        )
                         DropdownMenuItem(
                             text = { Text(stringResource(Res.string.del_all)) },
                             leadingIcon = { Icon(painterResource(Res.drawable.ic_delete), null) },
@@ -922,17 +907,43 @@ fun ServersScreen(
                     )
                 }
 
-                val gridState = rememberLazyGridState()
-                var order by remember { mutableStateOf(shown) }
-                LaunchedEffect(shown) { order = shown }
-                val reorderState = rememberReorderableLazyGridState(gridState) { from, to ->
-
-                    val fromIndex = order.indexOfFirst { it.id == from.key }
-                    val toIndex = order.indexOfFirst { it.id == to.key }
-                    if (fromIndex >= 0 && toIndex >= 0) {
-                        order = order.toMutableList().apply { add(toIndex, removeAt(fromIndex)) }
-                    }
+                var selectedProtocolFilter by rememberSaveable { mutableStateOf("All") }
+                val protocolFiltered = remember(shown, selectedProtocolFilter) {
+                    if (selectedProtocolFilter == "All") shown
+                    else shown.filter { it.protocol.equals(selectedProtocolFilter, ignoreCase = true) }
                 }
+                val protocolCounts = remember(shown) {
+                    shown.groupingBy { it.protocol.lowercase() }.eachCount()
+                }
+
+                val continentGroups = remember(protocolFiltered) {
+                    val countryMap = protocolFiltered.groupBy { it.countryCode?.uppercase() ?: "UN" }
+                    val countryGroups = countryMap.map { (code, profs) ->
+                        val sampleName = profs.firstOrNull()?.name ?: code
+                        val name = sampleName.substringBefore("-").trim().ifBlank { code }
+                        CountryGroup(
+                            countryCode = code,
+                            countryName = name,
+                            continent = continentOf(code),
+                            profiles = profs
+                        )
+                    }
+                    countryGroups.groupBy { it.continent }.map { (cont, cGroups) ->
+                        ContinentGroup(
+                            continent = cont,
+                            countryGroups = cGroups.sortedByDescending { it.profiles.size },
+                            totalServers = cGroups.sumOf { it.profiles.size }
+                        )
+                    }.sortedBy { it.continent.ordinal }
+                }
+
+                var expandedContinents by rememberSaveable {
+                    mutableStateOf(setOf("Europe", "Americas", "Asia-Pacific", "Middle East & Africa", "Other Regions"))
+                }
+                var expandedCountries by rememberSaveable { mutableStateOf(setOf<String>()) }
+
+                val gridState = rememberLazyGridState()
+
                 Box(Modifier.fillMaxSize()) {
                     LazyVerticalGrid(
                         state = gridState,
@@ -942,6 +953,17 @@ fun ServersScreen(
                         horizontalArrangement = Arrangement.spacedBy(personalization.density.gapDp.dp),
                         verticalArrangement = Arrangement.spacedBy(personalization.density.gapDp.dp),
                     ) {
+                        // 1. Protocol Index Bar
+                        item(key = "protocol-index", span = { GridItemSpan(maxLineSpan) }) {
+                            ProtocolIndexBar(
+                                selectedProtocol = selectedProtocolFilter,
+                                onProtocolSelect = { selectedProtocolFilter = it },
+                                counts = protocolCounts,
+                                accent = personalization.connectedColor ?: MaterialTheme.colorScheme.primary
+                            )
+                        }
+
+                        // 2. Auto Select Group
                         if (autoMembers.size >= 2) {
                             item(key = "auto-select", span = { GridItemSpan(maxLineSpan) }) {
                                 AutoSelectCard(
@@ -959,23 +981,44 @@ fun ServersScreen(
                                 )
                             }
                         }
-                        gridItemsIndexed(order, key = { _, p -> p.id }) { position, profile ->
-                            ReorderableItem(reorderState, key = profile.id) {
-                                Box(
 
-                                    Modifier
-                                        .then(if (twoColumns) Modifier.fillMaxHeight() else Modifier)
+                        // 3. Continent -> Country -> Server Hierarchy
+                        continentGroups.forEach { cGroup ->
+                            val cLabel = cGroup.continent.label
+                            val isContExpanded = cLabel in expandedContinents
 
-                                        .then(if (position == 0) Modifier.tourTarget(TourTargets.SERVER_CARD) else Modifier)
-                                        .then(
+                            item(key = "cont-${cGroup.continent.name}", span = { GridItemSpan(maxLineSpan) }) {
+                                ContinentHeader(
+                                    continent = cGroup.continent,
+                                    serverCount = cGroup.totalServers,
+                                    isExpanded = isContExpanded,
+                                    onToggle = {
+                                        expandedContinents = if (isContExpanded) expandedContinents - cLabel else expandedContinents + cLabel
+                                    }
+                                )
+                            }
 
-                                            if (selecting) Modifier
-                                            else Modifier.longPressDraggableHandle(
-                                                onDragStopped = { repository.reorder(order.map { it.id }) },
-                                            ),
-                                        ),
-                                ) {
-                                    card(profile)
+                            if (isContExpanded) {
+                                cGroup.countryGroups.forEach { country ->
+                                    val isCtyExpanded = country.countryCode in expandedCountries || selectedProtocolFilter != "All"
+
+                                    item(key = "cty-${country.countryCode}", span = { GridItemSpan(maxLineSpan) }) {
+                                        CountryHeaderCard(
+                                            countryCode = country.countryCode,
+                                            countryName = country.countryName,
+                                            serverCount = country.profiles.size,
+                                            isExpanded = isCtyExpanded,
+                                            onToggle = {
+                                                expandedCountries = if (isCtyExpanded) expandedCountries - country.countryCode else expandedCountries + country.countryCode
+                                            }
+                                        )
+                                    }
+
+                                    if (isCtyExpanded) {
+                                        items(country.profiles, key = { it.id }) { profile ->
+                                            card(profile)
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -2289,3 +2332,157 @@ private object JsonEditor {
 }
 
 private data class OvpnPrompt(val text: String, val name: String)
+
+private data class CountryGroup(
+    val countryCode: String,
+    val countryName: String,
+    val continent: Continent,
+    val profiles: List<VpnProfile>
+)
+
+private data class ContinentGroup(
+    val continent: Continent,
+    val countryGroups: List<CountryGroup>,
+    val totalServers: Int
+)
+
+@Composable
+private fun ProtocolIndexBar(
+    selectedProtocol: String,
+    onProtocolSelect: (String) -> Unit,
+    counts: Map<String, Int>,
+    accent: Color
+) {
+    val protocols = listOf("All", "OpenVPN", "VLESS", "WireGuard", "VMess", "Shadowsocks", "Trojan", "SSH")
+    val scrollState = rememberScrollState()
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .horizontalScroll(scrollState),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        protocols.forEach { proto ->
+            val count = if (proto == "All") counts.values.sum() else (counts[proto.lowercase()] ?: 0)
+            if (count > 0 || proto == "All") {
+                FilterChip(
+                    selected = selectedProtocol.equals(proto, ignoreCase = true),
+                    onClick = { onProtocolSelect(proto) },
+                    label = { Text("$proto ($count)", style = MaterialTheme.typography.labelMedium) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = accent,
+                        selectedLabelColor = Color.White
+                    )
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ContinentHeader(
+    continent: Continent,
+    serverCount: Int,
+    isExpanded: Boolean,
+    onToggle: () -> Unit
+) {
+    Surface(
+        onClick = onToggle,
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(continent.icon, style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    continent.label,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.width(8.dp))
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        "$serverCount",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    )
+                }
+            }
+            Icon(
+                painter = painterResource(
+                    if (isExpanded) Res.drawable.ic_close else Res.drawable.ic_chevron_right
+                ),
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun CountryHeaderCard(
+    countryCode: String,
+    countryName: String,
+    serverCount: Int,
+    isExpanded: Boolean,
+    onToggle: () -> Unit
+) {
+    Surface(
+        onClick = onToggle,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+        tonalElevation = 2.dp,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                FlagBadge(countryCode, size = 26.dp, modifier = Modifier.clip(CircleShape))
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    countryName,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
+                ) {
+                    Text(
+                        "$serverCount servers",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                Icon(
+                    painter = painterResource(
+                        if (isExpanded) Res.drawable.ic_close else Res.drawable.ic_chevron_right
+                    ),
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
+}

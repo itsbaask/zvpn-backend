@@ -86,16 +86,17 @@ class OvpnSingBoxRulesTest {
     }
 
     @Test
-    fun `TLS mode always carries a tls object, even an empty one`() {
-        val bare = """
+    fun `TLS object is emitted when TLS directives or fingerprint exist`() {
+        val bareWithFingerprint = """
             client
             dev tun
             remote bare.example.net 1194
             auth-user-pass
+            peer-fingerprint 11:22:33:44:55:66:77:88:99:00:aa:bb:cc:dd:ee:ff:11:22:33:44:55:66:77:88:99:00:aa:bb:cc:dd:ee:ff
         """.trimIndent()
 
-        assertNotNull(endpoint(OvpnConfig.toSingBoxFragment(bare))["tls"])
-        assertNotNull(endpoint(OvpnConfig.toSingBoxFragment(tlsProfile))["tls"])
+        assertNotNull("fingerprint profile emits tls object with peer_fingerprint", endpoint(OvpnConfig.toSingBoxFragment(bareWithFingerprint))["tls"])
+        assertNotNull("profile with CA emits tls object", endpoint(OvpnConfig.toSingBoxFragment(tlsProfile))["tls"])
     }
 
     @Test

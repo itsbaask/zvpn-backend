@@ -94,7 +94,7 @@ jobs:
 
       - name: Read the version
         id: v
-        run: echo "name=$(grep '^zedsecure.versionName=' gradle.properties | cut -d= -f2)" >> "$GITHUB_OUTPUT"
+        run: echo "name=$(grep '^zvpn.versionName=' gradle.properties | cut -d= -f2)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/download-artifact@v4
         with: { path: artifacts }

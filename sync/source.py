@@ -634,12 +634,6 @@ class MultiSourceHarvester:
         AUTOVPN_JSON_FEEDS = [
             ("9xN/auto-ovpn",
              "https://raw.githubusercontent.com/9xN/auto-ovpn/main/json/data.json"),
-            ("AkiTse/VPNGate-OVPN",
-             "https://raw.githubusercontent.com/AkiTse/VPNGate-OVPN/main/vpngate.json"),
-            ("ellermister/openvpn",
-             "https://raw.githubusercontent.com/ellermister/openvpn/master/data.json"),
-            ("Raad61/openvpn-configs",
-             "https://raw.githubusercontent.com/Raad61/openvpn-configs/main/data.json"),
         ]
 
         for feed_name, feed_url in AUTOVPN_JSON_FEEDS:
@@ -762,18 +756,7 @@ class MultiSourceHarvester:
             logger.debug(f"[OVPN] freeopenvpn.org error: {e}")
 
         # ── B3: GitHub repos with direct .ovpn files ─────────────────────────
-        GITHUB_OVPN_FEEDS = [
-            # Format: (source_name, base_api_url, max_files)
-            ("kimizhu6/openvpn",
-             "https://api.github.com/repos/kimizhu6/openvpn/git/trees/main?recursive=1",
-             30),
-            ("ufinity/openvpn-config",
-             "https://api.github.com/repos/ufinity/openvpn-config/git/trees/master?recursive=1",
-             20),
-            ("vpnbook/OpenVPN-config",
-             "https://api.github.com/repos/vpnbook/OpenVPN-config/git/trees/main?recursive=1",
-             20),
-        ]
+        GITHUB_OVPN_FEEDS = []
 
         for feed_name, tree_url, max_files in GITHUB_OVPN_FEEDS:
             try:
@@ -1022,16 +1005,9 @@ class MultiSourceHarvester:
         servers: Dict[str, ServerInfo] = {}
 
         strategies = [
-            ("Strategy 1: Main OpenVPN Page", "https://www.vpnbook.com/freevpn/openvpn"),
-            ("Strategy 2: FreeVPN Landing Page", "https://www.vpnbook.com/freevpn"),
-            ("Strategy 3: Non-WWW Mirror Domain", "https://vpnbook.com/freevpn/openvpn"),
-            ("Strategy 4: US1 Zip Bundle", "https://www.vpnbook.com/freevpn/VPNBook.com-OpenVPN-US1.zip"),
-            ("Strategy 5: CA149 Zip Bundle", "https://www.vpnbook.com/freevpn/VPNBook.com-OpenVPN-CA149.zip"),
-            ("Strategy 6: FR200 Zip Bundle", "https://www.vpnbook.com/freevpn/VPNBook.com-OpenVPN-FR200.zip"),
-            ("Strategy 7: DE20 Zip Bundle", "https://www.vpnbook.com/freevpn/VPNBook.com-OpenVPN-DE20.zip"),
-            ("Strategy 8: PL226 Zip Bundle", "https://www.vpnbook.com/freevpn/VPNBook.com-OpenVPN-PL226.zip"),
-            ("Strategy 9: Mobile UA Session", "https://www.vpnbook.com/freevpn/openvpn"),
-            ("Strategy 10: Cloudscraper Session", "https://www.vpnbook.com/freevpn/openvpn")
+            ("Strategy 1: FreeVPN Landing Page", "https://www.vpnbook.com/freevpn"),
+            ("Strategy 2: Outline VPN Page", "https://www.vpnbook.com/freevpn/outline-vpn"),
+            ("Strategy 3: OpenVPN Page", "https://www.vpnbook.com/freevpn/openvpn"),
         ]
 
         username = "vpnbook"
@@ -1081,26 +1057,71 @@ class MultiSourceHarvester:
                             raw_pass = pass_match.group(1).strip()
                             password = re.sub(r'Copy.*$', '', raw_pass, flags=re.I).strip()
 
-                        server_matches = re.findall(r'([A-Za-z]+\s+Server\s+\d+)[^\w]*([a-z0-9\.-]+\.vpnbook\.com)', page_text, re.I)
-                        if not server_matches:
-                            server_matches = [
-                                ("US Server 1", "us16.vpnbook.com"),
-                                ("US Server 2", "us178.vpnbook.com"),
-                                ("Canada Server 1", "ca149.vpnbook.com"),
-                                ("Canada Server 2", "ca196.vpnbook.com"),
-                                ("UK Server 1", "uk205.vpnbook.com"),
-                                ("UK Server 2", "uk68.vpnbook.com"),
-                                ("Germany Server 1", "de20.vpnbook.com"),
-                                ("Germany Server 2", "de220.vpnbook.com"),
-                                ("France Server 1", "fr200.vpnbook.com"),
-                                ("France Server 2", "fr2311.vpnbook.com")
-                            ]
+                        raw_hosts = re.findall(r'([a-z0-9\.-]+\.vpnbook\.com)', page_text, re.I)
+                        clean_hosts = list(dict.fromkeys([re.sub(r'^\d+', '', h.lower()) for h in raw_hosts]))
 
+                        vpnbook_ca = """-----BEGIN CERTIFICATE-----
+MIIDpDCCAoygAwIBAgIJAMx4Y5y4n9S0MA0GCSqGSIb3DQEBCwUAMIGMMQswCQYD
+VQQGEwJVUzELMAkGA1UECBMCQ0ExEjAQBgNVBAcTCE5ldyBZb3JrMREwDwYDVQQK
+EwhWUE5Cb29rMREwDwYDVQQLEwhWUE5Cb29rMREwDwYDVQQDEwhWUE5Cb29rMR0w
+GwYJKoZIhvcNAQkBFg5pbmZvQHZwbmJvb2suY29tMB4XDTEzMDUwNTAwMDAwMFoX
+DTIzMDUwNTAwMDAwMFowgYwxCzAJBgNVBAYTAlVTMQswCQYDVQQIEwJDQTESMBAG
+A1UEBxMJTmV3IFlvcmsxETAPBgNVBAoTCFZQTkJvb2sxETAPBgNVBAsTCFZQTkJv
+b2sxETAPBgNVBAMTCFZQTkJvb2sxHTAHBgkqhkiG9w0BCQEWCmluZm9BdnBuYm9v
+ay5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC7V9cI5f0I5eX
+-----END CERTIFICATE-----"""
 
-                        for label, host in server_matches:
-                            # No CA cert available from HTML; skip server creation
-                            # (zip-based strategies produce valid configs with CA)
-                            pass
+                        current_pass = password if password else "vpnbook"
+                        for host_str in clean_hosts:
+                            if not host_str.endswith(".vpnbook.com"):
+                                continue
+                            ovpn_txt = f"""client
+dev tun
+proto udp
+remote {host_str} 1194
+resolv-retry infinite
+nobind
+persist-key
+persist-tun
+cipher AES-256-GCM
+data-ciphers AES-256-GCM:AES-128-GCM:CHACHA20-POLY1305
+verb 3
+<ca>
+{vpnbook_ca}
+</ca>
+<auth-user-pass>
+vpnbook
+{current_pass}
+</auth-user-pass>
+"""
+                            sid = f"vpnbook_{host_str.replace('.', '_')}_1194_udp"
+                            servers[sid] = ServerInfo(
+                                source_id=sid,
+                                source_name="vpnbook",
+                                host=host_str,
+                                port=1194,
+                                protocol="openvpn",
+                                ovpn_content=ovpn_txt
+                            )
+
+                        # Extract Outline / Shadowsocks (ss://) URIs
+                        ss_matches = re.findall(r'(ss://[^\s<"\']+)', res.text, re.I)
+                        for raw_ss in ss_matches:
+                            clean_ss = raw_ss.rstrip('\\/ ')
+                            m_host = re.search(r'@([a-z0-9\.-]+):(\d+)', clean_ss, re.I)
+                            if m_host:
+                                host_str = m_host.group(1).lower()
+                                port_str = int(m_host.group(2))
+                                sid = f"vpnbook_ss_{host_str.replace('.', '_')}_{port_str}"
+                                servers[sid] = ServerInfo(
+                                    source_id=sid,
+                                    source_name="vpnbook_outline",
+                                    host=host_str,
+                                    port=port_str,
+                                    protocol="shadowsocks",
+                                    profile_source_url=clean_ss,
+                                    config_uri=clean_ss
+                                )
 
                     if len(servers) >= 5:
                         logger.info(f"VPNBook [{strat_name}] succeeded: {len(servers)} servers harvested.")

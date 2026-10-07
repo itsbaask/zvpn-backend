@@ -105,6 +105,9 @@ def run_sync():
             uploaded = storage.upload_profile(server_info.storage_id, result.content, result.sha256)
             if uploaded:
                 meta = server_info.to_dict()
+                # Embed inline content so app can parse without extra HTTP fetch
+                if result.target_type == "inline_decoded_profile" and result.content:
+                    meta["ovpn_content"] = result.content
                 return sid, {
                     "metadata": meta,
                     "sha256": result.sha256,

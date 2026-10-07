@@ -183,17 +183,41 @@ class OvpnDownloader:
         target_url_check = str(getattr(target, "profile_source_url", ""))
 
         if profile_id and profile_id.isdigit() and ("publicvpnlist" in source_name or "publicvpnlist.com" in target_url_check):
-            page_url = f"{self.base_url}/download/{profile_id}/"
-            return DownloadResult(
-                source_id=source_id,
-                target_type="pvl_token_download",
-                target_url=page_url,
-                http_status=200,
-                content_type="application/x-openvpn-profile",
-                bytes_downloaded=100,
-                sha256=compute_sha256(page_url),
-                content=f"client\ndev tun\nremote {profile_id}.publicvpnlist.com 1194"
-            )
+            token_headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Content-Type": "application/x-www-form-urlencoded",
+                "X-Requested-With": "XMLHttpRequest",
+                "Referer": f"{self.base_url}/download/{profile_id}/"
+            }
+            try:
+                tok_res = self.session.post(
+                    f"{self.base_url}/get_token.php",
+                    data={"id": profile_id},
+                    headers=token_headers,
+                    timeout=(10, 25)
+                )
+                if tok_res.status_code == 200:
+                    tok_data = tok_res.json()
+                    tok_val = tok_data.get("token")
+                    raw_dl = tok_data.get("url") or f"/download.php?token={tok_val}"
+                    dl_url = urljoin(self.base_url, raw_dl)
+
+                    ovpn_res = self.session.get(dl_url, headers=token_headers, timeout=(10, 30))
+                    if ovpn_res.status_code == 200 and is_valid_ovpn_content(ovpn_res.text):
+                        minified = minify_ovpn(ovpn_res.text)
+                        sha256_val = compute_sha256(minified)
+                        return DownloadResult(
+                            source_id=source_id,
+                            target_type="pvl_token_download",
+                            target_url=dl_url,
+                            http_status=200,
+                            content_type="application/x-openvpn-profile",
+                            bytes_downloaded=len(minified.encode("utf-8")),
+                            sha256=sha256_val,
+                            content=minified
+                        )
+            except Exception as e:
+                logger.warning(f"PVL token download failed for ID {profile_id}: {e}")
 
         try:
             target_type, target_url = self.resolve_download_target(target)
@@ -226,7 +250,7 @@ class OvpnDownloader:
 
         return DownloadResult(
             source_id=source_id,
-            target_type="fallback",
+            target_type="failed",
             target_url=safe_url(target_url),
-            error="Download failed"
+            error="Download failed or invalid OpenVPN profile content"
         )

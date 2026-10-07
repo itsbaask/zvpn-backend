@@ -2,9 +2,10 @@ package com.zvpn.domain.billing
 
 object BillingConfig {
     // Google Play product IDs — must match exactly what's in Play Console
-    const val PRODUCT_PREMIUM_WEEKLY  = "zvpn_premium_weekly"
-    const val PRODUCT_PREMIUM_MONTHLY = "zvpn_premium_monthly"
-    const val PRODUCT_PREMIUM_YEARLY  = "zvpn_premium_yearly"
+    const val PRODUCT_PREMIUM_WEEKLY      = "zvpn_premium_weekly"
+    const val PRODUCT_PREMIUM_MONTHLY     = "zvpn_premium_monthly"
+    const val PRODUCT_PREMIUM_YEARLY      = "zvpn_premium_yearly"
+    const val PRODUCT_PREMIUM_PLUS_YEARLY = "zvpn_premium_plus_yearly"
 
     // Pricing display (shown before real price loads from Play)
     const val PRICE_WEEKLY_DISPLAY  = "$1.99"

@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import MagicMock
 from sync.ovpn import is_valid_ovpn_content, OvpnDownloader, DownloadResult
 from sync.source import ServerInfo, MultiSourceHarvester
 
@@ -45,7 +46,33 @@ MIID...
         self.assertFalse(invalid_stub_server.has_valid_profile_mapping())
 
     def test_pvl_download_profile_token_flow(self):
-        downloader = OvpnDownloader()
+        mock_session = MagicMock()
+
+        mock_tok_res = MagicMock()
+        mock_tok_res.status_code = 200
+        mock_tok_res.json.return_value = {
+            "token": "test_tok_123",
+            "url": "/download.php?token=test_tok_123"
+        }
+
+        mock_ovpn_res = MagicMock()
+        mock_ovpn_res.status_code = 200
+        mock_ovpn_res.text = """client
+dev tun
+proto udp
+remote 1.2.3.4 1194
+cipher AES-256-GCM
+<ca>
+-----BEGIN CERTIFICATE-----
+MIID...
+-----END CERTIFICATE-----
+</ca>
+"""
+
+        mock_session.post.return_value = mock_tok_res
+        mock_session.get.return_value = mock_ovpn_res
+
+        downloader = OvpnDownloader(session=mock_session)
         pvl_server = ServerInfo(
             source_id="pvl_738166",
             source_name="publicvpnlist",

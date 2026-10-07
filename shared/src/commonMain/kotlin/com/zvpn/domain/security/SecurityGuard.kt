@@ -1,6 +1,6 @@
 package com.zvpn.domain.security
 
-import kotlinx.serialization.json.Json
+import com.zvpn.platform.currentTimeMillis
 
 /**
  * Enterprise Multi-Layer Security Guard for Z VPN.
@@ -48,12 +48,5 @@ object SecurityGuard {
     fun buildSignaturePayload(pathname: String, timestampMs: Long, pkgName: String = "com.zvpn"): String {
         val cleanPath = pathname.trim().lowercase()
         return "$cleanPath|$timestampMs|$pkgName"
-    }
-
-    /**
-     * Platform time provider helper.
-     */
-    private fun currentTimeMillis(): Long {
-        return com.zvpn.platform.Time.nowMs()
     }
 }

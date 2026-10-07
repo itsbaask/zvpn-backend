@@ -15,11 +15,8 @@ import kotlinx.serialization.json.putJsonObject
 object OvpnConfig {
     enum class Reason {
         NoRemote,
-
         Tap,
-
         ExternalFiles,
-
         UnsupportedCredentials,
     }
 
@@ -29,13 +26,9 @@ object OvpnConfig {
     data class Info(
         val host: String,
         val port: Int,
-
         val network: String,
-
         val needsCredentials: Boolean,
-
         val hasInlineCredentials: Boolean,
-
         val name: String,
     )
 
@@ -50,8 +43,9 @@ object OvpnConfig {
     }
 
     fun inspect(text: String): Info {
-        val directives = directives(text)
-        val blocks = blocks(text)
+        val normalized = normalizeText(text)
+        val directives = directives(normalized)
+        val blocks = blocks(normalized)
         refuseWhatCannotRun(directives, blocks)
         val remote = remotes(directives).firstOrNull() ?: throw UnsupportedException(Reason.NoRemote)
         val credentials = inlineCredentials(blocks)
@@ -61,7 +55,7 @@ object OvpnConfig {
             network = remote.network,
             needsCredentials = directives.any { it.name == "auth-user-pass" } || credentials != null,
             hasInlineCredentials = credentials != null,
-            name = comment(text) ?: remote.host,
+            name = comment(normalized) ?: remote.host,
         )
     }
 
@@ -71,8 +65,9 @@ object OvpnConfig {
         username: String? = null,
         password: String? = null,
     ): String {
-        val directives = directives(text)
-        val blocks = blocks(text)
+        val normalized = normalizeText(text)
+        val directives = directives(normalized)
+        val blocks = blocks(normalized)
         refuseWhatCannotRun(directives, blocks)
         val remotes = remotes(directives)
         val first = remotes.firstOrNull() ?: throw UnsupportedException(Reason.NoRemote)
@@ -82,7 +77,7 @@ object OvpnConfig {
 
         val endpoint = buildJsonObject {
             put("type", SingBoxJson.OPENVPN_TYPE)
-            put("tag", name?.takeIf { it.isNotBlank() } ?: comment(text) ?: first.host)
+            put("tag", name?.takeIf { it.isNotBlank() } ?: comment(normalized) ?: first.host)
 
             if (remotes.size > 1) {
                 putJsonArray("servers") {
@@ -105,7 +100,8 @@ object OvpnConfig {
 
             if (staticKey != null) {
                 put("mode", "static_key")
-                putJsonArray("static_key") { staticKey.forEach { add(it) } }
+                val cleanStaticKey = sanitizeKeyLines(staticKey)
+                putJsonArray("static_key") { cleanStaticKey.forEach { add(it) } }
                 keyDirection(directives, "secret")?.let { put("key_direction", it) }
 
                 ifconfig(directives)?.let { (local, peer) ->
@@ -115,7 +111,7 @@ object OvpnConfig {
 
                 directives.first("cipher")?.firstOrNull()?.let { put("cipher", it) }
             } else {
-                put("tls", tls(directives, blocks) ?: buildJsonObject { put("insecure", true) })
+                put("tls", tls(directives, blocks))
                 (username ?: inline?.first)?.takeIf { it.isNotBlank() }?.let { put("username", it) }
                 (password ?: inline?.second)?.takeIf { it.isNotBlank() }?.let { put("password", it) }
                 directives.first("static-challenge")?.let { args ->
@@ -197,33 +193,16 @@ object OvpnConfig {
                 (ob["tag"] as? JsonPrimitive)?.contentOrNull == "direct"
             }
 
-            if (hasDirect) return configJson
-
-            val directOutbound = buildJsonObject {
-                put("type", "direct")
-                put("tag", "direct")
-            }
-            val newOutbounds = buildJsonArray {
+            val newOutbounds = if (hasDirect) outbounds else buildJsonArray {
                 outbounds.forEach { add(it) }
-                add(directOutbound)
+                add(buildJsonObject {
+                    put("type", "direct")
+                    put("tag", "direct")
+                })
             }
 
-            SingBoxJson.encode(JsonObject(root + ("outbounds" to newOutbounds)))
-        } catch (e: Exception) {
-            configJson
-        }
-    }
-
-    fun fixXrayDnsForOpenVpn(configJson: String): String {
-        return try {
-            val root = SingBoxJson.parse(configJson) as? JsonObject ?: return configJson
             val dns = (root["dns"] as? JsonObject) ?: JsonObject(emptyMap())
             val hosts = (dns["hosts"] as? JsonObject) ?: JsonObject(emptyMap())
-
-            if (hosts.containsKey("cloudflare-dns.com") && hosts.containsKey("dns.google")) {
-                return configJson
-            }
-
             val newHosts = buildJsonObject {
                 hosts.forEach { (k, v) -> put(k, v) }
                 if (!hosts.containsKey("cloudflare-dns.com")) {
@@ -240,13 +219,57 @@ object OvpnConfig {
                 }
             }
             val newDns = JsonObject(dns + ("hosts" to newHosts))
+
+            SingBoxJson.encode(JsonObject(buildMap {
+                putAll(root)
+                put("outbounds", newOutbounds as kotlinx.serialization.json.JsonElement)
+                put("dns", newDns as kotlinx.serialization.json.JsonElement)
+            }))
+        } catch (e: Exception) {
+            configJson
+        }
+    }
+
+    fun fixXrayDnsForOpenVpn(configJson: String): String {
+        return try {
+            val root = SingBoxJson.parse(configJson) as? JsonObject ?: return configJson
+            val dns = (root["dns"] as? JsonObject) ?: JsonObject(emptyMap())
+            val servers = dns["servers"]
+
+            val hasCloudflare = when (servers) {
+                is JsonArray -> servers.any { el ->
+                    when (el) {
+                        is JsonPrimitive -> el.contentOrNull?.contains("cloudflare-dns.com") == true
+                        is JsonObject -> el.values.any { (it as? JsonPrimitive)?.contentOrNull?.contains("cloudflare-dns.com") == true }
+                        else -> false
+                    }
+                }
+                is JsonPrimitive -> servers.contentOrNull?.contains("cloudflare-dns.com") == true
+                else -> false
+            }
+
+            if (!hasCloudflare) return configJson
+
+            val hosts = (dns["hosts"] as? JsonObject) ?: JsonObject(emptyMap())
+            if (hosts.containsKey("cloudflare-dns.com")) {
+                return configJson
+            }
+
+            val newHosts = buildJsonObject {
+                hosts.forEach { (k, v) -> put(k, v) }
+                putJsonArray("cloudflare-dns.com") {
+                    add("1.1.1.1")
+                    add("1.0.0.1")
+                }
+            }
+            val newDns = JsonObject(dns + ("hosts" to newHosts))
             SingBoxJson.encode(JsonObject(root + ("dns" to newDns)))
         } catch (e: Exception) {
             configJson
         }
     }
 
-    private fun tls(directives: List<Directive>, blocks: Map<String, List<String>>): JsonObject? {
+    private fun tls(directives: List<Directive>, blocks: Map<String, List<String>>): JsonObject {
         val ca = blocks["ca"]
         val cert = blocks["cert"]
         val key = blocks["key"]
@@ -268,23 +291,21 @@ object OvpnConfig {
         val remoteKu = directives.first("remote-cert-ku")?.takeIf { it.isNotEmpty() }
         val remoteEku = directives.first("remote-cert-eku")?.joinToString(" ")?.takeIf { it.isNotBlank() }
         val nsCertType = directives.first("ns-cert-type")?.firstOrNull()
-        if (ca == null && cert == null && key == null && wrapType == null && verify == null &&
-            remoteCert == null && versionMin == null && versionMax == null && tlsCipher == null &&
-            groups == null && fingerprints == null && remoteKu == null && remoteEku == null &&
-            nsCertType == null
-        ) {
-            return null
+
+        val cleanCa = ca?.let { validateAndSanitizePem(it, "CERTIFICATE") }
+        val cleanCert = cert?.let { validateAndSanitizePem(it, "CERTIFICATE") }
+        val cleanKey = key?.let {
+            validateAndSanitizePem(it, "PRIVATE KEY")
+                ?: validateAndSanitizePem(it, "RSA PRIVATE KEY")
         }
+
         return buildJsonObject {
-            if (ca == null && fingerprints == null) {
-                put("insecure", true)
-            }
-            ca?.let { putJsonArray("certificate") { it.forEach { line -> add(line) } } }
-            cert?.let { putJsonArray("client_certificate") { it.forEach { line -> add(line) } } }
-            key?.let { putJsonArray("client_key") { it.forEach { line -> add(line) } } }
+            cleanCa?.let { putJsonArray("certificate") { it.forEach { line -> add(line) } } }
+            cleanCert?.let { putJsonArray("client_certificate") { it.forEach { line -> add(line) } } }
+            cleanKey?.let { putJsonArray("client_key") { it.forEach { line -> add(line) } } }
+
             verify?.let { args ->
                 args.getOrNull(0)?.let { put("server_name", it) }
-
                 put("server_name_type", args.getOrNull(1) ?: "subject")
             }
             remoteCert?.let { put("remote_certificate_tls", it) }
@@ -299,13 +320,17 @@ object OvpnConfig {
             remoteKu?.let { list -> putJsonArray("remote_certificate_ku") { list.forEach { add(it) } } }
             remoteEku?.let { put("remote_certificate_eku", it) }
             nsCertType?.let { put("ns_certificate_type", it) }
+
             if (wrapType != null) {
                 val material = blocks["tls-crypt-v2"] ?: blocks["tls-crypt"] ?: blocks.getValue("tls-auth")
-                putJsonObject("control_wrap") {
-                    put("type", wrapType)
-                    putJsonArray("key") { material.forEach { line -> add(line) } }
-                    if (wrapType == "tls_auth") {
-                        keyDirection(directives, "tls-auth")?.let { put("direction", it) }
+                val cleanWrapKey = sanitizeKeyLines(material)
+                if (cleanWrapKey.isNotEmpty()) {
+                    putJsonObject("control_wrap") {
+                        put("type", wrapType)
+                        putJsonArray("key") { cleanWrapKey.forEach { line -> add(line) } }
+                        if (wrapType == "tls_auth") {
+                            keyDirection(directives, "tls-auth")?.let { put("direction", it) }
+                        }
                     }
                 }
             }
@@ -327,7 +352,6 @@ object OvpnConfig {
     private fun tlsCipherList(raw: String?): String? {
         val tokens = raw?.split(':')?.map { it.trim() }?.filter { it.isNotEmpty() } ?: return null
         val usable = tokens
-
             .map { if (it.startsWith("TLS-", ignoreCase = true)) it.replace('-', '_') else it }
             .filter { it in TLS_CIPHER_NAMES }
             .distinct()
@@ -382,6 +406,9 @@ object OvpnConfig {
     private data class Remote(val host: String, val port: Int, val network: String)
 
     private fun refuseWhatCannotRun(directives: List<Directive>, blocks: Map<String, List<String>>) {
+        if (remotes(directives).isEmpty()) {
+            throw UnsupportedException(Reason.NoRemote)
+        }
         directives.first("dev")?.firstOrNull()?.let {
             if (it.startsWith("tap")) throw UnsupportedException(Reason.Tap, it)
         }
@@ -396,6 +423,24 @@ object OvpnConfig {
             val named = directives.first(name)?.firstOrNull()
             if (named != null && !blocks.containsKey(name)) {
                 throw UnsupportedException(Reason.ExternalFiles, "$name $named")
+            }
+        }
+
+        val hasCertBlock = blocks.containsKey("cert")
+        val hasKeyBlock = blocks.containsKey("key")
+        if (hasCertBlock != hasKeyBlock) {
+            throw UnsupportedException(Reason.UnsupportedCredentials, "cert/key pair incomplete")
+        }
+
+        val staticKey = blocks["secret"] ?: blocks["static-key"]
+        if (staticKey == null) {
+            val ca = blocks["ca"]
+            val cleanCa = ca?.let { validateAndSanitizePem(it, "CERTIFICATE") }
+            val fingerprints = (blocks["peer-fingerprint"] ?: directives.first("peer-fingerprint"))
+                ?.mapNotNull(::certFingerprint)?.takeIf { it.isNotEmpty() }
+
+            if (cleanCa.isNullOrEmpty() && fingerprints.isNullOrEmpty()) {
+                throw UnsupportedException(Reason.ExternalFiles, "ca: missing certificate authority or peer-fingerprint")
             }
         }
     }
@@ -487,6 +532,46 @@ object OvpnConfig {
         }
         return out
     }
+
+    private fun normalizeText(text: String): String =
+        text.replace("\\n", "\n").replace("\r", "")
+
+    private fun validateAndSanitizePem(
+        rawLines: List<String>,
+        expectedType: String = "CERTIFICATE",
+    ): List<String>? {
+        val expanded = rawLines.flatMap { line ->
+            line.replace("\\n", "\n").replace("\r", "").split("\n")
+        }.map { it.trim() }.filter { it.isNotEmpty() }
+
+        if (expanded.isEmpty()) return null
+
+        val beginIndex = expanded.indexOfFirst { it.startsWith("-----BEGIN ") && (expectedType.isEmpty() || it.contains(expectedType, ignoreCase = true)) }
+        val endIndex = expanded.indexOfLast { it.startsWith("-----END ") }
+
+        if (beginIndex < 0 || endIndex < 0 || endIndex <= beginIndex) {
+            return null
+        }
+
+        val pemLines = expanded.subList(beginIndex, endIndex + 1)
+        val bodyLines = pemLines.subList(1, pemLines.size - 1)
+
+        if (bodyLines.isEmpty()) return null
+
+        val base64Regex = Regex("^[A-Za-z0-9+/=]+$")
+        val isValidBase64 = bodyLines.all { line ->
+            base64Regex.matches(line)
+        }
+
+        if (!isValidBase64) return null
+
+        return pemLines
+    }
+
+    private fun sanitizeKeyLines(rawLines: List<String>): List<String> =
+        rawLines.flatMap { line ->
+            line.replace("\\n", "\n").replace("\r", "").split("\n")
+        }.map { it.trim() }.filter { it.isNotEmpty() }
 
     private fun tokenize(line: String): List<String> {
         val out = mutableListOf<String>()

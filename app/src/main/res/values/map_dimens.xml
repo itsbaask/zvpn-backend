@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?><resources>
+    <dimen name="location_anim_max_radius">50dp</dimen>
+    <dimen name="location_point_radius">5dp</dimen>
+    <dimen name="location_name">10sp</dimen>
+    <dimen name="location_label_shift">5dp</dimen>
+    <dimen name="location_distance_from_dot">4dp</dimen>
+    <dimen name="map_margin_bottom">166dp</dimen>
+    <dimen name="map_dialog_side_margin">16dp</dimen>
+    <dimen name="map_dialog_title_text_size">12sp</dimen>
+    <dimen name="map_dialog_location_text_size">14sp</dimen>
+    <dimen name="map_dialog_icon_size">24dp</dimen>
+    <dimen name="map_dialog_arrow_height">10dp</dimen>
+    <dimen name="map_dialog_arrow_width">20dp</dimen>
+    <dimen name="map_dialog_outer_top_margin">15dp</dimen>
+    <dimen name="map_dialog_corner_radius">10dp</dimen>
+    <dimen name="map_dialog_inner_vertical_margin">8dp</dimen>
+    <dimen name="map_dialog_inner_horizontal_margin">8dp</dimen>
+    <dimen name="map_dialog_y_shift">2dp</dimen>
+    <dimen name="map_dialog_button_height">42dp</dimen>
+    <dimen name="map_alert_height">40dp</dimen>
+    <dimen name="map_alert_vertical_margin">16dp</dimen>
+</resources>

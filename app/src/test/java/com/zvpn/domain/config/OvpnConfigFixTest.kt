@@ -41,5 +41,29 @@ class OvpnConfigFixTest {
         val invalid = "not a valid json {{"
         val result = OvpnConfig.fixOpenVpnConfig(invalid)
         assertEquals(invalid, result)
+        val xrayResult = OvpnConfig.fixXrayDnsForOpenVpn(invalid)
+        assertEquals(invalid, xrayResult)
+    }
+
+    @Test
+    fun `xray dns fix adds hosts when cloudflare dns present in servers and hosts missing`() {
+        val input = """{"dns":{"servers":["https://cloudflare-dns.com/dns-query"]}}"""
+        val fixed = OvpnConfig.fixXrayDnsForOpenVpn(input)
+        assertTrue(fixed.contains("cloudflare-dns.com"))
+        assertTrue(fixed.contains("1.1.1.1"))
+    }
+
+    @Test
+    fun `xray dns fix leaves config unchanged when cloudflare dns not in servers`() {
+        val input = """{"dns":{"servers":["https://dns.google/dns-query"]}}"""
+        val fixed = OvpnConfig.fixXrayDnsForOpenVpn(input)
+        assertEquals(input, fixed)
+    }
+
+    @Test
+    fun `xray dns fix leaves config unchanged when hosts already has cloudflare dns`() {
+        val input = """{"dns":{"servers":["https://cloudflare-dns.com/dns-query"],"hosts":{"cloudflare-dns.com":["1.1.1.1"]}}}"""
+        val fixed = OvpnConfig.fixXrayDnsForOpenVpn(input)
+        assertEquals(input, fixed)
     }
 }

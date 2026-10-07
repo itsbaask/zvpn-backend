@@ -233,6 +233,10 @@ fun MainScaffold(
                     onBrowseConfigs = {
                         current = TopDestination.Servers
                     },
+                    onOpenMap = {
+                        pendingSettingsPage = com.zvpn.ui.settings.SettingsPage.Map
+                        current = TopDestination.Settings
+                    },
                     onSecretUnlocked = { spaceUnlocked = true },
                 )
                 TopDestination.Servers -> ServersScreen(
@@ -252,6 +256,10 @@ fun MainScaffold(
 
                         onActiveServerChanged()
                     },
+                    onOpenMap = {
+                        pendingSettingsPage = com.zvpn.ui.settings.SettingsPage.Map
+                        current = TopDestination.Settings
+                    },
                 )
                 TopDestination.Browser -> {
                     val connState = connectionVm.ui.collectAsStateWithLifecycle().value.state
@@ -270,6 +278,7 @@ fun MainScaffold(
                 TopDestination.Settings -> SettingsScreen(
                     settings = settings,
                     contentPadding = innerPadding,
+                    repository = configRepository,
                     onUpdate = onUpdateSettings,
                     onLanguage = onLanguage,
                     initialPage = pendingSettingsPage,

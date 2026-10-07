@@ -88,6 +88,8 @@ import com.zvpn.domain.config.SingBoxTuning
 import com.zvpn.domain.config.effectiveLanSocksPort
 import com.zvpn.platform.secureRandomToken
 
+import com.zvpn.data.config.ConfigRepository
+
 enum class SettingsPage {
     Root, Ui, Vpn, Core, Routing, PerApp, Mux, Fragment, Observatory, Advanced, Mode, Assets, SingBox,
     DnsProtocols, Tor, TorBridges, Ssh, Support, SpeedTest, Map, Privacy, Monitor, Ai, AiChat, MyIp,
@@ -100,6 +102,7 @@ fun SettingsScreen(
     onUpdate: ((AppSettings) -> AppSettings) -> Unit,
     onLanguage: (AppLanguage) -> Unit,
     modifier: Modifier = Modifier,
+    repository: ConfigRepository? = null,
     initialPage: SettingsPage = SettingsPage.Root,
     onInitialPageConsumed: () -> Unit = {},
 
@@ -235,6 +238,7 @@ fun SettingsScreen(
             SettingsPage.Map -> com.zvpn.ui.map.MapScreen(
                 contentPadding = contentPadding,
                 modifier = modifier,
+                repository = repository,
                 reduceMotion = settings.reduceMotion,
                 ipApiUrl = settings.ipApiUrl,
                 personalization = settings.toPersonalization(),

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="map_fill">#F2F2F1</color>
+    <color name="wave_connected">#398FE6</color>
+    <color name="wave_progress">#425D6D</color>
+    <color name="wave_disconnected">#FF6258</color>
+    <color name="connect_map_fab_icon">#96A7BB</color>
+    <color name="dialogue_map_background">#ffffff</color>
+    <color name="dialogue_background">#ffffff</color>
+    <color name="dialogue_title">#DE2A394B</color>
+    <color name="dialogue_button_text">#ffffff</color>
+    <color name="dialogue_text">#DE2A394B</color>
+    <color name="dialogue_button">#4C8BF5</color>
+    <color name="map_label">#6B6B6B</color>
+    <color name="map_label_shadow">#FFFFFF</color>
+    <color name="map_background">#CBD2D3</color>
+    <color name="map_dialogue_location_disabled_indicator">#4D2A394B</color>
+
+    <!-- Missing colors referenced by dialogue and ping drawables -->
+    <color name="green_light">#4CAF50</color>
+    <color name="red_light">#F44336</color>
+    <color name="yellow_light">#FFEB3B</color>
+    <color name="dialog_shadow_1">#08000000</color>
+    <color name="dialog_shadow_2">#0D000000</color>
+    <color name="dialog_shadow_3">#12000000</color>
+    <color name="dialog_shadow_4">#17000000</color>
+    <color name="dialog_shadow_5">#1C000000</color>
+    <color name="dialog_shadow_6">#21000000</color>
+    <color name="dialog_shadow_7">#26000000</color>
+    <color name="dialog_shadow_8">#2B000000</color>
+</resources>
