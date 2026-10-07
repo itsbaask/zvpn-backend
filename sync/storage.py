@@ -130,7 +130,7 @@ class R2StorageAdapter:
             logger.warning(f"Failed to delete profile {key} from R2: {e}")
             return False
 
-    def delete_profiles_batch(self, server_ids: List[str]) -> bool:
+    def delete_profiles_batch(self, server_ids: Any) -> bool:
         if not server_ids:
             return True
         if self.dry_run or not self.s3_client:
