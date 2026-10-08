@@ -123,42 +123,14 @@ class ManifestBuilder:
         version_str = generate_version_string(now)
         iso_now = now.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-        # Step 1: Filter and Deduplicate Entries Across All Multi-Protocols
+        # Step 1: Keep all harvested entries from all sources without deduplication, excluding ONLY unsupported protocols
         deduped_entries: Dict[str, Dict[str, Any]] = {}
-        seen_hosts: Dict[str, Tuple[str, float]] = {}
-
         for sid, info in server_entries.items():
             meta = info.get("metadata", {})
             protocol = (meta.get("protocol") or "openvpn").lower()
             if protocol not in SUPPORTED_PROTOCOLS:
                 continue
-
-            host = meta.get("host") or meta.get("exit_ip") or meta.get("id") or ""
-            port = int(meta.get("port") or 1194)
-            transport = (meta.get("transport") or "udp").lower()
-
-            if not is_valid_host(host):
-                continue
-
-            speed_val = float(meta.get("speed_mbps", 0.0) or 0.0)
-            score_val = float(meta.get("network_score", 0) or 0)
-            lat_val = float(meta.get("latency_ms", 100) or 100)
-            source_boost = 500.0 if "giamping" in str(meta.get("source_name", "")) else 0.0
-
-            comp_score = (speed_val * 100.0) + (score_val / 1000.0) + max(0.0, 100.0 - lat_val) + source_boost
-
-            host_clean = re.sub(r'[^a-z0-9]', '', host.lower())
-            dedup_key = f"{protocol}_{host_clean}_{port}_{transport}"
-
-            if dedup_key in seen_hosts:
-                prev_sid, prev_score = seen_hosts[dedup_key]
-                if comp_score > prev_score:
-                    del deduped_entries[prev_sid]
-                    seen_hosts[dedup_key] = (sid, comp_score)
-                    deduped_entries[sid] = info
-            else:
-                seen_hosts[dedup_key] = (sid, comp_score)
-                deduped_entries[sid] = info
+            deduped_entries[sid] = info
 
         # Step 2: Country-Based Tier Distribution Matrix
         from collections import defaultdict
@@ -210,10 +182,10 @@ class ManifestBuilder:
             updated_at_val = info.get("updated_at", iso_now)
 
             pid = meta.get("profile_id")
-            storage_id = str(pid) if (pid and str(pid).isdigit()) else sid.removeprefix("pvl_")
+            storage_id = meta.get("storage_id") or (str(pid) if (pid and str(pid).isdigit()) else sid.removeprefix("pvl_"))
             profile_rel_path = f"profiles/{storage_id}.ovpn"
             raw_url = meta.get("profile_url") or f"/v1/profiles/{storage_id}.ovpn"
-            profile_full_url = raw_url if raw_url.startswith("http") else f"https://zvpn-backend.xocqoc.workers.dev{raw_url}"
+            profile_full_url = raw_url if raw_url.startswith("http") else f"https://vpn-backend.xocqoc.workers.dev{raw_url}"
 
             manifest_servers[sid] = {
                 "profile": profile_rel_path,
@@ -236,8 +208,14 @@ class ManifestBuilder:
             srv_copy["status"] = meta.get("status") or "verified"
             srv_copy["checked_at"] = meta.get("checked_at") or iso_now
 
+            ovpn_inline = meta.get("ovpn_content")
+            if ovpn_inline and len(ovpn_inline) < 30000:
+                srv_copy["ovpn_content"] = ovpn_inline
+
             # Clean: strip internal fields, add display_name, protocol_label
             srv_copy = _clean_server_for_app(srv_copy)
+            if ovpn_inline and len(ovpn_inline) < 30000:
+                srv_copy["ovpn_content"] = ovpn_inline
             servers_list.append(srv_copy)
 
         # Step 4: Quality Sorting (by tier → speed → latency → country)

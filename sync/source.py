@@ -169,12 +169,15 @@ class ServerInfo:
             return True
         if self.profile_source_url.startswith("http"):
             return True
+        if self.host and self.port:
+            return True
         return False
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.source_id,
             "source_id": self.source_id,
+            "storage_id": self.storage_id,
             "source_name": self.source_name,
             "name": self.name,
             "country_code": self.country_code,

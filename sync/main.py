@@ -121,6 +121,8 @@ def run_sync():
             meta = server_info.to_dict()
             content = server_info.config_uri or server_info.ovpn_content
             sha256_val = compute_sha256(content)
+            if server_info.ovpn_content:
+                storage.upload_profile(server_info.storage_id, server_info.ovpn_content, sha256_val)
             return sid, {
                 "metadata": meta,
                 "sha256": sha256_val,

@@ -51,3 +51,7 @@ ref*.png
 
 __pycache__/
 *.pyc
+.wrangler/
+backend/.wrangler/
+.artifacts/
+scratch/

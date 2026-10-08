@@ -74,7 +74,7 @@ class R2StorageAdapter:
         # Upload directly to Cloudflare Worker upload endpoint if secret configured
         secret = self.config.backend_secret_key
         if secret and self.config.cloudflare_account_id:
-            worker_upload_url = "https://zvpn-backend.xocqoc.workers.dev/upload"
+            worker_upload_url = "https://vpn-backend.xocqoc.workers.dev/upload"
             try:
                 headers = {
                     "Authorization": f"Bearer {secret}",

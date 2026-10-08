@@ -23,7 +23,27 @@ class ConfigParseException(
 object ConfigParser {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
-    private val UNSUPPORTED_SS_METHODS = setOf("none", "plain")
+    private val UNSUPPORTED_SS_METHODS = setOf(
+    "none",
+    "plain",
+    "aes-256-cfb",
+    "aes-128-cfb",
+    "aes-192-cfb",
+    "aes-256-ctr",
+    "aes-128-ctr",
+    "aes-192-ctr",
+    "bf-cfb",
+    "camellia-128-cfb",
+    "camellia-192-cfb",
+    "camellia-256-cfb",
+    "cast5-cfb",
+    "des-cfb",
+    "idea-cfb",
+    "rc4-md5",
+    "salsa20",
+    "chacha20",
+    "seed-cfb",
+)
 
     fun parse(link: String): ServerConfig {
         val trimmed = link.trim()

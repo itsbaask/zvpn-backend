@@ -112,8 +112,8 @@ export default {
             placement_rewarded: "Rewarded_Android",
             reward_amount_minutes: 60
           },
-          servers_api_url: "https://zvpn-backend.xocqoc.workers.dev/v1/servers.json",
-          manifest_api_url: "https://zvpn-backend.xocqoc.workers.dev/v1/manifest.json",
+          servers_api_url: "https://vpn-backend.xocqoc.workers.dev/v1/servers.json",
+          manifest_api_url: "https://vpn-backend.xocqoc.workers.dev/v1/manifest.json",
           updated_at: new Date().toISOString()
         };
 
@@ -221,6 +221,13 @@ export default {
             // don't overwrite names that Python already set correctly.
             if (!s.name || s.name.trim().length < 3) {
               s.name = sanitizeServerName(s);
+            }
+
+            // OpenVPN handling: ensure profile_url and ovpn_content are valid
+            if ((s.protocol || "").toLowerCase() === "openvpn") {
+              if (!s.ovpn_content && s.profile_url && s.profile_url.startsWith("http")) {
+                s.ovpn_content = "";  // Signal to fetch from URL
+              }
             }
 
             // Fix #5: lite mode — strip heavy ovpn_content to reduce payload size

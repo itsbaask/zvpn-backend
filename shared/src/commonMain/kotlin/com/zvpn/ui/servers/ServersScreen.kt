@@ -297,6 +297,14 @@ fun ServersScreen(
     val subscriptions by repository.subscriptions.collectAsStateWithLifecycle()
     val activeId by repository.activeId.collectAsStateWithLifecycle()
 
+    LaunchedEffect(Unit) {
+        if (profiles.isEmpty()) {
+            withContext(kotlinx.coroutines.Dispatchers.IO) {
+                runCatching { repository.syncOfficialCloudServers() }
+            }
+        }
+    }
+
     var showAddSheet by remember { mutableStateOf(false) }
     var showManual by remember { mutableStateOf(false) }
 

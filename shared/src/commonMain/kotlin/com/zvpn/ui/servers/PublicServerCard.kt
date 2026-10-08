@@ -43,20 +43,35 @@ data class PublicServer(
     val engine: String = "OPENVPN",
 )
 
-/** Color for a ping value */
+/** Helper to detect light theme */
 @Composable
-fun pingColor(ms: Int): Color = when {
-    ms <= 0   -> MaterialTheme.colorScheme.outline
-    ms < 80   -> Color(0xFF4CAF50)  // green
-    ms < 200  -> Color(0xFFFFC107)  // yellow
-    else      -> Color(0xFFF44336)  // red
+fun isLightTheme(): Boolean {
+    val surface = MaterialTheme.colorScheme.surface
+    // Calculate relative luminance: simple approximation
+    return (surface.red * 0.299f + surface.green * 0.587f + surface.blue * 0.114f) > 0.5f
 }
 
-/** Tier badge color */
-fun tierColor(tier: String): Color = when (tier.lowercase()) {
-    "premium_plus" -> Color(0xFFFFD700)  // gold
-    "premium"      -> Color(0xFF6C63FF)  // purple
-    else           -> Color(0xFF4CAF50)  // green (free)
+/** Color for a ping value - theme-aware */
+@Composable
+fun pingColor(ms: Int): Color {
+    val isLight = isLightTheme()
+    return when {
+        ms <= 0   -> MaterialTheme.colorScheme.outline
+        ms < 80   -> if (isLight) Color(0xFF2E7D32) else Color(0xFF66BB6A)  // green
+        ms < 200  -> if (isLight) Color(0xFFF57C00) else Color(0xFFFFB74D)  // orange
+        else      -> if (isLight) Color(0xFFC62828) else Color(0xFFEF5350)  // red
+    }
+}
+
+/** Tier badge color - theme-aware */
+@Composable
+fun tierColor(tier: String): Color {
+    val isLight = isLightTheme()
+    return when (tier.lowercase()) {
+        "premium_plus" -> if (isLight) Color(0xFFF57F17) else Color(0xFFFFD54F)  // gold
+        "premium"      -> if (isLight) Color(0xFF5E35B1) else Color(0xFF9575CD)  // purple
+        else           -> if (isLight) Color(0xFF2E7D32) else Color(0xFF66BB6A)  // green (free)
+    }
 }
 
 fun tierLabel(tier: String): String = when (tier.lowercase()) {

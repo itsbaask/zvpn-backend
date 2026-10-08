@@ -26,6 +26,34 @@ val LightColors: ColorScheme = expressiveLightColorScheme().copy(
     onTertiary = Color(0xFFFFFFFF),
     tertiaryContainer = Color(0xFFFFD9E2),
     onTertiaryContainer = Color(0xFF3E0021),
+
+    error = Color(0xFFBA1A1A),
+    onError = Color(0xFFFFFFFF),
+    errorContainer = Color(0xFFFFDAD6),
+    onErrorContainer = Color(0xFF410002),
+
+    background = Color(0xFFFCFCFF),
+    onBackground = Color(0xFF1A1B20),
+    surface = Color(0xFFFFFFFF),
+    onSurface = Color(0xFF1A1B20),
+    surfaceVariant = Color(0xFFE7E0EC),
+    onSurfaceVariant = Color(0xFF49454F),
+    surfaceTint = Iris,
+
+    inverseSurface = Color(0xFF303034),
+    inverseOnSurface = Color(0xFFF3F0F4),
+
+    outline = Color(0xFF777680),
+    outlineVariant = Color(0xFFC8C5D0),
+    scrim = Color(0xFF000000),
+
+    surfaceBright = Color(0xFFFFFFFF),
+    surfaceDim = Color(0xFFDDD8E1),
+    surfaceContainerLowest = Color(0xFFFFFFFF),
+    surfaceContainerLow = Color(0xFFF7F2FA),
+    surfaceContainer = Color(0xFFF1ECF5),
+    surfaceContainerHigh = Color(0xFFECE6F0),
+    surfaceContainerHighest = Color(0xFFE6E0E9),
 )
 
 val ZLime = Color(0xFFC7F24E)
