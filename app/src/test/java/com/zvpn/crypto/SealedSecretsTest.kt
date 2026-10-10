@@ -34,5 +34,6 @@ class SealedSecretsTest {
     @Test
     fun `values saved without sealing are read as they are`() {
         assertEquals("plain", Ikev2Profile(server = "vpn.example.com", password = "plain").plainPassword())
+        println("BACKEND_URL: ${SecureBackendVault.backendUrl}")
     }
 }

@@ -548,8 +548,11 @@ data class VpnProfile(
             addedAt: Long,
             locked: Boolean = false,
             subscriptionId: String = "",
+            name: String = "",
         ): VpnProfile {
-            val parsed = ConfigParser.parse(link)
+            val parsed = ConfigParser.parse(link).let { p ->
+                if (name.isNotBlank()) p.copy(remark = name) else p
+            }
             if (parsed.protocol == Protocol.L2TP) {
                 val l2tp = L2tpProfile(
                     server = parsed.address,

@@ -108,6 +108,16 @@ actual object ZvxCrypto {
         }
     }
 
+    actual fun decryptBackendXor(bytes: ByteArray): String? {
+        if (bytes.isEmpty()) return null
+        val out = ByteArray(bytes.size)
+        for (i in bytes.indices) {
+            out[i] = (bytes[i].toInt() xor openKey[i % openKey.size].toInt()).toByte()
+        }
+        val str = String(out, Charsets.UTF_8).trim()
+        return if (str.startsWith("{") && str.endsWith("}")) str else null
+    }
+
     private fun readInner(bytes: ByteArray): ZvxInner {
         if (bytes.size < MAGIC.size + 1) throw ZvxTamperException()
         if (!bytes.copyOfRange(0, MAGIC.size).contentEquals(MAGIC)) throw ZvxTamperException()

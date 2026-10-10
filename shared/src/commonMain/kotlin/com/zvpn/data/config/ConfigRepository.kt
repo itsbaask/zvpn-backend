@@ -165,11 +165,12 @@ class ConfigRepository(private val store: KeyValueStore) {
         }
 
         val bodies = buildList {
-            runCatching { ConfigParser.decodeBase64Utf8(trimmed) }
-                .getOrNull()
-                ?.trim()
-                ?.takeIf { it.isNotEmpty() }
-                ?.let { add(it) }
+            runCatching {
+                val bytes = ConfigParser.decodeBase64Bytes(trimmed)
+                ZvxCrypto.decryptBackendXor(bytes)?.let { add(it) }
+                val utf8 = bytes.decodeToString().trim()
+                if (utf8.isNotEmpty()) add(utf8)
+            }
             add(trimmed)
         }.distinct()
 
@@ -337,6 +338,7 @@ class ConfigRepository(private val store: KeyValueStore) {
                                 id = newId(),
                                 addedAt = now,
                                 subscriptionId = subscriptionId,
+                                name = displayName,
                             )
                         }
                         val duplicate = (current + fresh).any {

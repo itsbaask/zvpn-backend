@@ -611,13 +611,18 @@ object ConfigParser {
 
     @OptIn(ExperimentalEncodingApi::class)
     fun decodeBase64Utf8(raw: String): String {
+        return decodeBase64Bytes(raw).toString(Charsets.UTF_8)
+    }
+
+    @OptIn(ExperimentalEncodingApi::class)
+    fun decodeBase64Bytes(raw: String): ByteArray {
         val cleaned = raw.trim().replace('-', '+').replace('_', '/').filterNot { it == '\n' || it == '\r' }
         val padded = when (cleaned.length % 4) {
             2 -> "$cleaned=="
             3 -> "$cleaned="
             else -> cleaned
         }
-        return Base64.Default.decode(padded).toString(Charsets.UTF_8)
+        return Base64.Default.decode(padded)
     }
 
     private fun kotlinx.serialization.json.JsonPrimitive.contentOrNull(): String? =

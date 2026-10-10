@@ -156,4 +156,19 @@ class ServerJsonImportTest {
         assertTrue("Expected ≤1 fresh profiles, got $added", added <= 1)
         assertTrue(repo.profiles.value.size <= 1)
     }
+
+    @OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
+    @Test
+    fun `backend xor encrypted b64 payload imports correctly`() {
+        val rawJson = """{"version":2,"servers":[{"name":"Encrypted Server","raw_uri":"vless://11111111-2222-3333-4444-555555555555@example.com:443?encryption=none#Encrypted"}]}"""
+        val key = java.security.MessageDigest.getInstance("SHA-256").digest("ZedSecure .zvx v2".toByteArray(Charsets.UTF_8))
+        val rawBytes = rawJson.toByteArray(Charsets.UTF_8)
+        val encBytes = ByteArray(rawBytes.size) { i -> (rawBytes[i].toInt() xor key[i % key.size].toInt()).toByte() }
+        val b64 = kotlin.io.encoding.Base64.Default.encode(encBytes)
+
+        val repo = ConfigRepository(InMemoryKeyValueStore())
+        val added = repo.importText(b64, subscriptionId = "sub_xor").getOrThrow()
+        assertEquals(1, added)
+        assertEquals("Encrypted Server", repo.profiles.value.first().name)
+    }
 }
