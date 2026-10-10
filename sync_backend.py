@@ -265,49 +265,35 @@ class EnterpriseSmartGeoSyncEngine:
 
         print(f"[+] Strict Naming Standardization complete: Processed {len(processed_servers)} servers.")
 
-        # 3. Determine Top 10 Fastest Servers for Auto Select
-        sorted_by_speed = sorted(processed_servers, key=lambda x: (-x.get("speed_mbps", 0), x.get("latency_ms", 999)))
-        top_10_auto = sorted_by_speed[:10]
-
-        # 4. Group by Protocol
-        protocols_group = {}
+        # 3. Filter and Cap: Keep Top 10 Best Servers per Country to Ensure Ultra-Fast Performance and Compact Payload Size
+        country_groups = {}
         for s in processed_servers:
-            proto = s.get("protocol", "unknown").lower()
-            if proto not in protocols_group:
-                protocols_group[proto] = []
-            protocols_group[proto].append(s)
+            c = s.get("country", "Global")
+            if c not in country_groups:
+                country_groups[c] = []
+            country_groups[c].append(s)
 
-        # 5. Group by Continent -> Country -> Tier
-        continents_group = {}
-        for s in processed_servers:
-            cont = s.get("continent", "Global")
-            c_name = s.get("country", "Global")
-            tier = s.get("tier", "free")
+        compact_servers = []
+        for c, s_list in country_groups.items():
+            s_list_sorted = sorted(s_list, key=lambda x: (-x.get("speed_mbps", 0), x.get("latency_ms", 999)))
+            compact_servers.extend(s_list_sorted[:10])
 
-            if cont not in continents_group:
-                continents_group[cont] = {}
-            if c_name not in continents_group[cont]:
-                continents_group[cont][c_name] = {
-                    "free": [],
-                    "premium": [],
-                    "premium_plus": []
-                }
-            continents_group[cont][c_name][tier].append(s)
+        # Overall sorting by speed
+        compact_servers.sort(key=lambda x: (-x.get("speed_mbps", 0), x.get("latency_ms", 999)))
 
         os.makedirs("output", exist_ok=True)
         output_path = "output/servers.json"
 
+        # Compact, clean payload schema (no 4x duplicate arrays)
         payload = {
-            "total_servers": len(processed_servers),
-            "auto_select_top10": top_10_auto,
-            "by_protocol": protocols_group,
-            "by_continent_country_and_tier": continents_group,
-            "all_servers": processed_servers
+            "version": 2,
+            "total_servers": len(compact_servers),
+            "servers": compact_servers
         }
 
         # Encrypt published GitHub payload using SHA-256 Obfuscated Vault Key
         KEY = hashlib.sha256("ZedSecure .zvx v2".encode("utf-8")).digest()
-        raw_json_bytes = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        raw_json_bytes = json.dumps(payload, ensure_ascii=False, separators=(',', ':')).encode("utf-8")
         enc_bytes = bytearray(len(raw_json_bytes))
         for i in range(len(raw_json_bytes)):
             enc_bytes[i] = raw_json_bytes[i] ^ KEY[i % len(KEY)]
@@ -316,7 +302,7 @@ class EnterpriseSmartGeoSyncEngine:
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(encrypted_b64_payload)
 
-        print(f"[+] Strong Encrypted Processing complete! Saved {len(processed_servers)} encrypted servers to {output_path}.")
+        print(f"[+] Strong Encrypted Processing complete! Saved {len(compact_servers)} top-quality encrypted servers ({len(encrypted_b64_payload)} bytes) to {output_path}.")
 
     def _harvest_omgvpn(self):
         print("[*] [Source 1/4] Fetching OMGVPN servers...")
