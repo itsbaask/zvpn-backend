@@ -120,6 +120,8 @@ class StartPlanner(context: Context) {
         profile.masterDnsSettings() != null -> VpnManager.KIND_MASTERDNS
         profile.openConnectSettings() != null -> VpnManager.KIND_OPENCONNECT
         profile.ikev2Settings() != null -> VpnManager.KIND_IKEV2
+        profile.l2tpSettings() != null -> VpnManager.KIND_L2TP
+        profile.sstpSettings() != null -> VpnManager.KIND_SSTP
         profile.isTor -> VpnManager.KIND_TOR
         profile.sshSettings() != null -> VpnManager.KIND_SSH
         profile.sniSpoofSettings() != null -> VpnManager.KIND_SNISPOOF
@@ -182,6 +184,16 @@ class StartPlanner(context: Context) {
         profile.ikev2Settings()?.let {
             return kotlinx.serialization.json.Json.encodeToString(
                 com.zvpn.domain.config.Ikev2Profile.serializer(), it,
+            )
+        }
+        profile.l2tpSettings()?.let {
+            return kotlinx.serialization.json.Json.encodeToString(
+                com.zvpn.domain.config.L2tpProfile.serializer(), it,
+            )
+        }
+        profile.sstpSettings()?.let {
+            return kotlinx.serialization.json.Json.encodeToString(
+                com.zvpn.domain.config.SstpProfile.serializer(), it,
             )
         }
         profile.dnsTunnelSettings()?.let { dnsTunnel ->

@@ -1,7 +1,7 @@
-﻿package com.zvpn.domain.ai
+package com.zvpn.domain.ai
 
-import com.zvpn.crypto.ZvxCrypto
-import com.zvpn.crypto.ZvxSealRequest
+import com.zvpn.crypto.ZsxCrypto
+import com.zvpn.crypto.ZsxSealRequest
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.io.encoding.Base64
@@ -61,15 +61,15 @@ data class AiSettings(
         copy(models = models.toMutableMap().apply { put(provider.name, id) })
 
     companion object {
-        const val SEALED_PREFIX = "Zvx:"
+        const val SEALED_PREFIX = "zsx:"
 
         @OptIn(ExperimentalEncodingApi::class)
         internal fun sealSecret(plain: String): String {
             if (plain.isBlank()) return ""
             if (plain.startsWith(SEALED_PREFIX)) return plain
             return runCatching {
-                val sealed = ZvxCrypto.seal(
-                    ZvxSealRequest(
+                val sealed = ZsxCrypto.seal(
+                    ZsxSealRequest(
                         configPayload = plain,
                         nameEn = "", nameFa = "", note = "", expiresAt = null, password = null,
                     ),
@@ -82,7 +82,7 @@ data class AiSettings(
         internal fun openSecret(stored: String): String {
             if (!stored.startsWith(SEALED_PREFIX)) return stored
             return runCatching {
-                ZvxCrypto.open(Base64.decode(stored.removePrefix(SEALED_PREFIX)), password = null)
+                ZsxCrypto.open(Base64.decode(stored.removePrefix(SEALED_PREFIX)), password = null)
             }.getOrDefault("")
         }
     }

@@ -11,6 +11,8 @@ enum class Protocol(val id: String, val label: String) {
 
     AMNEZIAWG("wireguard", "AmneziaWG"),
     HYSTERIA("hysteria", "Hysteria"),
+    L2TP("l2tp", "L2TP"),
+    SSTP("sstp", "SSTP"),
     ;
 
     val usesUserPass: Boolean get() = this == SOCKS || this == HTTP
@@ -35,6 +37,8 @@ enum class Protocol(val id: String, val label: String) {
             "wireguard", "wg" -> WIREGUARD
             "awg", "amneziawg" -> AMNEZIAWG
             "hysteria", "hysteria2", "hy2" -> HYSTERIA
+            "l2tp" -> L2TP
+            "sstp" -> SSTP
             else -> null
         }
     }

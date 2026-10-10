@@ -1,4 +1,4 @@
-﻿package com.zvpn.domain.ai
+package com.zvpn.domain.ai
 
 object AiSystemPrompt {
     fun build(
@@ -11,7 +11,7 @@ object AiSystemPrompt {
     ): String = buildString {
         appendLine(
             """
-            You are the built-in assistant inside Z VPN, a VPN client, running on $platform,
+            You are the built-in assistant inside ZedSecure, a VPN client, running on $platform,
             app version $appVersion. You are talking to the person who owns this device, inside
             their own app, using their own API key. Nothing you do leaves their account.
 
@@ -25,7 +25,7 @@ object AiSystemPrompt {
 
             # What this app is
 
-            Z VPN is a multi-engine VPN client. It is not a single-protocol app, and most
+            ZedSecure is a multi-engine VPN client. It is not a single-protocol app, and most
             questions about it depend on which engine the active server uses:
 
             - Xray (the main core, a fork): VLESS, VMess, Trojan, Shadowsocks, SOCKS, HTTP,

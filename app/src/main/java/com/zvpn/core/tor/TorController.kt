@@ -11,9 +11,7 @@ class TorController(
     private val settings: AppSettings,
     private val onBootstrapped: () -> Unit,
     private val onStopped: (String?) -> Unit,
-
     private val upstreamSocksPort: Int? = null,
-
     private val onProgress: (Int) -> Unit = {},
 ) {
     private val active = AtomicBoolean(false)
@@ -26,19 +24,28 @@ class TorController(
     fun start(): Boolean {
         if (active.get()) stop()
         return try {
+            val nativeLibDir = context.applicationInfo.nativeLibraryDir
+            val torBinary = File(nativeLibDir, "libtor.so")
+            if (!torBinary.exists()) {
+                val err = "Tor binary (libtor.so) not found in nativeLibraryDir ($nativeLibDir). Verify ABI support and extractNativeLibs=true."
+                Log.e(TAG, err)
+                onStopped(err)
+                return false
+            }
+
             val torDir = File(context.filesDir, "tor").apply { mkdirs() }
-            extractAsset("geoip", torDir)
-            extractAsset("geoip6", torDir)
-            extractAsset("bridges_default.lst", torDir)
+            extractAssetSafe("geoip", torDir)
+            extractAssetSafe("geoip6", torDir)
+            extractAssetSafe("bridges_default.lst", torDir)
 
             val dataDir = File(context.filesDir, "tor_data").apply { mkdirs() }
-            val nativeLibDir = context.applicationInfo.nativeLibraryDir
             val torrc = File(torDir, "torrc").apply {
                 writeText(TorConfigBuilder.build(settings, nativeLibDir, torDir, dataDir, upstreamSocksPort))
             }
 
             val cmd = mutableListOf(
-                "$nativeLibDir/libtor.so", "-f", torrc.absolutePath,
+                torBinary.absolutePath,
+                "-f", torrc.absolutePath,
                 "--pidfile", File(dataDir, "tor.pid").absolutePath,
             )
 
@@ -46,8 +53,11 @@ class TorController(
             if (settings.torFakeSniEnabled && !webtunnel) {
                 val hosts = settings.torFakeSniHosts.split(',', '\n').map { it.trim() }
                     .filter { it.isNotEmpty() }.ifEmpty { DEFAULT_FAKE_SNI }.joinToString(",")
-                cmd += "--fake-hosts"; cmd += hosts
+                cmd += "--fake-hosts"
+                cmd += hosts
             }
+
+            Log.i(TAG, "Starting Tor binary: ${torBinary.absolutePath}")
             val pb = ProcessBuilder(cmd)
             pb.environment()["LD_LIBRARY_PATH"] = nativeLibDir
             pb.redirectErrorStream(true)
@@ -62,9 +72,9 @@ class TorController(
                         Log.i(TAG, line)
                         BOOTSTRAP_PCT.find(line)?.groupValues?.get(1)?.toIntOrNull()
                             ?.let { pct -> runCatching { onProgress(pct) } }
-                        if (!bootstrapped && line.contains("Bootstrapped 100%")) {
+                        if (!bootstrapped && (line.contains("Bootstrapped 100%") || line.contains("Done establishing"))) {
                             bootstrapped = true
-
+                            Log.i(TAG, "Tor successfully bootstrapped 100%")
                             Thread { runCatching { onBootstrapped() } }
                                 .apply { isDaemon = true; start() }
                         }
@@ -73,14 +83,14 @@ class TorController(
 
                 if (active.compareAndSet(true, false)) {
                     val code = runCatching { p.waitFor() }.getOrDefault(-1)
-                    Log.i(TAG, "tor exited ($code)")
-                    onStopped(if (bootstrapped) null else "Tor exited before connecting")
+                    Log.i(TAG, "Tor exited ($code)")
+                    onStopped(if (bootstrapped) null else "Tor exited before connecting (exit code $code)")
                 }
             }.apply { isDaemon = true; start() }
             true
         } catch (e: Exception) {
             active.set(false)
-            Log.e(TAG, "tor failed to start", e)
+            Log.e(TAG, "Tor failed to start", e)
             onStopped(e.message ?: "Tor failed to start")
             false
         }
@@ -93,11 +103,17 @@ class TorController(
         reader = null
     }
 
-    private fun extractAsset(name: String, destDir: File) {
+    private fun extractAssetSafe(name: String, destDir: File) {
         val dest = File(destDir, name)
         if (dest.exists() && dest.length() > 0) return
-        context.assets.open("tor/$name").use { input ->
-            dest.outputStream().use { input.copyTo(it) }
+        runCatching {
+            context.assets.open("tor/$name").use { input ->
+                dest.outputStream().use { input.copyTo(it) }
+            }
+        }.onFailure {
+            if (!dest.exists()) {
+                dest.writeText("")
+            }
         }
     }
 

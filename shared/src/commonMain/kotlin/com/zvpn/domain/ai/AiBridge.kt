@@ -1,4 +1,4 @@
-﻿package com.zvpn.domain.ai
+package com.zvpn.domain.ai
 
 interface AiAppBridge {
     fun settingsJson(): String

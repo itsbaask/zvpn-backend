@@ -687,4 +687,22 @@
     <string name="auto_no_members">No server in this group can be used by Auto</string>
     <string name="auto_group_all_short">All servers</string>
     <string name="auto_group_manual_short">Manual</string>
+    <string name="notif_channel_alerts_name" translatable="false">Connection alerts</string>
+    <string name="notif_channel_alerts_desc" translatable="false">Alerts when VPN connection fails or drops</string>
+    <string name="notif_public_title" translatable="false">VPN connected</string>
+    <string name="notif_public_text" translatable="false">Secure tunnel active</string>
+    <string name="speed_down_arrow" translatable="false">↓</string>
+    <string name="time_0s" translatable="false">0s</string>
+    <string name="time_unit_s" translatable="false">s</string>
+    <string name="time_unit_m" translatable="false">m</string>
+    <string name="time_unit_h" translatable="false">h</string>
+    <string name="action_dismiss" translatable="false">Dismiss</string>
+    <string name="fail_no_network" translatable="false">No network connection</string>
+    <string name="fail_auth" translatable="false">Authentication failed</string>
+    <string name="fail_timeout" translatable="false">Connection timed out</string>
+    <string name="fail_unreachable" translatable="false">Server unreachable</string>
+    <string name="fail_permission" translatable="false">Permission revoked</string>
+    <string name="fail_unknown" translatable="false">Connection failed</string>
+    <string name="add_free_hint" translatable="false">Add free servers</string>
+    <string name="add_free_badge" translatable="false">Free</string>
 </resources>

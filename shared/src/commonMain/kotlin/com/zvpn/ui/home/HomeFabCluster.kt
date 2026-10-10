@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -37,12 +38,14 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.zvpn.shared.resources.Res
 import com.zvpn.shared.resources.ic_map
 import com.zvpn.shared.resources.ic_speedometer
 import com.zvpn.shared.resources.map_fab
+import com.zvpn.shared.resources.map_title
 import com.zvpn.shared.resources.speedtest_fab
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
@@ -64,6 +67,7 @@ fun HomeFabCluster(
     yFraction: Float,
     onMove: (atEnd: Boolean, yFraction: Float) -> Unit,
     onOpenMap: () -> Unit,
+    onOpenMyIp: () -> Unit,
     onOpenSpeedTest: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -75,7 +79,7 @@ fun HomeFabCluster(
         val maxWidthPx = with(density) { maxWidth.toPx() }
         val minY = with(density) { TOP_LIMIT.toPx() }
 
-        val clusterPx = fabPx * 2 + with(density) { FAB_GAP.toPx() }
+        val clusterPx = fabPx * 3 + with(density) { FAB_GAP.toPx() } * 2
         val maxY = (with(density) { maxHeight.toPx() - BOTTOM_LIMIT.toPx() } - clusterPx)
             .coerceAtLeast(minY)
 
@@ -131,7 +135,10 @@ fun HomeFabCluster(
                     )
                 },
             ) {
-                FabButton(Res.drawable.ic_map, stringResource(Res.string.map_fab), onOpenMap)
+                // Map Floating Button
+                FabButton(Res.drawable.ic_map, stringResource(Res.string.map_title), onOpenMap)
+                // IP Floating Button
+                FabButton("IP", stringResource(Res.string.map_fab), onOpenMyIp)
                 AnimatedVisibility(
                     visible = showSpeedTest,
                     enter = if (reduceMotion) fadeIn(tween(0)) else fadeIn() + scaleIn(initialScale = 0.6f),
@@ -146,6 +153,28 @@ fun HomeFabCluster(
             }
         }
       }
+    }
+}
+
+@Composable
+private fun FabButton(text: String, description: String, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        tonalElevation = 6.dp,
+        shadowElevation = 6.dp,
+        modifier = Modifier.size(FAB_SIZE),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Black,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        }
     }
 }
 

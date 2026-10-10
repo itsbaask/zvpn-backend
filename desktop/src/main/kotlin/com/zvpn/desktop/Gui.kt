@@ -112,6 +112,22 @@ fun main(args: Array<String>) {
         DesktopProbe.measureOutboundDelay(cfg, url)
     }
 
+    configRepository.subscriptions.value
+        .filter { it.url.contains("vpngate.net") || it.url.contains("ALIILAPRO") || it.url.contains("omgvpn") }
+        .forEach { configRepository.removeSubscription(it.id) }
+
+    val targetUrl = com.zvpn.crypto.SecureBackendVault.backendUrl
+    val cloudSub = configRepository.subscriptions.value.firstOrNull {
+        it.url == targetUrl || it.url.contains("zvpn-backend")
+    } ?: configRepository.addSubscription(
+        name = "ZVPN Cloud Servers",
+        url = targetUrl
+    )
+
+    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO).launch {
+        runCatching { configRepository.updateSubscription(cloudSub.id) }
+    }
+
     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO).launch {
         while (true) {
             val s = desktopSettings.settings.value

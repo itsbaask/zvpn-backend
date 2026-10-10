@@ -1,4 +1,4 @@
-﻿package com.zvpn.domain.config
+package com.zvpn.domain.config
 
 import com.zvpn.platform.inflateZlib
 import kotlinx.serialization.json.Json

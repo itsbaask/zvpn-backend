@@ -1,4 +1,4 @@
-﻿package com.zvpn.domain.config
+package com.zvpn.domain.config
 
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi

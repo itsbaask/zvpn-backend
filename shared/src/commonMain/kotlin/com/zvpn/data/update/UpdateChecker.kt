@@ -1,12 +1,6 @@
 ﻿package com.zvpn.data.update
 
-import com.zvpn.platform.AppInfo
 import com.zvpn.platform.httpGetViaSocks
-import com.zvpn.platform.httpJson
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 
 object PlayStore {
     const val PACKAGE = "com.Z VPN.vpn"
@@ -25,10 +19,6 @@ object GitHubReleases {
     const val REPO = "CluvexStudio/Z VPN"
 
     const val PROJECT_URL = "https://github.com/$REPO"
-
-    const val LATEST_URL = "$PROJECT_URL/releases/latest"
-
-    const val LATEST_API = "https://api.github.com/repos/$REPO/releases/latest"
 }
 
 data class UpdateInfo(
@@ -55,70 +45,8 @@ object UpdateChecker {
         lang: String,
     ): UpdateInfo? = when (distribution) {
         Distribution.PlayStore -> fetchFromPlay(socksPort, lang)
-        Distribution.GitHub -> fetchFromGitHub(abis, socksPort)
+        Distribution.GitHub -> null
     }
-
-    private suspend fun fetchFromGitHub(abis: List<String>, socksPort: Int?): UpdateInfo? = runCatching {
-        val response = httpJson(
-            method = "GET",
-            url = GitHubReleases.LATEST_API,
-            headers = mapOf(
-                "Accept" to "application/vnd.github+json",
-                "User-Agent" to AppInfo.userAgent,
-                "X-GitHub-Api-Version" to "2022-11-28",
-            ),
-            body = null,
-            connectTimeoutMs = 12_000,
-            readTimeoutMs = 15_000,
-            socksPort = socksPort,
-        )
-        if (response.code !in 200..299) return@runCatching null
-        parseGitHubRelease(response.body, abis)
-    }.getOrNull()
-
-    private val releaseJson = Json { ignoreUnknownKeys = true; isLenient = true }
-
-    fun parseGitHubRelease(body: String, abis: List<String>): UpdateInfo? {
-        val root = releaseJson.parseToJsonElement(body) as? JsonObject ?: return null
-        fun JsonObject.text(key: String) = (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.content
-        val tag = root.text("tag_name") ?: return null
-        val version = Regex("""\d+(?:\.\d+)+""").find(tag)?.value ?: return null
-        val assets = (root["assets"] as? JsonArray).orEmpty().mapNotNull { element ->
-            val asset = element as? JsonObject ?: return@mapNotNull null
-            val name = asset.text("name") ?: return@mapNotNull null
-            val url = asset.text("browser_download_url") ?: return@mapNotNull null
-            name to url
-        }.toMap()
-        val apk = if (abis.isEmpty()) null else {
-            (abis.map { "Z VPN-$version-$it.apk" } + "Z VPN-$version-universal.apk")
-                .firstNotNullOfOrNull { assets[it] }
-        }
-        return UpdateInfo(
-            versionName = version,
-            releaseNotes = releaseNotesFrom(root.text("body").orEmpty()),
-            downloadUrl = apk ?: root.text("html_url") ?: GitHubReleases.LATEST_URL,
-        )
-    }
-
-    fun releaseNotesFrom(markdown: String): String {
-        val start = markdown.indexOf(WHATS_NEW)
-        if (start < 0) return ""
-        val section = markdown.substring(start + WHATS_NEW.length).substringBefore("\n<sub>").substringBefore("\n### ")
-        return section.lines()
-            .map { line ->
-                line.trim()
-                    .replace(Regex("""\[([^\]]+)]\([^)]*\)"""), "$1")
-                    .replace("**", "")
-                    .replace("`", "")
-                    .replace(Regex("<[^>]*>"), "")
-                    .let { if (it.startsWith("- ") || it.startsWith("* ")) "• " + it.substring(2) else it }
-            }
-            .joinToString("\n")
-            .replace(Regex("\n{3,}"), "\n\n")
-            .trim()
-    }
-
-    private const val WHATS_NEW = "### What's new"
 
     private suspend fun fetchFromPlay(socksPort: Int?, lang: String): UpdateInfo? = runCatching {
         val html = httpGetViaSocks(

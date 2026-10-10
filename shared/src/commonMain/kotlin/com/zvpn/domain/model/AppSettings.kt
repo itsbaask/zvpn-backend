@@ -393,8 +393,8 @@ data class AppSettings(
 
     val geoFilesSource: GeoFilesSource = GeoFilesSource.Loyalsoldier,
 
-    val autoUpdateSubscriptions: Boolean = false,
-    val subscriptionUpdateIntervalHours: Int = 12,
+    val autoUpdateSubscriptions: Boolean = true,
+    val subscriptionUpdateIntervalHours: Int = 6,
     val autoTestAfterUpdate: Boolean = false,
     val autoRemoveInvalidAfterTest: Boolean = false,
     val autoSortAfterTest: Boolean = false,
@@ -421,7 +421,7 @@ data class AppSettings(
 
     val killSwitch: Boolean = false,
 
-    val torBridgesMode: String = "none",
+    val torBridgesMode: String = "default",
 
     val torBridgeTransport: String = "obfs4",
 

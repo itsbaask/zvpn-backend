@@ -112,6 +112,7 @@ import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.isFinite
 import androidx.compose.ui.unit.sp
 import androidx.graphics.shapes.RoundedPolygon
@@ -159,6 +160,7 @@ fun HomeScreen(
     onToggleConnection: () -> Unit,
     onBrowseConfigs: () -> Unit,
     onOpenMap: () -> Unit = {},
+    onOpenMyIp: () -> Unit = {},
     onSecretUnlocked: () -> Unit,
     modifier: Modifier = Modifier,
     lockedNote: String? = null,
@@ -414,6 +416,7 @@ fun HomeScreen(
                     locked = activeLocked,
                     onClick = onBrowseConfigs,
                     onOpenMap = onOpenMap,
+                    onOpenMyIp = onOpenMyIp,
                     personalization = personalization,
                 )
                 Spacer(Modifier.height(if (compact) 8.dp else 14.dp))
@@ -558,8 +561,7 @@ private fun DecorativeBackdrop(
     ) {
         Box(
             modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(bottom = 54.dp, start = 44.dp)
+                .fillMaxSize()
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -575,17 +577,7 @@ private fun DecorativeBackdrop(
                         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     }
                 }
-        ) {
-            Text(
-                text = stringResource(Res.string.app_name),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 1.2.sp,
-                color = Color.White.copy(alpha = 0.95f),
-                maxLines = 1,
-                softWrap = false,
-            )
-        }
+        )
     }
 }
 
@@ -1425,6 +1417,7 @@ private fun ActiveConfigCard(
     locked: Boolean,
     onClick: () -> Unit,
     onOpenMap: () -> Unit = {},
+    onOpenMyIp: () -> Unit = {},
     personalization: Personalization = Personalization.Default,
     modifier: Modifier = Modifier,
 ) {
@@ -1492,15 +1485,6 @@ private fun ActiveConfigCard(
                             ?: MaterialTheme.colorScheme.onPrimaryContainer).copy(alpha = 0.75f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                )
-            }
-            IconButton(onClick = onOpenMap) {
-                Icon(
-                    painter = painterResource(Res.drawable.ic_map),
-                    contentDescription = stringResource(Res.string.map_title),
-                    tint = personalization.configCardTextColor
-                        ?: MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(22.dp),
                 )
             }
             Icon(

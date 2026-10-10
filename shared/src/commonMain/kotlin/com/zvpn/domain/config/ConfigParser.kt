@@ -56,6 +56,8 @@ object ConfigParser {
             Protocol.SOCKS, Protocol.HTTP -> parseUserPass(trimmed, protocol)
             Protocol.HYSTERIA -> parseHysteria(trimmed)
             Protocol.WIREGUARD, Protocol.AMNEZIAWG -> parseWireguard(trimmed, protocol)
+            Protocol.L2TP -> parseL2tp(trimmed)
+            Protocol.SSTP -> parseSstp(trimmed)
             null -> throw ConfigParseException("Unsupported or invalid link scheme")
         }
     }
@@ -96,6 +98,7 @@ object ConfigParser {
         }.getOrElse { throw ConfigParseException("Invalid vmess payload") }
 
         fun str(key: String): String? = obj[key]?.jsonPrimitive?.contentOrNull()
+            ?.trim()?.takeIf { it.isNotBlank() && it != "---" && it != "none" }
         val net = str("net") ?: "tcp"
         val type = str("type")
         val host = str("host")
@@ -137,7 +140,9 @@ object ConfigParser {
                 shortId = str("sid")?.takeIf { it.isNotBlank() },
                 spiderX = str("spx")?.takeIf { it.isNotBlank() },
                 echConfigList = str("ech")?.takeIf { it.isNotBlank() },
-                allowInsecure = str("allowInsecure") == "1" || str("allowInsecure")?.lowercase() == "true",
+                allowInsecure = str("allowInsecure") == "1" || str("allowInsecure")?.lowercase() == "true" ||
+                        str("insecure") == "1" || str("insecure")?.lowercase() == "true" ||
+                        str("skip-cert-verify") == "true" || str("verify_cert") == "false",
             ),
         )
     }
@@ -348,6 +353,38 @@ object ConfigParser {
             pinnedCertSha256 = p.query["pinSHA256"]?.takeIf { it.isNotBlank() },
             bandwidthUp = p.query["upmbps"]?.takeIf { it.isNotBlank() },
             bandwidthDown = p.query["downmbps"]?.takeIf { it.isNotBlank() },
+        )
+    }
+
+    private fun parseL2tp(link: String): ServerConfig {
+        val p = parseLink(link.substringAfter("://"))
+        if (p.host.isBlank()) throw ConfigParseException("Invalid l2tp link")
+        val q = p.query
+        return ServerConfig(
+            protocol = Protocol.L2TP,
+            remark = p.fragment.ifBlank { p.host },
+            address = p.host,
+            port = p.port ?: 1701,
+            username = p.userInfo.substringBefore(':'),
+            userId = p.userInfo.substringAfter(':', ""),
+            preSharedKey = q["psk"] ?: q["presharedkey"],
+        )
+    }
+
+    private fun parseSstp(link: String): ServerConfig {
+        val p = parseLink(link.substringAfter("://"))
+        if (p.host.isBlank()) throw ConfigParseException("Invalid sstp link")
+        val q = p.query
+        return ServerConfig(
+            protocol = Protocol.SSTP,
+            remark = p.fragment.ifBlank { p.host },
+            address = p.host,
+            port = p.port ?: 443,
+            username = p.userInfo.substringBefore(':'),
+            userId = p.userInfo.substringAfter(':', ""),
+            tls = SecurityConfig(
+                allowInsecure = q["insecure"] == "1" || q["verify"]?.lowercase() == "false",
+            ),
         )
     }
 

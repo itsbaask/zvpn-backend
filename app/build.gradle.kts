@@ -33,6 +33,15 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
+
+        externalNativeBuild {
+            cmake {
+                arguments += listOf(
+                    "-DANDROID_STL=c++_shared",
+                    "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+                )
+            }
+        }
     }
 
     signingConfigs {
@@ -95,6 +104,12 @@ android {
             useLegacyPackaging = true
 
             excludes += "**/x86/*.so"
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
         }
     }
 }

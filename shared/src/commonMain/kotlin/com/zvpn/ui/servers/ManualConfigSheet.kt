@@ -292,6 +292,13 @@ fun ManualConfigSheet(
                         }
                     }
                 }
+                Protocol.L2TP, Protocol.SSTP -> {
+                    Field(username, { username = it }, Res.string.manual_username)
+                    Field(userId, { userId = it }, Res.string.manual_password)
+                    if (protocol == Protocol.L2TP) {
+                        Field(wgPsk, { wgPsk = it }, Res.string.manual_preshared_key)
+                    }
+                }
             }
 
             if (protocol.supportsTransport) {

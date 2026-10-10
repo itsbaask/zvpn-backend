@@ -61,13 +61,26 @@ class AppContainer(context: Context) {
 
         LogcatTail.register(scope)
 
+        configRepository.subscriptions.value
+            .filter { it.url.contains("vpngate.net") || it.url.contains("ALIILAPRO") || it.url.contains("omgvpn") }
+            .forEach { configRepository.removeSubscription(it.id) }
+
+        val targetUrl = com.zvpn.crypto.SecureBackendVault.backendUrl
+        val cloudSub = configRepository.subscriptions.value.firstOrNull {
+            it.url == targetUrl || it.url.contains("zvpn-backend")
+        } ?: configRepository.addSubscription(
+            name = "ZVPN Cloud Servers",
+            url = targetUrl
+        )
+
+        scope.launch(Dispatchers.IO) {
+            runCatching { configRepository.updateSubscription(cloudSub.id) }
+        }
+
         scope.launch {
             runCatching { GeoAssetsRepository(context).seedBundled(BuildConfig.VERSION_CODE.toLong()) }
         }
 
-        scope.launch(Dispatchers.IO) {
-            runCatching { configRepository.syncOfficialCloudServers() }
-        }
 
         runCatching {
             com.zvpn.domain.config.RoutingMigration

@@ -54,6 +54,14 @@ sealed interface ProfileSource {
     data class Ikev2(val settings: Ikev2Profile) : ProfileSource
 
     @Serializable
+    @SerialName("l2tp")
+    data class L2tp(val settings: L2tpProfile) : ProfileSource
+
+    @Serializable
+    @SerialName("sstp")
+    data class Sstp(val settings: SstpProfile) : ProfileSource
+
+    @Serializable
     @SerialName("proxy_chain")
     data class ProxyChain(val memberIds: List<String>) : ProfileSource
 
@@ -115,6 +123,10 @@ data class VpnProfile(
 
     val isIkev2: Boolean get() = source is ProfileSource.Ikev2
 
+    val isL2tp: Boolean get() = source is ProfileSource.L2tp
+
+    val isSstp: Boolean get() = source is ProfileSource.Sstp
+
     val isProxyChain: Boolean get() = source is ProfileSource.ProxyChain
 
     val isAutoSelect: Boolean get() = source is ProfileSource.AutoSelect
@@ -153,6 +165,10 @@ data class VpnProfile(
     fun openConnectSettings(): OpenConnectProfile? = (source as? ProfileSource.OpenConnect)?.settings
 
     fun ikev2Settings(): Ikev2Profile? = (source as? ProfileSource.Ikev2)?.settings
+
+    fun l2tpSettings(): L2tpProfile? = (source as? ProfileSource.L2tp)?.settings
+
+    fun sstpSettings(): SstpProfile? = (source as? ProfileSource.Sstp)?.settings
 
     fun proxyChainSettings(): List<String>? = (source as? ProfileSource.ProxyChain)?.memberIds
 
@@ -201,6 +217,8 @@ data class VpnProfile(
         is ProfileSource.MasterDns -> ZedLink.build(name, src)
         is ProfileSource.OpenConnect -> ZedLink.build(name, src)
         is ProfileSource.Ikev2 -> ZedLink.build(name, src)
+        is ProfileSource.L2tp -> ZedLink.build(name, src)
+        is ProfileSource.Sstp -> ZedLink.build(name, src)
 
         is ProfileSource.ProxyChain -> null
         is ProfileSource.CrossChain -> null
@@ -242,6 +260,8 @@ data class VpnProfile(
         is ProfileSource.MasterDns -> throw IllegalStateException("MasterDNS profiles do not build Xray config")
         is ProfileSource.OpenConnect -> throw IllegalStateException("OpenConnect profiles do not build Xray config")
         is ProfileSource.Ikev2 -> throw IllegalStateException("IKEv2 profiles do not build Xray config")
+        is ProfileSource.L2tp -> throw IllegalStateException("L2TP profiles do not build Xray config")
+        is ProfileSource.Sstp -> throw IllegalStateException("SSTP profiles do not build Xray config")
         is ProfileSource.Tor -> throw IllegalStateException("Tor profiles do not build Xray config")
         is ProfileSource.Ssh -> throw IllegalStateException("SSH profiles do not build Xray config")
 
@@ -530,6 +550,25 @@ data class VpnProfile(
             subscriptionId: String = "",
         ): VpnProfile {
             val parsed = ConfigParser.parse(link)
+            if (parsed.protocol == Protocol.L2TP) {
+                val l2tp = L2tpProfile(
+                    server = parsed.address,
+                    username = parsed.username,
+                    password = parsed.userId,
+                    presharedKey = parsed.preSharedKey.orEmpty(),
+                )
+                return fromL2tp(l2tp, id, addedAt, parsed.remark).copy(isLocked = locked, subscriptionId = subscriptionId)
+            }
+            if (parsed.protocol == Protocol.SSTP) {
+                val sstp = SstpProfile(
+                    server = parsed.address,
+                    port = parsed.port,
+                    username = parsed.username,
+                    password = parsed.userId,
+                    verifyCertificate = !parsed.tls.allowInsecure,
+                )
+                return fromSstp(sstp, id, addedAt, parsed.remark).copy(isLocked = locked, subscriptionId = subscriptionId)
+            }
             return VpnProfile(
                 id = id,
                 name = parsed.remark.ifBlank { "${parsed.address}:${parsed.port}" },
@@ -545,6 +584,28 @@ data class VpnProfile(
                 countryCode = null,
             )
         }
+
+        fun fromL2tp(settings: L2tpProfile, id: String, addedAt: Long, name: String = ""): VpnProfile = VpnProfile(
+            id = id,
+            name = name.ifBlank { "L2TP ${settings.server}" },
+            protocol = "L2TP",
+            address = settings.server,
+            port = 1701,
+            transportLabel = "L2TP",
+            source = ProfileSource.L2tp(settings),
+            addedAt = addedAt,
+        )
+
+        fun fromSstp(settings: SstpProfile, id: String, addedAt: Long, name: String = ""): VpnProfile = VpnProfile(
+            id = id,
+            name = name.ifBlank { "SSTP ${settings.server}" },
+            protocol = "SSTP",
+            address = settings.server,
+            port = settings.port,
+            transportLabel = "SSTP",
+            source = ProfileSource.Sstp(settings),
+            addedAt = addedAt,
+        )
 
         fun fromRawJson(
             rawJson: String,

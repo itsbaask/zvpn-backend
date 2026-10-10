@@ -14,7 +14,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -23,61 +28,19 @@ import com.zvpn.domain.billing.UserTier
 import com.zvpn.shared.resources.*
 import org.jetbrains.compose.resources.painterResource
 
-/**
- * Data class for displaying a public server (from backend servers.json).
- * Matches the clean backend fields: display_name, country_code, flag, protocol_label,
- * speed_mbps, latency_ms, tier.
- */
-data class PublicServer(
-    val id: String,
-    val displayName: String,       // e.g. "Japan — VLESS"
-    val countryCode: String,       // e.g. "JP"
-    val countryName: String,       // e.g. "Japan"
-    val flag: String,              // e.g. "🇯🇵"
-    val protocolLabel: String,     // e.g. "VLESS"
-    val speedMbps: Float,
-    val latencyMs: Int,
-    val tier: String,              // "free" | "premium" | "premium_plus"
-    val profileUrl: String = "",
-    val configUri: String = "",
-    val engine: String = "OPENVPN",
-)
-
-/** Helper to detect light theme */
 @Composable
-fun isLightTheme(): Boolean {
-    val surface = MaterialTheme.colorScheme.surface
-    // Calculate relative luminance: simple approximation
-    return (surface.red * 0.299f + surface.green * 0.587f + surface.blue * 0.114f) > 0.5f
+fun pingColor(ms: Int?): Color = when {
+    ms == null || ms <= 0 -> MaterialTheme.colorScheme.outline
+    ms < 70               -> Color(0xFF10B981)  // vibrant green
+    ms < 180              -> Color(0xFFF59E0B)  // vibrant amber
+    else                  -> Color(0xFFEF4444)  // vibrant red
 }
 
-/** Color for a ping value - theme-aware */
 @Composable
-fun pingColor(ms: Int): Color {
-    val isLight = isLightTheme()
-    return when {
-        ms <= 0   -> MaterialTheme.colorScheme.outline
-        ms < 80   -> if (isLight) Color(0xFF2E7D32) else Color(0xFF66BB6A)  // green
-        ms < 200  -> if (isLight) Color(0xFFF57C00) else Color(0xFFFFB74D)  // orange
-        else      -> if (isLight) Color(0xFFC62828) else Color(0xFFEF5350)  // red
-    }
-}
-
-/** Tier badge color - theme-aware */
-@Composable
-fun tierColor(tier: String): Color {
-    val isLight = isLightTheme()
-    return when (tier.lowercase()) {
-        "premium_plus" -> if (isLight) Color(0xFFF57F17) else Color(0xFFFFD54F)  // gold
-        "premium"      -> if (isLight) Color(0xFF5E35B1) else Color(0xFF9575CD)  // purple
-        else           -> if (isLight) Color(0xFF2E7D32) else Color(0xFF66BB6A)  // green (free)
-    }
-}
-
-fun tierLabel(tier: String): String = when (tier.lowercase()) {
-    "premium_plus" -> "PLUS"
-    "premium"      -> "PRO"
-    else           -> "FREE"
+fun tierColor(tier: ServerTier): Color = when (tier) {
+    ServerTier.PremiumPlus -> Color(0xFFFFD700)  // gold
+    ServerTier.Premium     -> Color(0xFF8B5CF6)  // royal purple
+    else                   -> Color(0xFF10B981)  // emerald green
 }
 
 @Composable
@@ -85,133 +48,188 @@ fun PublicServerCard(
     server: PublicServer,
     isSelected: Boolean,
     userTier: UserTier,
+    isFavorite: Boolean,
+    onToggleFavorite: () -> Unit,
     onClick: () -> Unit,
-    onLockedClick: (() -> Unit)? = null,   // called when locked server tapped
+    onLockedClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val locked = !UserTier.canAccess(userTier, server.tier)
+    val locked = !UserTier.canAccess(userTier, server.tier.id)
+    val isVip = server.tier != ServerTier.Free
+
     val containerColor by animateColorAsState(
         targetValue = when {
             isSelected -> MaterialTheme.colorScheme.primaryContainer
-            locked     -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            locked     -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
             else       -> MaterialTheme.colorScheme.surface
         },
-        animationSpec = tween(200),
+        animationSpec = tween(250),
         label = "card-bg",
     )
+
+    val descText = "${server.countryName}, protocol ${server.protocolLabel}, speed ${server.speedMbps.toInt()} Mbps, ping ${server.latencyMs ?: "untested"}, ${if (locked) "locked" else "available"}"
 
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { if (locked) onLockedClick?.invoke() else onClick() },
-        shape = RoundedCornerShape(16.dp),
+            .semantics {
+                role = Role.Button
+                contentDescription = descText
+            }
+            .clickable { if (locked) onLockedClick() else onClick() },
+        shape = RoundedCornerShape(20.dp),
         color = containerColor,
-        tonalElevation = if (isSelected) 6.dp else 1.dp,
-        shadowElevation = if (isSelected) 4.dp else 0.dp,
+        tonalElevation = if (isSelected) 8.dp else 2.dp,
+        shadowElevation = if (isSelected) 6.dp else 1.dp,
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            // ── Flag ────────────────────────────────────────────────────────
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = server.flag.ifBlank { "🌐" },
-                    fontSize = 24.sp,
+        Box(modifier = Modifier.fillMaxWidth()) {
+            if (isVip && !locked) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(Color(0xFFFFD700), Color(0xFF8B5CF6))
+                            )
+                        )
                 )
             }
 
-            // ── Country + Protocol ──────────────────────────────────────────
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = server.countryName,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(Modifier.height(2.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                // Flag Avatar
+                Box(
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                        ),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    // Protocol badge
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer,
-                    ) {
-                        Text(
-                            text = server.protocolLabel,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            fontWeight = FontWeight.Medium,
-                        )
-                    }
-                    // Speed
-                    if (server.speedMbps > 0f) {
-                        Text(
-                            text = "${server.speedMbps.toInt()} Mbps",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-
-            // ── Right: Ping + Tier badge ─────────────────────────────────────
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                // Ping indicator
-                if (server.latencyMs > 0) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(pingColor(server.latencyMs))
-                        )
-                        Text(
-                            text = "${server.latencyMs}ms",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = pingColor(server.latencyMs),
-                        )
-                    }
-                }
-
-                // Tier badge
-                if (server.tier != "free") {
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = tierColor(server.tier).copy(alpha = 0.15f),
-                    ) {
-                        Text(
-                            text = tierLabel(server.tier),
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = tierColor(server.tier),
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                }
-
-                // Lock icon if inaccessible
-                if (locked) {
-                    Icon(
-                        painter = painterResource(Res.drawable.ic_lock),
-                        contentDescription = "Locked",
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.outline,
+                    Text(
+                        text = server.flag.ifBlank { "🌐" },
+                        fontSize = 28.sp,
                     )
+                }
+
+                // Country + Protocol + Speed
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = server.countryName,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (server.tier != ServerTier.Free) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = tierColor(server.tier).copy(alpha = 0.15f),
+                            ) {
+                                Text(
+                                    text = when(server.tier) {
+                                        ServerTier.PremiumPlus -> "VIP+"
+                                        ServerTier.Premium -> "PRO"
+                                        else -> "FREE"
+                                    },
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = tierColor(server.tier),
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 10.sp
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.8f),
+                        ) {
+                            Text(
+                                text = server.protocolLabel,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                        if (server.speedMbps > 0f) {
+                            Text(
+                                text = "⚡ ${server.speedMbps.toInt()} Mbps",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+
+                // Right: Favorite toggle + Ping status + Lock
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    IconButton(onClick = onToggleFavorite, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_check_circle),
+                            contentDescription = "Toggle favorite",
+                            tint = if (isFavorite) Color(0xFFFFD700) else MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = pingColor(server.latencyMs).copy(alpha = 0.12f)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(7.dp)
+                                        .clip(CircleShape)
+                                        .background(pingColor(server.latencyMs))
+                                )
+                                Text(
+                                    text = if (server.latencyMs != null) "${server.latencyMs} ms" else "—",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = pingColor(server.latencyMs),
+                                )
+                            }
+                        }
+
+                        if (locked) {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_lock),
+                                contentDescription = "Locked",
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.outline,
+                            )
+                        }
+                    }
                 }
             }
         }

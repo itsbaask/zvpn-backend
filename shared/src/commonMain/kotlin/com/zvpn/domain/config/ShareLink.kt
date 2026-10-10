@@ -18,6 +18,8 @@ object ShareLink {
         Protocol.SOCKS, Protocol.HTTP -> buildUserPass(s)
         Protocol.HYSTERIA -> buildUri("hysteria2", s.secretKey.ifBlank { s.userId }, s)
         Protocol.WIREGUARD, Protocol.AMNEZIAWG -> buildWireguard(s)
+        Protocol.L2TP -> buildUri("l2tp", if (s.username.isNotBlank()) "${s.username}:${s.userId}" else "", s)
+        Protocol.SSTP -> buildUri("sstp", if (s.username.isNotBlank()) "${s.username}:${s.userId}" else "", s)
     }
 
     private fun buildUserPass(s: ServerConfig): String {

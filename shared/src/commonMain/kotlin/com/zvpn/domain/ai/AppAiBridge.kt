@@ -1,4 +1,4 @@
-﻿package com.zvpn.domain.ai
+package com.zvpn.domain.ai
 
 import com.zvpn.core.LogBus
 import com.zvpn.core.VpnManager

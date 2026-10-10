@@ -162,8 +162,12 @@ fun MainScaffold(
     }
 
     Box(Modifier.fillMaxSize()) {
+        var showMyIpDialog by rememberSaveable { mutableStateOf(false) }
+        if (showMyIpDialog) {
+            com.zvpn.ui.components.MyIpDialog(onDismiss = { showMyIpDialog = false })
+        }
     Scaffold(
-        containerColor = androidx.compose.ui.graphics.Color(0xFF000000),
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             com.zvpn.ui.navigation.ZedNavBar(
                 style = settings.navBarStyle,
@@ -234,7 +238,13 @@ fun MainScaffold(
                         current = TopDestination.Servers
                     },
                     onOpenMap = {
+                        deepLinkOrigin = current
                         pendingSettingsPage = com.zvpn.ui.settings.SettingsPage.Map
+                        current = TopDestination.Settings
+                    },
+                    onOpenMyIp = {
+                        deepLinkOrigin = current
+                        pendingSettingsPage = com.zvpn.ui.settings.SettingsPage.MyIp
                         current = TopDestination.Settings
                     },
                     onSecretUnlocked = { spaceUnlocked = true },
@@ -255,10 +265,6 @@ fun MainScaffold(
                         if (settings.homeAfterSelect) current = TopDestination.Home
 
                         onActiveServerChanged()
-                    },
-                    onOpenMap = {
-                        pendingSettingsPage = com.zvpn.ui.settings.SettingsPage.Map
-                        current = TopDestination.Settings
                     },
                 )
                 TopDestination.Browser -> {
@@ -333,6 +339,11 @@ fun MainScaffold(
             onOpenMap = {
                 deepLinkOrigin = current
                 pendingSettingsPage = com.zvpn.ui.settings.SettingsPage.Map
+                current = TopDestination.Settings
+            },
+            onOpenMyIp = {
+                deepLinkOrigin = current
+                pendingSettingsPage = com.zvpn.ui.settings.SettingsPage.MyIp
                 current = TopDestination.Settings
             },
             onOpenSpeedTest = {

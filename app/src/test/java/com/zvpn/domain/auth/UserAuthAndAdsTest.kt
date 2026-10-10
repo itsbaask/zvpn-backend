@@ -28,8 +28,9 @@ class UserAuthAndAdsTest {
     @Test
     fun `ad reward token validation checks timestamp and user`() {
         val now = System.currentTimeMillis()
-        assertTrue(UnityAdsS2SManager.isRewardTokenValid("user_1", now, "valid_token_12345678"))
-        assertFalse(UnityAdsS2SManager.isRewardTokenValid("user_1", now - 600000L, "valid_token_12345678"))
-        assertFalse(UnityAdsS2SManager.isRewardTokenValid("", now, "valid_token_12345678"))
+        val validToken = UnityAdsS2SManager.generateToken("user_1", now)
+        assertTrue(UnityAdsS2SManager.isRewardTokenValid("user_1", now, validToken))
+        assertFalse(UnityAdsS2SManager.isRewardTokenValid("user_1", now - 600000L, validToken))
+        assertFalse(UnityAdsS2SManager.isRewardTokenValid("", now, validToken))
     }
 }

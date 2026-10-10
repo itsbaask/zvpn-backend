@@ -194,6 +194,8 @@ data class DeepLinkPreview(
             is ProfileSource.MasterDns -> "MasterDNS"
             is ProfileSource.OpenConnect -> "OpenConnect"
             is ProfileSource.Ikev2 -> "IKEv2"
+            is ProfileSource.L2tp -> "L2TP"
+            is ProfileSource.Sstp -> "SSTP"
             is ProfileSource.ProxyChain -> "Proxy chain"
             is ProfileSource.CrossChain -> "Cross chain"
             is ProfileSource.SniSpoof -> "SNI spoof"

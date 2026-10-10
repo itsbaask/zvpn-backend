@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,6 +30,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zvpn.domain.model.ConnectButtonStyle
+import com.zvpn.shared.resources.Res
+import com.zvpn.shared.resources.logo_white
+import org.jetbrains.compose.resources.painterResource
 import com.zvpn.ui.theme.ThemeProfile
 import com.zvpn.ui.theme.ThemeProfiles
 import com.zvpn.ui.platform.draggableHorizontalScroll
@@ -255,7 +259,14 @@ private fun StyleGlyph(style: ConnectButtonStyle) {
         ConnectButtonStyle.Hero -> Box(
             Modifier.size(38.dp).clip(CircleShape).background(accent),
             contentAlignment = Alignment.Center,
-        ) { Text("Z", color = on, fontSize = 18.sp, fontWeight = FontWeight.Bold) }
+        ) {
+            Icon(
+                painter = painterResource(Res.drawable.logo_white),
+                contentDescription = null,
+                tint = on,
+                modifier = Modifier.size(20.dp),
+            )
+        }
         ConnectButtonStyle.Ring -> Box(
             Modifier.size(38.dp).clip(CircleShape).background(accent)
                 .border(3.dp, on.copy(alpha = 0.5f), CircleShape),

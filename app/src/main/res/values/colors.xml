@@ -1,4 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="zed_window_bg">#000000</color>
+    <color name="vpn_brand">#5646D6</color>
+    <color name="vpn_error">#B3261E</color>
+    <color name="vpn_point">#FFFFFF</color>
+    <color name="vpn_segment_1">#3B3193</color>
+    <color name="vpn_segment_2">#5646D6</color>
+    <color name="vpn_segment_3">#7C6BFF</color>
+    <color name="vpn_segment_4">#35C48C</color>
 </resources>

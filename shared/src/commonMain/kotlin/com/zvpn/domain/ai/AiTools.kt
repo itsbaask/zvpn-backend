@@ -1,4 +1,4 @@
-﻿package com.zvpn.domain.ai
+package com.zvpn.domain.ai
 
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject

@@ -69,6 +69,10 @@ object VpnManager {
 
     const val KIND_IKEV2 = "ikev2"
 
+    const val KIND_L2TP = "l2tp"
+
+    const val KIND_SSTP = "sstp"
+
     const val KIND_CROSS_CHAIN = "cross_chain"
 
     const val KIND_SINGBOX = "sing_box"

@@ -1393,4 +1393,6 @@
     <string name="update_check_summary_github">Look for a newer version on GitHub</string>
     <string name="rate_title_github">Z VPN on GitHub</string>
     <string name="rate_summary_github">Open the project page to star it, report a problem or read the code</string>
+    <string name="add_free_hint" translatable="false">إضافة سيرفرات مجانية</string>
+    <string name="add_free_badge" translatable="false">مجاني</string>
 </resources>

@@ -778,6 +778,9 @@ object XrayJsonBuilder {
             if (fakeDnsActive(options)) add("fakedns")
             options.serverDns.forEach { add(it) }
             add(options.remoteDns)
+            if (!options.remoteDns.contains("dns.google")) add("https://dns.google/dns-query")
+            add("8.8.8.8")
+            add("1.1.1.1")
             if (split.proxyDomains.isNotEmpty()) addJsonObject {
                 put("address", options.remoteDns)
                 putJsonArray("domains") { split.proxyDomains.forEach { add(it) } }
@@ -1305,6 +1308,10 @@ private fun statsPolicy() = buildJsonObject {
                     put("port", s.port)
                     put("version", 2)
                 }
+
+                Protocol.L2TP, Protocol.SSTP -> {
+                    throw IllegalStateException("${s.protocol.label} runs on native engine, not Xray")
+                }
             }
         }
 
@@ -1406,7 +1413,8 @@ private fun statsPolicy() = buildJsonObject {
     ) = buildJsonObject {
         val t = s.transport
         val net = t.network.lowercase()
-        val hostHeader = t.host?.takeIf { it.isNotBlank() }
+        val hostHeader = t.host?.takeIf { it.isNotBlank() && it != "---" && it != "none" }
+            ?: s.tls.sni?.takeIf { it.isNotBlank() && it != "---" && it != "none" }
         val path = t.path?.takeIf { it.isNotBlank() } ?: "/"
 
         put("network", net)

@@ -20,6 +20,7 @@ import com.zvpn.domain.model.RulesetItem
 import com.zvpn.domain.model.VpnBypassLan
 import com.zvpn.domain.model.VpnInterfaceAddress
 import com.zvpn.domain.config.XrayJsonBuilder
+import io.github.mr1ve3r.combined.engine.SocketProtector
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -55,6 +56,8 @@ class ZVpnService : VpnService() {
     @Volatile
     private var sniSpoofEdge: String? = null
     private var openConnect: OpenConnectController? = null
+    private var l2tp: L2tpController? = null
+    private var sstp: SstpController? = null
     private var singBox: SingBoxEngine? = null
 
     private var singBoxLastUp = 0L
@@ -214,6 +217,8 @@ class ZVpnService : VpnService() {
         }
 
         if (kind == VpnManager.KIND_OPENCONNECT) { startOpenConnect(configJson, settings); return }
+        if (kind == VpnManager.KIND_L2TP) { startL2tp(configJson, settings); return }
+        if (kind == VpnManager.KIND_SSTP) { startSstp(configJson, settings); return }
 
         if (kind == VpnManager.KIND_SINGBOX) { startSingBox(configJson, settings); return }
 
@@ -610,6 +615,114 @@ class ZVpnService : VpnService() {
         if (!controller.start()) stopEverything()
     }
 
+    private fun startL2tp(configJson: String, appSettings: AppSettings) {
+        VpnManager.setActiveKind(kind)
+        advance(VpnNotifications.Stage.Engine)
+        val profile = try {
+            kotlinx.serialization.json.Json.decodeFromString(
+                com.zvpn.domain.config.L2tpProfile.serializer(), configJson,
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "bad L2TP config", e)
+            VpnManager.onError("Invalid L2TP configuration")
+            stopEverything(); return
+        }
+
+        val controller = L2tpController(profile)
+        l2tp = controller
+
+        val protector = object : SocketProtector {
+            override fun protect(socket: java.net.Socket): Boolean = this@ZVpnService.protect(socket)
+            override fun protect(socket: java.net.DatagramSocket): Boolean = this@ZVpnService.protect(socket)
+            override fun protect(fd: Int): Boolean = this@ZVpnService.protect(fd)
+        }
+
+        scope.launch(Dispatchers.IO) {
+            try {
+                val params = controller.connect(protector)
+                val pfd = Builder().apply {
+                    setSession(remark.ifBlank { "zvpn" })
+                    setMtu(params.mtu)
+                    addAddress(params.localAddress.hostAddress!!, params.prefixLength)
+                    params.dnsServers.forEach { addDnsServer(it.hostAddress) }
+                    params.excludedRoutes.forEach { addRoute(it.address, it.prefixLength) }
+                    if (params.excludedRoutes.isEmpty()) {
+                        addRoute("0.0.0.0", 0)
+                    }
+                    applyAppRules(appSettings, selfInTunnel = true)
+                }.establish()
+
+                if (pfd == null) {
+                    Log.e(TAG, "Failed to establish TUN for L2TP")
+                    VpnManager.onError("Failed to create TUN interface")
+                    stopEverything()
+                    return@launch
+                }
+
+                controller.attachTun(pfd)
+                finishConnected()
+            } catch (e: Exception) {
+                Log.e(TAG, "L2TP connection failed", e)
+                VpnManager.onError(e.message ?: "L2TP connection failed")
+                stopEverything()
+            }
+        }
+    }
+
+    private fun startSstp(configJson: String, appSettings: AppSettings) {
+        VpnManager.setActiveKind(kind)
+        advance(VpnNotifications.Stage.Engine)
+        val profile = try {
+            kotlinx.serialization.json.Json.decodeFromString(
+                com.zvpn.domain.config.SstpProfile.serializer(), configJson,
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "bad SSTP config", e)
+            VpnManager.onError("Invalid SSTP configuration")
+            stopEverything(); return
+        }
+
+        val controller = SstpController(profile)
+        sstp = controller
+
+        val protector = object : SocketProtector {
+            override fun protect(socket: java.net.Socket): Boolean = this@ZVpnService.protect(socket)
+            override fun protect(socket: java.net.DatagramSocket): Boolean = this@ZVpnService.protect(socket)
+            override fun protect(fd: Int): Boolean = this@ZVpnService.protect(fd)
+        }
+
+        scope.launch(Dispatchers.IO) {
+            try {
+                val params = controller.connect(protector)
+                val pfd = Builder().apply {
+                    setSession(remark.ifBlank { "zvpn" })
+                    setMtu(params.mtu)
+                    addAddress(params.localAddress.hostAddress!!, params.prefixLength)
+                    params.dnsServers.forEach { addDnsServer(it.hostAddress) }
+                    params.excludedRoutes.forEach { addRoute(it.address, it.prefixLength) }
+                    if (params.excludedRoutes.isEmpty()) {
+                        addRoute("0.0.0.0", 0)
+                    }
+                    applyAppRules(appSettings, selfInTunnel = true)
+                }.establish()
+
+                if (pfd == null) {
+                    Log.e(TAG, "Failed to establish TUN for SSTP")
+                    VpnManager.onError("Failed to create TUN interface")
+                    stopEverything()
+                    return@launch
+                }
+
+                controller.attachTun(pfd)
+                finishConnected()
+            } catch (e: Exception) {
+                Log.e(TAG, "SSTP connection failed", e)
+                VpnManager.onError(e.message ?: "SSTP connection failed")
+                stopEverything()
+            }
+        }
+    }
+
     private fun startSingBox(configJson: String, appSettings: AppSettings) {
         VpnManager.setActiveKind(kind)
         advance(VpnNotifications.Stage.Engine)
@@ -873,6 +986,8 @@ class ZVpnService : VpnService() {
         VpnManager.KIND_TOR -> "Tor"
         VpnManager.KIND_SSH -> "SSH"
         VpnManager.KIND_OPENCONNECT -> "OpenConnect"
+        VpnManager.KIND_L2TP -> "L2TP"
+        VpnManager.KIND_SSTP -> "SSTP"
         VpnManager.KIND_SINGBOX -> "sing-box"
         VpnManager.KIND_IKEV2 -> "IKEv2"
         VpnManager.KIND_SNISPOOF -> "Xray · SNI"
@@ -963,6 +1078,8 @@ class ZVpnService : VpnService() {
                     VpnManager.KIND_TOR -> tor?.isRunning == true
                     VpnManager.KIND_SSH -> ssh?.isRunning == true
                     VpnManager.KIND_OPENCONNECT -> openConnect?.isRunning == true
+                    VpnManager.KIND_L2TP -> l2tp?.state?.value is io.github.mr1ve3r.combined.engine.EngineState.Connected
+                    VpnManager.KIND_SSTP -> sstp?.state?.value is io.github.mr1ve3r.combined.engine.EngineState.Connected
                     VpnManager.KIND_SINGBOX -> singBox?.isRunning == true
 
                     VpnManager.KIND_CROSS_CHAIN ->
@@ -985,7 +1102,7 @@ class ZVpnService : VpnService() {
                 val (down, up) = when (kind) {
                     VpnManager.KIND_XRAY, VpnManager.KIND_SNISPOOF -> XrayController.readTrafficDelta()
 
-                    VpnManager.KIND_PSIPHON -> uidTrafficDelta()
+                    VpnManager.KIND_PSIPHON, VpnManager.KIND_L2TP, VpnManager.KIND_SSTP -> uidTrafficDelta()
                     VpnManager.KIND_OPENCONNECT -> { openConnect?.pokeStats(); openConnect?.trafficDelta() ?: (0L to 0L) }
 
                     VpnManager.KIND_SINGBOX -> singBox?.let { engine ->
@@ -1181,6 +1298,8 @@ class ZVpnService : VpnService() {
         ssh?.stop(); ssh = null
         sniSpoof?.stop(); sniSpoof = null
         openConnect?.stop(); openConnect = null
+        l2tp?.let { kotlinx.coroutines.runBlocking { it.stop() } }; l2tp = null
+        sstp?.let { kotlinx.coroutines.runBlocking { it.stop() } }; sstp = null
         singBox?.stop(); singBox = null
         socksShim?.stop(); socksShim = null
         outerPsiphon?.stop(); outerPsiphon = null
