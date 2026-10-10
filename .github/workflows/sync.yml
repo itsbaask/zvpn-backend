@@ -5,12 +5,18 @@ on:
     - cron: '0 */6 * * *'  # Runs every 6 hours
   workflow_dispatch:      # Allows manual trigger from GitHub UI
 
+permissions:
+  contents: write
+
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
 
       - name: Set up Python
         uses: actions/setup-python@v5
