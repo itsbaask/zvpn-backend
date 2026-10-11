@@ -62,19 +62,19 @@ class AppContainer(context: Context) {
         LogcatTail.register(scope)
 
         configRepository.subscriptions.value
-            .filter { it.url.contains("vpngate.net") || it.url.contains("ALIILAPRO") || it.url.contains("omgvpn") }
+            .filter {
+                it.url.contains("raw.githubusercontent") ||
+                it.url.contains("zvpn-backend") ||
+                it.name == "ZVPN Cloud Servers" ||
+                it.url.contains("vpngate.net") ||
+                it.url.contains("ALIILAPRO") ||
+                it.url.contains("omgvpn") ||
+                it.id == com.zvpn.domain.config.SystemBackendConfig.SYSTEM_BACKEND_SUB_ID
+            }
             .forEach { configRepository.removeSubscription(it.id) }
 
-        val targetUrl = com.zvpn.crypto.SecureBackendVault.backendUrl
-        val cloudSub = configRepository.subscriptions.value.firstOrNull {
-            it.url == targetUrl || it.url.contains("zvpn-backend")
-        } ?: configRepository.addSubscription(
-            name = "ZVPN Cloud Servers",
-            url = targetUrl
-        )
-
         scope.launch(Dispatchers.IO) {
-            runCatching { configRepository.updateSubscription(cloudSub.id) }
+            runCatching { configRepository.syncSystemBackendServers() }
         }
 
         scope.launch {

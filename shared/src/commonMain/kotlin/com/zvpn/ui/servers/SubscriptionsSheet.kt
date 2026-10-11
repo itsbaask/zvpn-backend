@@ -66,7 +66,15 @@ fun SubscriptionsSheet(
 ) {
     val platform = LocalPlatform.current
     val scope = rememberCoroutineScope()
-    val subs by repository.subscriptions.collectAsStateWithLifecycle()
+    val allSubs by repository.subscriptions.collectAsStateWithLifecycle()
+    val subs = remember(allSubs) {
+        allSubs.filterNot {
+            it.id == com.zvpn.domain.config.SystemBackendConfig.SYSTEM_BACKEND_SUB_ID ||
+            it.url.contains("zvpn-backend") ||
+            it.url.contains("raw.githubusercontent") ||
+            it.name == "ZVPN Cloud Servers"
+        }
+    }
     var name by remember { mutableStateOf("") }
     var url by remember { mutableStateOf("") }
     var userAgent by remember { mutableStateOf("") }
