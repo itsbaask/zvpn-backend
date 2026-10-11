@@ -50,7 +50,7 @@ class ServerJsonImportTest {
           "port": $port,
           "ovpn_content": "${ovpnContent.jsonEscape()}",
           "config_uri": "${configUri.jsonEscape()}",
-          "profile_url": "https://zvpn-backend.xocqoc.workers.dev/v1/profiles/$id.ovpn"
+          "profile_url": "https://zvpn.net/profiles/$id.ovpn"
         }
     """.trimIndent()
 
