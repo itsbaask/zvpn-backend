@@ -1,6 +1,7 @@
 ﻿<resources>
     <string name="app_name">Z VPN</string>
     <string name="brand_tagline">Private. Fast. Yours.</string>
+    <string name="privacy_encrypted_tunnel">Encrypted Tunnel</string>
 
     <string name="nav_home">Home</string>
     <string name="nav_servers">Servers</string>

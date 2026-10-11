@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import com.zvpn.domain.billing.UserTier
 import com.zvpn.shared.resources.*
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun pingColor(ms: Int?): Color = when {
@@ -152,31 +153,12 @@ fun PublicServerCard(
                         }
                     }
                     Spacer(Modifier.height(4.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.8f),
-                        ) {
-                            Text(
-                                text = server.protocolLabel,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                        }
-                        if (server.speedMbps > 0f) {
-                            Text(
-                                text = "⚡ ${server.speedMbps.toInt()} Mbps",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
+                    Text(
+                        text = "🔒 " + stringResource(Res.string.privacy_encrypted_tunnel),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
 
                 // Right: Favorite toggle + Ping status + Lock

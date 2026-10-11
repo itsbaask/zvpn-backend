@@ -1,6 +1,7 @@
 ﻿<resources>
     <string name="app_name">Z VPN</string>
     <string name="brand_tagline">خصوصي. سريع. لك.</string>
+    <string name="privacy_encrypted_tunnel">الاتصال مشفر ومؤمن</string>
 
     <string name="nav_home">الرئيسية</string>
     <string name="nav_servers">السيرفرات</string>

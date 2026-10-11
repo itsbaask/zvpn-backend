@@ -273,8 +273,7 @@ class EnterpriseSmartGeoSyncEngine:
             for idx, item in enumerate(top_per_country, start=1):
                 c_flag = item.get("flag", "🌐")
                 c_name = item.get("country", "Global")
-                speed = item.get("speed_mbps", 25.0)
-                clean_name = f"{c_flag} {c_name} · {int(speed)} Mbps - {idx:02d}"
+                clean_name = f"{c_flag} {c_name} - {idx:02d}"
                 item["display_name"] = clean_name
                 item["name"] = clean_name
                 compact_servers.append(item)

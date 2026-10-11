@@ -1857,24 +1857,9 @@ private fun ServerCard(
                 )
                 val subtle = onContainer.copy(alpha = 0.72f)
 
-                val typeLabel = if (profile.isCustom) {
-                    stringResource(Res.string.servers_custom_config)
-                } else {
-                    profile.transportLabel
-                }
-
                 Text(
-                    text = buildString {
-                        append(typeLabel)
-                        if (profile.address.isNotBlank() && profile.address != "-") {
-                            append("  •  ")
-                            append(profile.address)
-                            if (profile.port > 0) append(":${profile.port}")
-                        }
-                        if (subscriptionName != null) append("  •  $subscriptionName")
-                    },
+                    text = "🔒 " + stringResource(Res.string.privacy_encrypted_tunnel),
                     style = MaterialTheme.typography.bodySmall,
-                    fontFamily = if (personalization.monospaceAddress) FontFamily.Monospace else null,
                     color = subtle,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

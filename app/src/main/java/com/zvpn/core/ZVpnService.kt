@@ -979,23 +979,7 @@ class ZVpnService : VpnService() {
             livePromotion = livePromotion,
         )
 
-    private fun protocolLabel(): String = when (kind) {
-        VpnManager.KIND_PSIPHON -> "Psiphon"
-        VpnManager.KIND_DNS_TUNNEL -> "DNS"
-        VpnManager.KIND_MASTERDNS -> "MasterDNS"
-        VpnManager.KIND_TOR -> "Tor"
-        VpnManager.KIND_SSH -> "SSH"
-        VpnManager.KIND_OPENCONNECT -> "OpenConnect"
-        VpnManager.KIND_L2TP -> "L2TP"
-        VpnManager.KIND_SSTP -> "SSTP"
-        VpnManager.KIND_SINGBOX -> "sing-box"
-        VpnManager.KIND_IKEV2 -> "IKEv2"
-        VpnManager.KIND_SNISPOOF -> "Xray · SNI"
-
-        VpnManager.KIND_CROSS_CHAIN ->
-            "${engineLabel(crossInnerKind)} → ${engineLabel(crossOuterKind)}"
-        else -> if (proxyOnly) "Xray · Proxy" else "Xray"
-    }
+    private fun protocolLabel(): String = getString(R.string.notif_public_text)
 
     private fun engineLabel(k: String?): String = when (k) {
         VpnManager.KIND_PSIPHON -> "Psiphon"
