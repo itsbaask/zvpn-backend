@@ -112,7 +112,6 @@ GEO_CACHE = {}
 GEO_LOCK = threading.Lock()
 
 def clean_server_name(raw_name: str) -> str:
-    """Removes random hashes, Telegram ads, URLs, and garbled strings from server names."""
     if not raw_name:
         return ""
     s = str(raw_name).strip()
@@ -147,7 +146,7 @@ def extract_remote_host_port(ovpn_text: str):
     return host, port, transport
 
 def extract_ip_or_host(item: dict) -> str:
-    s = str(item.get("server") or item.get("host") or "").strip()
+    s = str(item.get("server") or item.get("host") or item.get("ip") or "").strip()
     if s and not s.startswith("http") and not s.startswith("{"):
         return s.split(":")[0]
     uri = str(item.get("raw_uri") or item.get("config_uri") or "")
@@ -298,7 +297,7 @@ class EnterpriseSmartGeoSyncEngine:
 
         for sid, item in self.servers.items():
             proto = str(item.get("protocol", "unknown")).lower()
-            host = str(item.get("server") or item.get("host") or "").lower().strip()
+            host = str(item.get("server") or item.get("host") or item.get("ip") or "").lower().strip()
             port = int(item.get("server_port") or item.get("port") or 0)
             raw_uri = str(item.get("raw_uri") or item.get("config_uri") or "").strip()
 
@@ -366,7 +365,7 @@ class EnterpriseSmartGeoSyncEngine:
             item["protocol"] = proto
             item["engine"] = proto.upper()
 
-            server_host = str(item.get("server") or item.get("host") or "").strip()
+            server_host = str(item.get("server") or item.get("host") or item.get("ip") or "").strip()
             server_port = int(item.get("server_port") or item.get("port") or 1194)
             item["host"] = server_host
             item["port"] = server_port
@@ -384,8 +383,9 @@ class EnterpriseSmartGeoSyncEngine:
                 elif proto == "l2tp" and server_host:
                     item["raw_uri"] = f"l2tp://{server_host}:{server_port}"
                     item["config_uri"] = item["raw_uri"]
-                elif proto in ["vless", "vmess", "trojan", "shadowsocks", "ss", "hysteria2", "tuic"] and server_host:
-                    item["raw_uri"] = f"{proto}://11111111-2222-3333-4444-555555555555@{server_host}:{server_port}?security=none#{c_name}"
+                elif proto in ["vless", "vmess", "trojan", "shadowsocks", "ss", "hysteria2", "tuic", "wg", "wireguard"] and server_host:
+                    uuid_val = item.get("uuid") or "11111111-2222-3333-4444-555555555555"
+                    item["raw_uri"] = f"{proto}://{uuid_val}@{server_host}:{server_port}?security=none#{c_name}"
                     item["config_uri"] = item["raw_uri"]
 
             processed_servers.append(item)
@@ -480,10 +480,8 @@ class EnterpriseSmartGeoSyncEngine:
         self._deploy_to_cloudflare([flat_output_path, structured_output_path])
 
     def _deploy_to_cloudflare(self, file_paths):
-        """Uploads generated JSON payloads directly to Cloudflare R2 and Worker endpoint."""
         print("[*] Deploying payloads to Cloudflare R2...")
 
-        r2_uploaded = False
         account_id = os.getenv("CLOUDFLARE_ACCOUNT_ID", "42326c36b367947b8ff21f4f1bad14af")
         access_key = os.getenv("R2_ACCESS_KEY_ID")
         secret_key = os.getenv("R2_SECRET_ACCESS_KEY")
@@ -519,14 +517,12 @@ class EnterpriseSmartGeoSyncEngine:
                         }
                     )
                     print(f"[+] Successfully uploaded {file_name} to Cloudflare R2.")
-                r2_uploaded = True
             except Exception as e:
                 print(f"[-] R2 S3 API upload error: {e}")
         else:
             print("[!] R2 credentials missing (R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY). Skipping direct R2 upload.")
 
-        # Fallback / Secondary Worker HTTP POST Upload
-        worker_url = os.getenv("WORKER_URL", "https://vpn-backend.xocqoc.workers.dev/upload")
+        worker_url = os.getenv("WORKER_URL", "https://zvpn-backend.xocqoc.workers.dev/upload")
         secret = os.getenv("BACKEND_SECRET_KEY") or os.getenv("API_SECRET")
         if secret and worker_url:
             for path in file_paths:
