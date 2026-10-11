@@ -405,7 +405,7 @@ class EnterpriseSmartGeoSyncEngine:
                 c_flag = item.get("flag", "🌐")
                 c_name = item.get("country", "Global")
                 proto_tag = item.get("protocol", "VPN").upper()
-                clean_name = f"{c_flag} {c_name} - {idx:02d} [{proto_tag}]"
+                clean_name = f"{c_flag} {c_name} - {idx:02d}"
                 item["id"] = f"srv_{item.get('country_code','xx').lower()}_{idx:02d}_{item.get('protocol','vpn')}"
                 item["display_name"] = clean_name
                 item["name"] = clean_name
