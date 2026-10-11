@@ -616,7 +616,7 @@ object ConfigParser {
 
     @OptIn(ExperimentalEncodingApi::class)
     fun decodeBase64Bytes(raw: String): ByteArray {
-        val cleaned = raw.trim().replace('-', '+').replace('_', '/').filterNot { it == '\n' || it == '\r' }
+        val cleaned = raw.trim().replace('-', '+').replace('_', '/').filterNot { it <= ' ' || it == '"' || it == '\'' }
         val padded = when (cleaned.length % 4) {
             2 -> "$cleaned=="
             3 -> "$cleaned="

@@ -171,4 +171,15 @@ class ServerJsonImportTest {
         assertEquals(1, added)
         assertEquals("Encrypted Server", repo.profiles.value.first().name)
     }
+
+    @Test
+    fun `test real output servers json file`() {
+        val file = java.io.File("../../output/servers.json")
+        if (!file.exists()) return
+        val text = file.readText()
+        val repo = ConfigRepository(InMemoryKeyValueStore())
+        val result = repo.importText(text, subscriptionId = "cloud_sub")
+        println("REAL_FILE_RESULT: ${result.getOrNull()} EXCEPTION: ${result.exceptionOrNull()}")
+        assertTrue("Import must succeed, got $result", result.isSuccess && (result.getOrNull() ?: 0) > 0)
+    }
 }
