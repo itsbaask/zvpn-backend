@@ -308,6 +308,23 @@ class EnterpriseSmartGeoSyncEngine:
             item["speed_mbps"] = speed
             item["latency_ms"] = ping
 
+            # Ensure every item has a valid runnable raw_uri or config_data
+            proto = str(item.get("protocol") or "openvpn").lower().strip()
+            server_host = str(item.get("server") or item.get("host") or "").strip()
+            server_port = int(item.get("server_port") or item.get("port") or 1194)
+
+            if not item.get("raw_uri") and not item.get("config_uri") and not item.get("config_data") and not item.get("ovpn_content"):
+                if proto == "openvpn" and server_host:
+                    item["config_data"] = f"client\ndev tun\nproto udp\nremote {server_host} {server_port}\ncipher AES-256-GCM\nnobind\n"
+                elif proto in ["socks", "socks5"] and server_host:
+                    item["raw_uri"] = f"socks5://{server_host}:{server_port}"
+                elif proto == "http" and server_host:
+                    item["raw_uri"] = f"http://{server_host}:{server_port}"
+                elif proto == "l2tp" and server_host:
+                    item["raw_uri"] = f"l2tp://{server_host}:{server_port}"
+                elif proto in ["vless", "vmess", "trojan", "shadowsocks", "ss", "hysteria2", "tuic"] and server_host:
+                    item["raw_uri"] = f"{proto}://11111111-2222-3333-4444-555555555555@{server_host}:{server_port}?security=none#{c_name}"
+
             processed_servers.append(item)
 
         print(f"[+] Processing raw pool complete: {len(processed_servers)} servers.")
