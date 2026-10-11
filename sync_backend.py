@@ -231,9 +231,6 @@ class EnterpriseSmartGeoSyncEngine:
 
             continent, c_name, c_flag = geo
 
-            country_counters[c_name] = country_counters.get(c_name, 0) + 1
-            idx = country_counters[c_name]
-
             score_raw = item.get("technical_quality_score") or item.get("network_score") or 50
             score = int(score_raw) if str(score_raw).isdigit() else 50
 
@@ -243,8 +240,6 @@ class EnterpriseSmartGeoSyncEngine:
             ping_raw = item.get("latency_ms") or item.get("ping")
             ping = int(ping_raw) if ping_raw is not None and str(ping_raw).isdigit() else 50
 
-            clean_name = f"{c_flag} {c_name} · {int(speed)} Mbps - {idx:02d}"
-
             if score > 85 or speed > 50.0:
                 tier = "premium_plus"
             elif score > 60 or speed > 20.0:
@@ -252,8 +247,6 @@ class EnterpriseSmartGeoSyncEngine:
             else:
                 tier = "free"
 
-            item["display_name"] = clean_name
-            item["name"] = clean_name
             item["continent"] = continent
             item["country"] = c_name
             item["flag"] = c_flag
@@ -263,9 +256,9 @@ class EnterpriseSmartGeoSyncEngine:
 
             processed_servers.append(item)
 
-        print(f"[+] Strict Naming Standardization complete: Processed {len(processed_servers)} servers.")
+        print(f"[+] Processing raw pool complete: {len(processed_servers)} servers.")
 
-        # 3. Filter and Cap: Keep Top 10 Best Servers per Country to Ensure Ultra-Fast Performance and Compact Payload Size
+        # 3. Filter and Cap: Keep Top 10 Best Servers per Country & Format Clean Sequential Names (01, 02, 03...)
         country_groups = {}
         for s in processed_servers:
             c = s.get("country", "Global")
@@ -276,7 +269,15 @@ class EnterpriseSmartGeoSyncEngine:
         compact_servers = []
         for c, s_list in country_groups.items():
             s_list_sorted = sorted(s_list, key=lambda x: (-x.get("speed_mbps", 0), x.get("latency_ms", 999)))
-            compact_servers.extend(s_list_sorted[:10])
+            top_per_country = s_list_sorted[:10]
+            for idx, item in enumerate(top_per_country, start=1):
+                c_flag = item.get("flag", "🌐")
+                c_name = item.get("country", "Global")
+                speed = item.get("speed_mbps", 25.0)
+                clean_name = f"{c_flag} {c_name} · {int(speed)} Mbps - {idx:02d}"
+                item["display_name"] = clean_name
+                item["name"] = clean_name
+                compact_servers.append(item)
 
         # Overall sorting by speed
         compact_servers.sort(key=lambda x: (-x.get("speed_mbps", 0), x.get("latency_ms", 999)))
