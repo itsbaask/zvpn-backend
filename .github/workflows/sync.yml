@@ -37,4 +37,4 @@ jobs:
           git config --global user.name "ZVPN Bot"
           git config --global user.email "bot@zvpn.net"
           git add output/servers.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-sync VPN servers (Mirror update) [skip ci]" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-sync VPN servers (Mirror update) [skip ci]" && git pull --rebase origin rebrand/zvpn && git push origin rebrand/zvpn)

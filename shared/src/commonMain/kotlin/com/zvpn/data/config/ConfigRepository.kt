@@ -262,9 +262,12 @@ class ConfigRepository(private val store: KeyValueStore) {
             if (duplicate) duplicates++ else fresh += profile
         }
         lastImportDuplicates = duplicates
-        _profiles.value = if (subscriptionId.isBlank()) fresh + current else current + fresh
-        persistProfiles()
-        if (_activeId.value == null) setActive(_profiles.value.firstOrNull()?.id)
+        if (fresh.isNotEmpty()) {
+            val base = if (subscriptionId.isNotBlank()) current.filterNot { it.subscriptionId == subscriptionId } else current
+            _profiles.value = base + fresh
+            persistProfiles()
+            if (_activeId.value == null) setActive(_profiles.value.firstOrNull()?.id)
+        }
         return fresh.size
     }
 
@@ -352,9 +355,12 @@ class ConfigRepository(private val store: KeyValueStore) {
 
         lastImportDuplicates += duplicates
         if (fresh.isEmpty() && duplicates == 0) return null
-        _profiles.value = if (subscriptionId.isBlank()) fresh + current else current + fresh
-        persistProfiles()
-        if (_activeId.value == null) setActive(_profiles.value.firstOrNull()?.id)
+        if (fresh.isNotEmpty()) {
+            val base = if (subscriptionId.isNotBlank()) current.filterNot { it.subscriptionId == subscriptionId } else current
+            _profiles.value = base + fresh
+            persistProfiles()
+            if (_activeId.value == null) setActive(_profiles.value.firstOrNull()?.id)
+        }
         return fresh.size
     }
 
@@ -1455,7 +1461,6 @@ class ConfigRepository(private val store: KeyValueStore) {
             var meta = SubscriptionHeaders.parse(response.headers)
 
             val previous = _profiles.value.filter { it.subscriptionId == id }
-
             val previousActive = _activeId.value
 
             removeAll { it.subscriptionId == id }

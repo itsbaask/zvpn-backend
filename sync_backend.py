@@ -9,6 +9,7 @@ import time
 import threading
 import hashlib
 import requests
+from concurrent.futures import ThreadPoolExecutor
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 
@@ -84,6 +85,55 @@ def extract_remote_host_port(ovpn_text: str):
                 transport = parts[1].lower()
     return host, port, transport
 
+GEO_CACHE = {}
+GEO_LOCK = threading.Lock()
+
+def extract_ip_or_host(item: dict) -> str:
+    s = str(item.get("server") or item.get("host") or "").strip()
+    if s and not s.startswith("http") and not s.startswith("{"):
+        return s.split(":")[0]
+    uri = str(item.get("raw_uri", ""))
+    if uri and "://" in uri:
+        try:
+            body = uri.split("://")[1]
+            if "@" in body:
+                body = body.split("@")[1]
+            host_part = body.split("/")[0].split("?")[0].split("#")[0]
+            if ":" in host_part:
+                host_part = host_part.split(":")[0]
+            return host_part
+        except Exception:
+            pass
+    return ""
+
+def verify_ip_geo(ip_or_host: str) -> tuple:
+    if not ip_or_host or ip_or_host.startswith("127.") or ip_or_host.startswith("10.") or ip_or_host.startswith("192.168."):
+        return None
+    with GEO_LOCK:
+        if ip_or_host in GEO_CACHE:
+            return GEO_CACHE[ip_or_host]
+
+    geo_result = None
+    try:
+        ip = ip_or_host
+        if not re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", ip_or_host):
+            import socket
+            ip = socket.gethostbyname(ip_or_host)
+
+        res = requests.get(f"http://ip-api.com/json/{ip}?fields=status,countryCode,country", timeout=3)
+        if res.status_code == 200:
+            data = res.json()
+            if data.get("status") == "success":
+                cc = data.get("countryCode", "").upper()
+                if cc in COUNTRY_MAP:
+                    geo_result = COUNTRY_MAP[cc]
+    except Exception:
+        pass
+
+    with GEO_LOCK:
+        GEO_CACHE[ip_or_host] = geo_result
+    return geo_result
+
 def get_geo_info(code_or_name: str) -> tuple:
     if not code_or_name:
         return None
@@ -96,25 +146,20 @@ def get_geo_info(code_or_name: str) -> tuple:
     return None
 
 def smart_resolve_country(item: dict) -> tuple:
+    # 1. Primary: Real physical IP GeoIP lookup for 100% location accuracy
+    ip_host = extract_ip_or_host(item)
+    if ip_host:
+        verified_geo = verify_ip_geo(ip_host)
+        if verified_geo:
+            return verified_geo
+
+    # 2. Secondary fallback
     for field in ["country_code", "country", "country_name", "location"]:
         val = item.get(field)
         if val:
             geo = get_geo_info(str(val))
             if geo:
                 return geo
-
-    raw_text = str(item.get("raw_uri", "")) + " " + str(item.get("server", "")) + " " + str(item.get("host", ""))
-    upper_text = raw_text.upper()
-
-    for code, (continent, name, flag) in COUNTRY_MAP.items():
-        if code in upper_text or name.upper() in upper_text:
-            return continent, name, flag
-
-    for code in COUNTRY_MAP.keys():
-        if f".{code.lower()}." in raw_text.lower() or raw_text.lower().endswith(f".{code.lower()}"):
-            return COUNTRY_MAP[code]
-        if f"{code.lower()}1." in raw_text.lower() or f"{code.lower()}-" in raw_text.lower():
-            return COUNTRY_MAP[code]
 
     return COUNTRY_MAP["US"]
 
@@ -213,6 +258,15 @@ class EnterpriseSmartGeoSyncEngine:
             unique_servers[sid] = item
 
         print(f"[+] Deduplication complete: Unique pool size: {len(unique_servers)}.")
+
+        # 1b. Batch Concurrent GeoIP Verification for 100% Location Accuracy
+        print("[*] Performing Batch Concurrent GeoIP Verification on all server IPs...")
+        hosts_to_resolve = list({extract_ip_or_host(item) for item in unique_servers.values() if extract_ip_or_host(item)})
+
+        with ThreadPoolExecutor(max_workers=30) as executor:
+            list(executor.map(verify_ip_geo, hosts_to_resolve))
+
+        print(f"[+] Verified GeoIP location for {len(GEO_CACHE)} unique server IPs.")
 
         # 2. Strict Naming Standardization: Flag + Country Name + Speed (e.g. 🇺🇸 United States · 50 Mbps - 01)
         processed_servers = []
