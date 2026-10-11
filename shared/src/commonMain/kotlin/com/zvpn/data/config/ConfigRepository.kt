@@ -1240,7 +1240,7 @@ class ConfigRepository(private val store: KeyValueStore) {
                 _profiles.update { list ->
                     list.map { p ->
                         if (p.subscriptionId == SystemBackendConfig.SYSTEM_BACKEND_SUB_ID) {
-                            p.copy(note = SystemBackendConfig.PROTECTED_NOTE, isLocked = true)
+                            p.copy(note = SystemBackendConfig.PROTECTED_NOTE, isLocked = false)
                         } else p
                     }
                 }
@@ -1671,17 +1671,22 @@ class ConfigRepository(private val store: KeyValueStore) {
     private fun repairOpenVpnType(profiles: List<VpnProfile>): List<VpnProfile> {
         var changed = false
         val repaired = profiles.map { profile ->
-            val json = when (val source = profile.source) {
+            var p = profile
+            if (p.isSystemBackend && p.isLocked) {
+                p = p.copy(isLocked = false)
+                changed = true
+            }
+            val json = when (val source = p.source) {
                 is ProfileSource.SingBox -> source.json
                 is ProfileSource.SingBoxConfig -> source.json
-                else -> return@map profile
+                else -> return@map p
             }
-            if (!json.contains("\"openvpn\"")) return@map profile
-            val fixed = SingBoxJson.retypeOpenVpn(json) ?: return@map profile
+            if (!json.contains("\"openvpn\"")) return@map p
+            val fixed = SingBoxJson.retypeOpenVpn(json) ?: return@map p
             changed = true
-            when (profile.source) {
-                is ProfileSource.SingBox -> profile.copy(source = ProfileSource.SingBox(fixed))
-                else -> profile.copy(source = ProfileSource.SingBoxConfig(fixed))
+            when (p.source) {
+                is ProfileSource.SingBox -> p.copy(source = ProfileSource.SingBox(fixed))
+                else -> p.copy(source = ProfileSource.SingBoxConfig(fixed))
             }
         }
         if (changed) {
