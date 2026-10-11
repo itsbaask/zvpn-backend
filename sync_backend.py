@@ -337,29 +337,28 @@ class EnterpriseSmartGeoSyncEngine:
                 country_groups[c] = []
             country_groups[c].append(s)
 
-        compact_servers = []
+        all_servers = []
         for c, s_list in country_groups.items():
             s_list_sorted = sorted(s_list, key=lambda x: (-x.get("speed_mbps", 0), x.get("latency_ms", 999)))
-            top_per_country = s_list_sorted[:50]
-            for idx, item in enumerate(top_per_country, start=1):
+            for idx, item in enumerate(s_list_sorted, start=1):
                 c_flag = item.get("flag", "🌐")
                 c_name = item.get("country", "Global")
                 clean_name = f"{c_flag} {c_name} - {idx:02d}"
                 item["display_name"] = clean_name
                 item["name"] = clean_name
-                compact_servers.append(item)
+                all_servers.append(item)
 
         # Overall sorting by speed
-        compact_servers.sort(key=lambda x: (-x.get("speed_mbps", 0), x.get("latency_ms", 999)))
+        all_servers.sort(key=lambda x: (-x.get("speed_mbps", 0), x.get("latency_ms", 999)))
 
         os.makedirs("output", exist_ok=True)
         output_path = "output/servers.json"
 
-        # Compact, clean payload schema (no 4x duplicate arrays)
+        # Full 100% uncapped payload schema
         payload = {
             "version": 2,
-            "total_servers": len(compact_servers),
-            "servers": compact_servers
+            "total_servers": len(all_servers),
+            "servers": all_servers
         }
 
         # Encrypt published GitHub payload using SHA-256 Obfuscated Vault Key
@@ -373,7 +372,7 @@ class EnterpriseSmartGeoSyncEngine:
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(encrypted_b64_payload)
 
-        print(f"[+] Strong Encrypted Processing complete! Saved {len(compact_servers)} top-quality encrypted servers ({len(encrypted_b64_payload)} bytes) to {output_path}.")
+        print(f"[+] Strong Encrypted Processing complete! Saved {len(all_servers)} full uncapped encrypted servers ({len(encrypted_b64_payload)} bytes) to {output_path}.")
 
     def _harvest_omgvpn(self):
         print("[*] [Source 1/4] Fetching OMGVPN servers...")
