@@ -1,4 +1,4 @@
-name: VPN Sources Sync and Prune
+name: VPN Sources Sync and R2 Deployment
 
 on:
   schedule:
@@ -26,15 +26,23 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests beautifulsoup4 selenium undetected-chromedriver
+          pip install requests beautifulsoup4 boto3 cloudscraper
 
-      - name: Run Enterprise Sync and Mirror Prune Engine
+      - name: Run Enterprise Sync and Deploy to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PUBLICVPNLIST_ACCESS_KEY: ${{ secrets.PUBLICVPNLIST_ACCESS_KEY }}
+          BACKEND_SECRET_KEY: ${{ secrets.BACKEND_SECRET_KEY }}
+          WORKER_URL: ${{ secrets.WORKER_URL }}
         run: |
           python sync_backend.py
 
-      - name: Commit and Push Updated Servers
+      - name: Commit and Push Updated Servers to Repository
         run: |
           git config --global user.name "ZVPN Bot"
           git config --global user.email "bot@zvpn.net"
-          git add output/servers.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-sync VPN servers (Mirror update) [skip ci]" && git pull --rebase origin rebrand/zvpn && git push origin rebrand/zvpn)
+          git add output/servers.json output/servers_structured.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-sync VPN servers & deploy R2 payload [skip ci]" && git pull --rebase origin rebrand/zvpn && git push origin rebrand/zvpn)

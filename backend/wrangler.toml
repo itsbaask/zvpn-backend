@@ -1,0 +1,12 @@
+name = "zvpn-backend"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+account_id = "42326c36b367947b8ff21f4f1bad14af"
+
+[[r2_buckets]]
+binding = "SERVERS_BUCKET"
+bucket_name = "publicvpnlist-profiles"
+
+[vars]
+ENVIRONMENT = "production"

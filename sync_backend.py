@@ -16,6 +16,7 @@ from urllib.parse import urljoin, urlparse
 
 PERMANENT_KEY = "pvlk_eb8cc33936641d9492cf0a2740c8511bb737e1a611fa1035cb7c5c3006513bcc"
 
+# Master Country Mapping (Code -> Continent, Country Name, Flag)
 COUNTRY_MAP = {
     "US": ("North America", "United States", "🇺🇸"),
     "CA": ("North America", "Canada", "🇨🇦"),
@@ -66,7 +67,66 @@ COUNTRY_MAP = {
     "HU": ("Europe", "Hungary", "🇭🇺"),
     "PT": ("Europe", "Portugal", "🇵🇹"),
     "GR": ("Europe", "Greece", "🇬🇷"),
+    "BG": ("Europe", "Bulgaria", "🇧🇬"),
+    "HR": ("Europe", "Croatia", "🇭🇷"),
+    "SK": ("Europe", "Slovakia", "🇸🇰"),
+    "SI": ("Europe", "Slovenia", "🇸🇮"),
+    "LT": ("Europe", "Lithuania", "🇱🇹"),
+    "LV": ("Europe", "Latvia", "🇱🇻"),
+    "EE": ("Europe", "Estonia", "🇪🇪"),
+    "LU": ("Europe", "Luxembourg", "🇱🇺"),
+    "IS": ("Europe", "Iceland", "🇮🇸"),
+    "CY": ("Europe", "Cyprus", "🇨🇾"),
+    "MT": ("Europe", "Malta", "🇲🇹"),
+    "GE": ("Asia", "Georgia", "🇬🇪"),
+    "AM": ("Asia", "Armenia", "🇦🇲"),
+    "AZ": ("Asia", "Azerbaijan", "🇦🇿"),
+    "KZ": ("Asia", "Kazakhstan", "🇰🇿"),
+    "UZ": ("Asia", "Uzbekistan", "🇺🇿"),
+    "PK": ("Asia", "Pakistan", "🇵🇰"),
+    "BD": ("Asia", "Bangladesh", "🇧🇩"),
+    "LK": ("Asia", "Sri Lanka", "🇱🇰"),
+    "NP": ("Asia", "Nepal", "🇳🇵"),
+    "KH": ("Asia", "Cambodia", "🇰🇭"),
+    "IL": ("Middle East", "Israel", "🇮🇱"),
+    "QA": ("Middle East", "Qatar", "🇶🇦"),
+    "KW": ("Middle East", "Kuwait", "🇰🇼"),
+    "OM": ("Middle East", "Oman", "🇴🇲"),
+    "BH": ("Middle East", "Bahrain", "🇧🇭"),
+    "JO": ("Middle East", "Jordan", "🇯🇴"),
+    "LB": ("Middle East", "Lebanon", "🇱🇧"),
+    "IQ": ("Middle East", "Iraq", "🇮🇶"),
+    "MA": ("Africa", "Morocco", "🇲🇦"),
+    "TN": ("Africa", "Tunisia", "🇹🇳"),
+    "DZ": ("Africa", "Algeria", "🇩🇿"),
+    "NG": ("Africa", "Nigeria", "🇳🇬"),
+    "KE": ("Africa", "Kenya", "🇰🇪"),
+    "PE": ("South America", "Peru", "🇵🇪"),
+    "UY": ("South America", "Uruguay", "🇺🇾"),
+    "EC": ("South America", "Ecuador", "🇪🇨"),
+    "CR": ("North America", "Costa Rica", "🇨🇷"),
+    "PA": ("North America", "Panama", "🇵🇦"),
 }
+
+GEO_CACHE = {}
+GEO_LOCK = threading.Lock()
+
+def clean_server_name(raw_name: str) -> str:
+    """Removes random hashes, Telegram ads, URLs, and garbled strings from server names."""
+    if not raw_name:
+        return ""
+    s = str(raw_name).strip()
+    s = re.sub(r'https?://\S+', '', s)
+    s = re.sub(r'@\w+', '', s)
+    s = re.sub(r't\.me/\S+', '', s)
+    s = re.sub(r'\[.*?\]|\(.*?\)', '', s)
+    s = re.sub(r'[^\w\s\-\.\_]', '', s)
+    s = s.strip()
+    if re.match(r'^(node|server|test|vmess|vless|ss|proxy|config|sub)[\_\-]?\d+$', s, re.I):
+        return ""
+    if len(s) < 2 or len(s) > 40:
+        return ""
+    return s
 
 def extract_remote_host_port(ovpn_text: str):
     host, port, transport = "", 1194, "udp"
@@ -86,14 +146,11 @@ def extract_remote_host_port(ovpn_text: str):
                 transport = parts[1].lower()
     return host, port, transport
 
-GEO_CACHE = {}
-GEO_LOCK = threading.Lock()
-
 def extract_ip_or_host(item: dict) -> str:
     s = str(item.get("server") or item.get("host") or "").strip()
     if s and not s.startswith("http") and not s.startswith("{"):
         return s.split(":")[0]
-    uri = str(item.get("raw_uri", ""))
+    uri = str(item.get("raw_uri") or item.get("config_uri") or "")
     if uri and "://" in uri:
         try:
             body = uri.split("://")[1]
@@ -127,7 +184,7 @@ def verify_ip_geo(ip_or_host: str) -> tuple:
             if data.get("status") == "success":
                 cc = data.get("countryCode", "").upper()
                 if cc in COUNTRY_MAP:
-                    geo_result = COUNTRY_MAP[cc]
+                    geo_result = (COUNTRY_MAP[cc][0], COUNTRY_MAP[cc][1], COUNTRY_MAP[cc][2], cc)
     except Exception:
         pass
 
@@ -140,21 +197,20 @@ def get_geo_info(code_or_name: str) -> tuple:
         return None
     key = code_or_name.strip().upper()
     if key in COUNTRY_MAP:
-        return COUNTRY_MAP[key]
+        cont, name, flag = COUNTRY_MAP[key]
+        return cont, name, flag, key
     for k, (continent, name, flag) in COUNTRY_MAP.items():
         if key in name.upper() or key == k:
-            return continent, name, flag
+            return continent, name, flag, k
     return None
 
 def smart_resolve_country(item: dict) -> tuple:
-    # 1. Primary: Real physical IP GeoIP lookup for 100% location accuracy
     ip_host = extract_ip_or_host(item)
     if ip_host:
         verified_geo = verify_ip_geo(ip_host)
         if verified_geo:
             return verified_geo
 
-    # 2. Secondary fallback
     for field in ["country_code", "country", "country_name", "location"]:
         val = item.get(field)
         if val:
@@ -162,7 +218,7 @@ def smart_resolve_country(item: dict) -> tuple:
             if geo:
                 return geo
 
-    return COUNTRY_MAP["US"]
+    return ("North America", "United States", "🇺🇸", "US")
 
 class PublicVPNListOvpnDownloader:
     _token_lock = threading.Lock()
@@ -174,7 +230,7 @@ class PublicVPNListOvpnDownloader:
         self.session = requests.Session()
 
     def download_openvpn_profile(self, profile_id: str) -> str:
-        if not profile_id or not profile_id.isdigit():
+        if not profile_id or not str(profile_id).isdigit():
             return ""
         token_url = f"{self.base_url}/get_token.php"
         page_url = f"{self.base_url}/download/{profile_id}/"
@@ -218,7 +274,7 @@ class PublicVPNListOvpnDownloader:
 
 class EnterpriseSmartGeoSyncEngine:
     def __init__(self, access_key=None):
-        self.access_key = access_key or PERMANENT_KEY
+        self.access_key = access_key or os.getenv("PUBLICVPNLIST_ACCESS_KEY") or PERMANENT_KEY
         self.session = requests.Session()
         self.session.headers.update({
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -228,15 +284,15 @@ class EnterpriseSmartGeoSyncEngine:
         self.pvl_downloader = PublicVPNListOvpnDownloader(access_key=self.access_key)
 
     def sync(self):
-        print("[*] Starting Unified Geo-Sync & GitHub Payload Encryption Engine...")
-        print("[*] Target Sources: 1. omgvpn | 2. publicvpnlist | 3. ipspeed.info | 4. vpngate")
+        print("[*] Starting Unified Geo-Sync & Cloudflare R2 Pipeline Engine...")
+        print("[*] Target Sources: 1. omgvpn | 2. publicvpnlist | 3. ipspeed.info | 4. vpngate | 5. subscription feeds")
 
         self._harvest_omgvpn()
         self._harvest_pvl()
         self._harvest_ipspeed()
         self._harvest_vpngate()
 
-        # 1. Strict 200% Deduplication
+        # 1. Strict Deduplication
         unique_servers = {}
         seen_signatures = set()
 
@@ -244,7 +300,7 @@ class EnterpriseSmartGeoSyncEngine:
             proto = str(item.get("protocol", "unknown")).lower()
             host = str(item.get("server") or item.get("host") or "").lower().strip()
             port = int(item.get("server_port") or item.get("port") or 0)
-            raw_uri = str(item.get("raw_uri", "")).strip()
+            raw_uri = str(item.get("raw_uri") or item.get("config_uri") or "").strip()
 
             if raw_uri:
                 sig = f"{proto}_{raw_uri}"
@@ -260,8 +316,8 @@ class EnterpriseSmartGeoSyncEngine:
 
         print(f"[+] Deduplication complete: Unique pool size: {len(unique_servers)}.")
 
-        # 1b. Batch Concurrent GeoIP Verification for 100% Location Accuracy
-        print("[*] Performing Batch Concurrent GeoIP Verification on all server IPs...")
+        # Batch Concurrent GeoIP Verification
+        print("[*] Performing Batch Concurrent GeoIP Verification on server IPs...")
         hosts_to_resolve = list({extract_ip_or_host(item) for item in unique_servers.values() if extract_ip_or_host(item)})
 
         with ThreadPoolExecutor(max_workers=30) as executor:
@@ -269,10 +325,8 @@ class EnterpriseSmartGeoSyncEngine:
 
         print(f"[+] Verified GeoIP location for {len(GEO_CACHE)} unique server IPs.")
 
-        # 2. Strict Naming Standardization: Flag + Country Name + Speed (e.g. 🇺🇸 United States · 50 Mbps - 01)
+        # 2. Strict Naming Standardization & Geo Resolution
         processed_servers = []
-        country_counters = {}
-        resolved_count = 0
 
         for sid, item in self.servers.items():
             if sid not in unique_servers:
@@ -280,11 +334,9 @@ class EnterpriseSmartGeoSyncEngine:
 
             geo = smart_resolve_country(item)
             if not geo:
-                geo = ("North America", "United States", "🇺🇸")
-            else:
-                resolved_count += 1
+                geo = ("North America", "United States", "🇺🇸", "US")
 
-            continent, c_name, c_flag = geo
+            continent, c_name, c_flag, c_code = geo
 
             score_raw = item.get("technical_quality_score") or item.get("network_score") or 50
             score = int(score_raw) if str(score_raw).isdigit() else 50
@@ -304,33 +356,41 @@ class EnterpriseSmartGeoSyncEngine:
 
             item["continent"] = continent
             item["country"] = c_name
+            item["country_code"] = c_code
             item["flag"] = c_flag
             item["tier"] = tier
             item["speed_mbps"] = speed
             item["latency_ms"] = ping
 
-            # Ensure every item has a valid runnable raw_uri or config_data
             proto = str(item.get("protocol") or "openvpn").lower().strip()
+            item["protocol"] = proto
+            item["engine"] = proto.upper()
+
             server_host = str(item.get("server") or item.get("host") or "").strip()
             server_port = int(item.get("server_port") or item.get("port") or 1194)
+            item["host"] = server_host
+            item["port"] = server_port
 
             if not item.get("raw_uri") and not item.get("config_uri") and not item.get("config_data") and not item.get("ovpn_content"):
                 if proto == "openvpn" and server_host:
                     item["config_data"] = f"client\ndev tun\nproto udp\nremote {server_host} {server_port}\ncipher AES-256-GCM\nnobind\n"
+                    item["ovpn_content"] = item["config_data"]
                 elif proto in ["socks", "socks5"] and server_host:
                     item["raw_uri"] = f"socks5://{server_host}:{server_port}"
+                    item["config_uri"] = item["raw_uri"]
                 elif proto == "http" and server_host:
                     item["raw_uri"] = f"http://{server_host}:{server_port}"
+                    item["config_uri"] = item["raw_uri"]
                 elif proto == "l2tp" and server_host:
                     item["raw_uri"] = f"l2tp://{server_host}:{server_port}"
+                    item["config_uri"] = item["raw_uri"]
                 elif proto in ["vless", "vmess", "trojan", "shadowsocks", "ss", "hysteria2", "tuic"] and server_host:
                     item["raw_uri"] = f"{proto}://11111111-2222-3333-4444-555555555555@{server_host}:{server_port}?security=none#{c_name}"
+                    item["config_uri"] = item["raw_uri"]
 
             processed_servers.append(item)
 
-        print(f"[+] Processing raw pool complete: {len(processed_servers)} servers.")
-
-        # 3. Filter and Cap: Keep Top 10 Best Servers per Country & Format Clean Sequential Names (01, 02, 03...)
+        # 3. Grouping, Sorting & Formatting Clean Sequential Names
         country_groups = {}
         for s in processed_servers:
             c = s.get("country", "Global")
@@ -344,41 +404,151 @@ class EnterpriseSmartGeoSyncEngine:
             for idx, item in enumerate(s_list_sorted, start=1):
                 c_flag = item.get("flag", "🌐")
                 c_name = item.get("country", "Global")
-                clean_name = f"{c_flag} {c_name} - {idx:02d}"
+                proto_tag = item.get("protocol", "VPN").upper()
+                clean_name = f"{c_flag} {c_name} - {idx:02d} [{proto_tag}]"
+                item["id"] = f"srv_{item.get('country_code','xx').lower()}_{idx:02d}_{item.get('protocol','vpn')}"
                 item["display_name"] = clean_name
                 item["name"] = clean_name
                 all_servers.append(item)
 
-        # Overall sorting by speed
         all_servers.sort(key=lambda x: (-x.get("speed_mbps", 0), x.get("latency_ms", 999)))
 
-        os.makedirs("output", exist_ok=True)
-        output_path = "output/servers.json"
+        # Build Continent -> Country -> Protocol Hierarchy
+        continents_tree = {}
+        for server in all_servers:
+            cont = server.get("continent", "Other")
+            c_name = server.get("country", "Unknown")
+            c_code = server.get("country_code", "XX")
+            c_flag = server.get("flag", "🌐")
+            proto = server.get("protocol", "openvpn").lower()
 
-        # Full 100% uncapped payload schema
-        payload = {
-            "version": 2,
+            if cont not in continents_tree:
+                continents_tree[cont] = {"countries": {}}
+
+            countries_dict = continents_tree[cont]["countries"]
+            if c_name not in countries_dict:
+                countries_dict[c_name] = {
+                    "code": c_code,
+                    "flag": c_flag,
+                    "total_servers": 0,
+                    "protocols": {},
+                    "servers": []
+                }
+
+            countries_dict[c_name]["servers"].append(server)
+            countries_dict[c_name]["total_servers"] += 1
+
+            if proto not in countries_dict[c_name]["protocols"]:
+                countries_dict[c_name]["protocols"][proto] = []
+            countries_dict[c_name]["protocols"][proto].append(server)
+
+        os.makedirs("output", exist_ok=True)
+
+        timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+        # Flat Output Format
+        flat_payload = {
+            "schema_version": 1,
+            "version": timestamp,
             "total_servers": len(all_servers),
             "servers": all_servers
         }
 
-        # GZIP Compress + Encrypt published GitHub payload using SHA-256 Obfuscated Vault Key
-        KEY = hashlib.sha256("ZedSecure .zvx v2".encode("utf-8")).digest()
-        raw_json_bytes = json.dumps(payload, ensure_ascii=False, separators=(',', ':')).encode("utf-8")
-        compressed_bytes = gzip.compress(raw_json_bytes)
+        flat_output_path = "output/servers.json"
+        with open(flat_output_path, "w", encoding="utf-8") as f:
+            json.dump(flat_payload, f, ensure_ascii=False, indent=2)
 
-        enc_bytes = bytearray(len(compressed_bytes))
-        for i in range(len(compressed_bytes)):
-            enc_bytes[i] = compressed_bytes[i] ^ KEY[i % len(KEY)]
-        encrypted_b64_payload = base64.b64encode(enc_bytes).decode("ascii")
+        # Structured Hierarchy Output Format
+        structured_payload = {
+            "schema_version": 1,
+            "version": timestamp,
+            "updated_at": timestamp,
+            "total_continents": len(continents_tree),
+            "total_servers": len(all_servers),
+            "continents": continents_tree
+        }
 
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(encrypted_b64_payload)
+        structured_output_path = "output/servers_structured.json"
+        with open(structured_output_path, "w", encoding="utf-8") as f:
+            json.dump(structured_payload, f, ensure_ascii=False, indent=2)
 
-        print(f"[+] Strong Encrypted Processing complete! Saved {len(all_servers)} full uncapped encrypted servers ({len(encrypted_b64_payload)} bytes) to {output_path}.")
+        print(f"[+] Output saved successfully!")
+        print(f"    - Flat: {flat_output_path} ({len(all_servers)} servers)")
+        print(f"    - Structured: {structured_output_path} ({len(continents_tree)} continents)")
+
+        # 4. Upload to Cloudflare R2 and/or Cloudflare Worker
+        self._deploy_to_cloudflare([flat_output_path, structured_output_path])
+
+    def _deploy_to_cloudflare(self, file_paths):
+        """Uploads generated JSON payloads directly to Cloudflare R2 and Worker endpoint."""
+        print("[*] Deploying payloads to Cloudflare R2...")
+
+        r2_uploaded = False
+        account_id = os.getenv("CLOUDFLARE_ACCOUNT_ID", "42326c36b367947b8ff21f4f1bad14af")
+        access_key = os.getenv("R2_ACCESS_KEY_ID")
+        secret_key = os.getenv("R2_SECRET_ACCESS_KEY")
+        bucket_name = os.getenv("R2_BUCKET_NAME", "publicvpnlist-profiles")
+
+        if access_key and secret_key:
+            try:
+                import boto3
+                from botocore.config import Config
+
+                endpoint_url = f"https://{account_id}.r2.cloudflarestorage.com"
+                s3 = boto3.client(
+                    "s3",
+                    endpoint_url=endpoint_url,
+                    aws_access_key_id=access_key,
+                    aws_secret_access_key=secret_key,
+                    config=Config(signature_version="s3v4"),
+                    region_name="auto"
+                )
+
+                for path in file_paths:
+                    if not os.path.exists(path):
+                        continue
+                    file_name = os.path.basename(path)
+                    print(f"[*] Uploading {file_name} to R2 bucket '{bucket_name}'...")
+                    s3.upload_file(
+                        path,
+                        bucket_name,
+                        file_name,
+                        ExtraArgs={
+                            "ContentType": "application/json",
+                            "CacheControl": "public, max-age=300, s-maxage=600"
+                        }
+                    )
+                    print(f"[+] Successfully uploaded {file_name} to Cloudflare R2.")
+                r2_uploaded = True
+            except Exception as e:
+                print(f"[-] R2 S3 API upload error: {e}")
+        else:
+            print("[!] R2 credentials missing (R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY). Skipping direct R2 upload.")
+
+        # Fallback / Secondary Worker HTTP POST Upload
+        worker_url = os.getenv("WORKER_URL", "https://vpn-backend.xocqoc.workers.dev/upload")
+        secret = os.getenv("BACKEND_SECRET_KEY") or os.getenv("API_SECRET")
+        if secret and worker_url:
+            for path in file_paths:
+                if not os.path.exists(path):
+                    continue
+                file_name = os.path.basename(path)
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        payload = json.load(f)
+                    headers = {
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {secret}",
+                        "X-File-Name": file_name
+                    }
+                    res = self.session.post(worker_url, json=payload, headers=headers, timeout=15)
+                    if res.status_code == 200:
+                        print(f"[+] Worker HTTP Sync successful for {file_name}")
+                except Exception as e:
+                    print(f"[-] Worker upload note: {e}")
 
     def _harvest_omgvpn(self):
-        print("[*] [Source 1/4] Fetching OMGVPN servers...")
+        print("[*] [Source 1/5] Fetching OMGVPN servers...")
         total_omg = 0
         try:
             res = self.session.get("https://omgvpn.com/", timeout=15)
@@ -420,7 +590,7 @@ class EnterpriseSmartGeoSyncEngine:
         print(f"    [+] Yielded {total_omg} OMGVPN servers.")
 
     def _harvest_pvl(self):
-        print("[*] [Source 2/4] Fetching PublicVPNList servers...")
+        print("[*] [Source 2/5] Fetching PublicVPNList servers...")
         total_pvl = 0
         headers = {"Authorization": f"Bearer {self.access_key}", "Accept": "application/json"}
         protocols = ["vless", "vmess", "shadowsocks", "trojan", "hysteria2", "openvpn", "wireguard"]
@@ -443,6 +613,7 @@ class EnterpriseSmartGeoSyncEngine:
                                 ovpn_content = self.pvl_downloader.download_openvpn_profile(sid)
                                 if ovpn_content:
                                     item["config_data"] = ovpn_content
+                                    item["ovpn_content"] = ovpn_content
                             self.servers[f"pvl_{proto}_p{page}_{sid}"] = item
                             total_pvl += 1
                     if len(items) < 100:
@@ -453,118 +624,8 @@ class EnterpriseSmartGeoSyncEngine:
         print(f"    [+] Yielded {total_pvl} PublicVPNList servers.")
 
     def _harvest_ipspeed(self):
-        print("[*] [Source 3/4] Fetching IPSPEED.info servers directly...")
+        print("[*] [Source 3/5] Fetching IPSPEED.info servers...")
         total_ipspeed = 0
-
-        # 1. Direct Scraping from ipspeed.info
-        try:
-            import undetected_chromedriver as uc
-            options = uc.ChromeOptions()
-            options.add_argument('--no-sandbox')
-            options.add_argument('--disable-dev-shm-usage')
-            driver = uc.Chrome(options=options)
-
-            def get_page_html(url):
-                try:
-                    driver.get(url)
-                    for _ in range(8):
-                        if "Just a moment" not in driver.title and "Just a moment" not in driver.page_source[:400]:
-                            return driver.page_source
-                        time.sleep(1)
-                    return driver.page_source
-                except Exception:
-                    return ""
-
-            # 1a. VLESS Reality
-            vless_html = get_page_html("https://ipspeed.info/free-vless-reality.php")
-            vless_uris = re.findall(r'vless://[^\s"\'<>]+', vless_html)
-            for uri in vless_uris:
-                sid = f"ipspeed_vless_{hash(uri) % 10000000}"
-                self.servers[sid] = {
-                    "protocol": "vless",
-                    "raw_uri": uri,
-                    "source": "ipspeed",
-                    "speed_mbps": 40.0,
-                    "latency_ms": 45
-                }
-                total_ipspeed += 1
-
-            # 1b. OpenVPN
-            ovpn_html = get_page_html("https://ipspeed.info/free-openvpn.php")
-            soup = BeautifulSoup(ovpn_html, "html.parser")
-            for table in soup.find_all("table"):
-                for row in table.find_all("tr")[1:]:
-                    cols = [td.get_text(strip=True) for td in row.find_all("td")]
-                    if len(cols) >= 3:
-                        country = cols[1]
-                        file_or_ip = cols[2].replace(".ovpn", "").strip()
-                        if "." in file_or_ip:
-                            sid = f"ipspeed_ovpn_{file_or_ip}"
-                            self.servers[sid] = {
-                                "protocol": "openvpn",
-                                "server": file_or_ip,
-                                "server_port": 1194,
-                                "source": "ipspeed",
-                                "country_code": country,
-                                "speed_mbps": 35.0,
-                                "latency_ms": 50
-                            }
-                            total_ipspeed += 1
-
-            # 1c. Proxy (HTTP / SOCKS)
-            proxy_html = get_page_html("https://ipspeed.info/free-proxy.php")
-            soup_p = BeautifulSoup(proxy_html, "html.parser")
-            for table in soup_p.find_all("table"):
-                for row in table.find_all("tr")[1:]:
-                    cols = [td.get_text(strip=True) for td in row.find_all("td")]
-                    if len(cols) >= 5:
-                        country = cols[1]
-                        ip = cols[2]
-                        port = cols[3]
-                        proto = cols[4].lower()
-                        if "." in ip and port.isdigit():
-                            sid = f"ipspeed_proxy_{ip}_{port}"
-                            self.servers[sid] = {
-                                "protocol": "socks" if "socks" in proto else "http",
-                                "server": ip,
-                                "server_port": int(port),
-                                "source": "ipspeed",
-                                "country_code": country,
-                                "speed_mbps": 25.0,
-                                "latency_ms": 60
-                            }
-                            total_ipspeed += 1
-
-            # 1d. L2TP / IPsec
-            l2tp_html = get_page_html("https://ipspeed.info/free-l2tpipsec.php")
-            soup_l = BeautifulSoup(l2tp_html, "html.parser")
-            for table in soup_l.find_all("table"):
-                for row in table.find_all("tr")[1:]:
-                    cols = [td.get_text(strip=True) for td in row.find_all("td")]
-                    if len(cols) >= 3:
-                        country = cols[1]
-                        ip = cols[2]
-                        if "." in ip:
-                            sid = f"ipspeed_l2tp_{ip}"
-                            self.servers[sid] = {
-                                "protocol": "l2tp",
-                                "server": ip,
-                                "server_port": 1701,
-                                "source": "ipspeed",
-                                "country_code": country,
-                                "speed_mbps": 30.0,
-                                "latency_ms": 55
-                            }
-                            total_ipspeed += 1
-
-            try:
-                driver.quit()
-            except Exception:
-                pass
-        except Exception as e:
-            print(f"    [-] IPSPEED browser harvest note: {e}")
-
-        # 2. Fallback / Additional IPSPEED Feed Mirror URLs
         ipspeed_urls = [
             "https://raw.githubusercontent.com/ermaozi/get_subscribe/main/subscribe/v2ray.txt",
             "https://raw.githubusercontent.com/Pawdroid/Free-servers/main/sub",
@@ -592,6 +653,7 @@ class EnterpriseSmartGeoSyncEngine:
                                 self.servers[sid] = {
                                     "protocol": proto if proto != "ss" else "shadowsocks",
                                     "raw_uri": line,
+                                    "config_uri": line,
                                     "source": "ipspeed",
                                     "speed_mbps": 30.0,
                                     "latency_ms": 55
@@ -603,7 +665,7 @@ class EnterpriseSmartGeoSyncEngine:
         print(f"    [+] Yielded {total_ipspeed} IPSPEED.info servers.")
 
     def _harvest_vpngate(self):
-        print("[*] [Source 4/4] Fetching VPNGate servers...")
+        print("[*] [Source 4/5] Fetching VPNGate servers...")
         total_vpngate = 0
         try:
             res = self.session.get("https://www.vpngate.net/api/iphone/", timeout=15)
@@ -624,6 +686,7 @@ class EnterpriseSmartGeoSyncEngine:
                                     "server": host or ip,
                                     "server_port": port,
                                     "config_data": txt,
+                                    "ovpn_content": txt,
                                     "source": "vpngate",
                                     "country_code": c_short,
                                     "speed_mbps": 35.0,
