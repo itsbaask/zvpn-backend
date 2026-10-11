@@ -323,7 +323,7 @@ class EnterpriseSmartGeoSyncEngine:
         compact_servers = []
         for c, s_list in country_groups.items():
             s_list_sorted = sorted(s_list, key=lambda x: (-x.get("speed_mbps", 0), x.get("latency_ms", 999)))
-            top_per_country = s_list_sorted[:10]
+            top_per_country = s_list_sorted[:50]
             for idx, item in enumerate(top_per_country, start=1):
                 c_flag = item.get("flag", "🌐")
                 c_name = item.get("country", "Global")
