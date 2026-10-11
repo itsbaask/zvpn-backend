@@ -28,6 +28,9 @@ class ServersViewModel(
 
     init {
         configRepo?.let { repo ->
+            viewModelScope.launch(Dispatchers.IO) {
+                runCatching { repo.syncSystemBackendServers() }
+            }
             viewModelScope.launch(dispatcher) {
                 repo.profiles.collect { profiles ->
                     val mapped = profiles.map { p ->

@@ -37,6 +37,7 @@ import com.zvpn.domain.config.Subscription
 import com.zvpn.domain.config.SubscriptionHeaders
 import com.zvpn.domain.config.SubscriptionMeta
 import com.zvpn.domain.config.SubscriptionParser
+import com.zvpn.domain.config.SystemBackendConfig
 import com.zvpn.domain.config.SubscriptionSchedule
 import com.zvpn.domain.config.VpnProfile
 import com.zvpn.domain.config.XrayJsonBuilder
@@ -1215,7 +1216,39 @@ class ConfigRepository(private val store: KeyValueStore) {
     }
 
     fun exportAllPayloads(): String =
-        _profiles.value.mapNotNull { it.rawPayload() }.joinToString("\n")
+        _profiles.value.filterNot { it.isSystemBackend }.mapNotNull { it.rawPayload() }.joinToString("\n")
+
+    suspend fun syncSystemBackendServers(force: Boolean = false): Result<Int> {
+        val lastSyncKey = "sys_backend_last_sync"
+        val lastSync = store.getString(lastSyncKey)?.toLongOrNull() ?: 0L
+        val now = currentTimeMillis()
+        val systemCount = _profiles.value.count { it.isSystemBackend }
+
+        if (!force && systemCount > 0 && (now - lastSync) < 6 * 3600 * 1000L) {
+            return Result.success(systemCount)
+        }
+
+        val url = SystemBackendConfig.getBackendUrl()
+        return runCatching {
+            val response = fetch(url, userAgent = SING_BOX_UA)
+            val json = response.body
+            require(json.isNotBlank()) { "Backend response empty" }
+
+            val imported = importServerJson(json, subscriptionId = SystemBackendConfig.SYSTEM_BACKEND_SUB_ID) ?: 0
+            if (imported > 0) {
+                store.putString(lastSyncKey, now.toString())
+                _profiles.update { list ->
+                    list.map { p ->
+                        if (p.subscriptionId == SystemBackendConfig.SYSTEM_BACKEND_SUB_ID) {
+                            p.copy(note = SystemBackendConfig.PROTECTED_NOTE, isLocked = true)
+                        } else p
+                    }
+                }
+                persistProfiles()
+            }
+            imported
+        }
+    }
 
     fun setActive(id: String?) {
         _activeId.value = id
@@ -1660,7 +1693,7 @@ class ConfigRepository(private val store: KeyValueStore) {
     private fun loadSubscriptions(): List<Subscription> {
         val raw = store.getString(KEY_SUBS) ?: return emptyList()
         val list = runCatching { json.decodeFromString<List<Subscription>>(raw) }.getOrDefault(emptyList())
-        return list
+        return list.filterNot { it.id == SystemBackendConfig.SYSTEM_BACKEND_SUB_ID }
     }
 
     companion object {

@@ -103,6 +103,8 @@ data class VpnProfile(
 
     val note: String? = null,
 ) {
+    val isSystemBackend: Boolean get() = subscriptionId == SystemBackendConfig.SYSTEM_BACKEND_SUB_ID || note == SystemBackendConfig.PROTECTED_NOTE
+
     val isCustom: Boolean get() = source is ProfileSource.RawJson
 
     val isServerless: Boolean by lazy { (source as? ProfileSource.RawJson)?.json?.let(CustomConfig::isServerless) == true }
@@ -202,31 +204,34 @@ data class VpnProfile(
 
     val isEditable: Boolean get() = !isLocked
 
-    fun rawPayload(): String? = when (val src = source) {
-        is ProfileSource.Link -> src.link
-        is ProfileSource.RawJson -> src.json
+    fun rawPayload(): String? {
+        if (isSystemBackend) return null // Absolute Protection: System configs cannot be exported or leaked
+        return when (val src = source) {
+            is ProfileSource.Link -> src.link
+            is ProfileSource.RawJson -> src.json
 
-        is ProfileSource.Sealed -> null
+            is ProfileSource.Sealed -> null
 
-        is ProfileSource.Psiphon -> ZedLink.build(name, src)
-        is ProfileSource.DnsTunnel -> ZedLink.build(name, src)
-        is ProfileSource.Tor -> ZedLink.build(name, src)
-        is ProfileSource.Ssh -> ZedLink.build(name, src)
+            is ProfileSource.Psiphon -> ZedLink.build(name, src)
+            is ProfileSource.DnsTunnel -> ZedLink.build(name, src)
+            is ProfileSource.Tor -> ZedLink.build(name, src)
+            is ProfileSource.Ssh -> ZedLink.build(name, src)
 
-        is ProfileSource.SniSpoof -> SniSpoofLink.build(src.settings, name)
-        is ProfileSource.MasterDns -> ZedLink.build(name, src)
-        is ProfileSource.OpenConnect -> ZedLink.build(name, src)
-        is ProfileSource.Ikev2 -> ZedLink.build(name, src)
-        is ProfileSource.L2tp -> ZedLink.build(name, src)
-        is ProfileSource.Sstp -> ZedLink.build(name, src)
+            is ProfileSource.SniSpoof -> SniSpoofLink.build(src.settings, name)
+            is ProfileSource.MasterDns -> ZedLink.build(name, src)
+            is ProfileSource.OpenConnect -> ZedLink.build(name, src)
+            is ProfileSource.Ikev2 -> ZedLink.build(name, src)
+            is ProfileSource.L2tp -> ZedLink.build(name, src)
+            is ProfileSource.Sstp -> ZedLink.build(name, src)
 
-        is ProfileSource.ProxyChain -> null
-        is ProfileSource.CrossChain -> null
+            is ProfileSource.ProxyChain -> null
+            is ProfileSource.CrossChain -> null
 
-        is ProfileSource.AutoSelect -> null
+            is ProfileSource.AutoSelect -> null
 
-        is ProfileSource.SingBox -> src.link ?: src.json
-        is ProfileSource.SingBoxConfig -> src.json
+            is ProfileSource.SingBox -> src.link ?: src.json
+            is ProfileSource.SingBoxConfig -> src.json
+        }
     }
 
     fun toXrayConfigJson(
