@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import base64
+import gzip
 import csv
 import io
 import re
@@ -361,12 +362,14 @@ class EnterpriseSmartGeoSyncEngine:
             "servers": all_servers
         }
 
-        # Encrypt published GitHub payload using SHA-256 Obfuscated Vault Key
+        # GZIP Compress + Encrypt published GitHub payload using SHA-256 Obfuscated Vault Key
         KEY = hashlib.sha256("ZedSecure .zvx v2".encode("utf-8")).digest()
         raw_json_bytes = json.dumps(payload, ensure_ascii=False, separators=(',', ':')).encode("utf-8")
-        enc_bytes = bytearray(len(raw_json_bytes))
-        for i in range(len(raw_json_bytes)):
-            enc_bytes[i] = raw_json_bytes[i] ^ KEY[i % len(KEY)]
+        compressed_bytes = gzip.compress(raw_json_bytes)
+
+        enc_bytes = bytearray(len(compressed_bytes))
+        for i in range(len(compressed_bytes)):
+            enc_bytes[i] = compressed_bytes[i] ^ KEY[i % len(KEY)]
         encrypted_b64_payload = base64.b64encode(enc_bytes).decode("ascii")
 
         with open(output_path, "w", encoding="utf-8") as f:

@@ -114,7 +114,14 @@ actual object ZvxCrypto {
         for (i in bytes.indices) {
             out[i] = (bytes[i].toInt() xor openKey[i % openKey.size].toInt()).toByte()
         }
-        val str = String(out, Charsets.UTF_8).trim()
+        val decompressed = if (out.size >= 2 && out[0] == 0x1F.toByte() && out[1] == 0x8B.toByte()) {
+            runCatching {
+                java.util.zip.GZIPInputStream(java.io.ByteArrayInputStream(out)).use { it.readBytes() }
+            }.getOrDefault(out)
+        } else {
+            out
+        }
+        val str = String(decompressed, Charsets.UTF_8).trim()
         return if (str.startsWith("{") && str.endsWith("}")) str else null
     }
 
