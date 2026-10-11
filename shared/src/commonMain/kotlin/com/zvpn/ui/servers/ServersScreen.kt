@@ -535,26 +535,50 @@ fun ServersScreen(
                     }
                 }
 
-                if (openSubscription != null) {
-                    if (updatingSubId == openSubscription.id) {
-                        Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                        }
-                    } else {
-                        IconButton(onClick = { updateSubscription(openSubscription) }, enabled = updatingSubId == null) {
-                            Icon(
-                                painterResource(Res.drawable.ic_sync),
-                                contentDescription = stringResource(Res.string.subs_update),
-                            )
-                        }
+                if (updating) {
+                    Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                     }
                 } else {
-                    IconButton(onClick = { showRealDelayNote = true }) {
+                    IconButton(
+                        onClick = {
+                            updating = true
+                            scope.launch(kotlinx.coroutines.Dispatchers.Default) {
+                                val sysN = repository.syncSystemBackendServers(force = true).getOrDefault(0)
+                                val subN = repository.updateAllSubscriptions()
+                                val totalN = if (sysN > 0) sysN else subN
+                                if (autoTestAfterUpdate) {
+                                    val all = repository.profiles.value
+                                    repository.clearPings(all.map { it.id }, persist = false)
+                                    PingService.measureAll(
+                                        all,
+                                        useRealDelay = true,
+                                        concurrency = realPingConcurrency,
+                                        delayUrl = delayTestUrl,
+                                        chainConfig = repository::chainProbeConfig,
+                                    ) { id, ms, cc ->
+                                        repository.setPing(id, ms, cc, persist = false)
+                                    }
+                                    repository.flushProfiles()
+                                    if (autoRemoveInvalidAfterTest) repository.removeInvalid()
+                                    if (autoSortAfterTest) repository.sortByTestResults()
+                                }
+                                updating = false
+                                toastRes(Res.string.subs_updated, totalN)
+                            }
+                        }
+                    ) {
                         Icon(
-                            painterResource(Res.drawable.ic_info),
-                            contentDescription = stringResource(Res.string.real_delay_note_title),
+                            painterResource(Res.drawable.ic_sync),
+                            contentDescription = stringResource(Res.string.subs_update_all),
                         )
                     }
+                }
+                IconButton(onClick = { showRealDelayNote = true }) {
+                    Icon(
+                        painterResource(Res.drawable.ic_info),
+                        contentDescription = stringResource(Res.string.real_delay_note_title),
+                    )
                 }
                 IconButton(
                     onClick = { showSubs = true },
@@ -583,13 +607,15 @@ fun ServersScreen(
                         DropdownMenuItem(
                             text = { Text(stringResource(Res.string.subs_update_all)) },
                             leadingIcon = { Icon(painterResource(Res.drawable.ic_schedule), null) },
-                            enabled = subscriptions.isNotEmpty() && !updating,
+                            enabled = !updating,
                             onClick = {
                                 overflowOpen = false
                                 updating = true
 
                                 scope.launch(kotlinx.coroutines.Dispatchers.Default) {
-                                    val n = repository.updateAllSubscriptions()
+                                    val sysN = repository.syncSystemBackendServers(force = true).getOrDefault(0)
+                                    val subN = repository.updateAllSubscriptions()
+                                    val totalN = if (sysN > 0) sysN else subN
 
                                     if (autoTestAfterUpdate) {
                                         val all = repository.profiles.value
@@ -608,7 +634,7 @@ fun ServersScreen(
                                         if (autoSortAfterTest) repository.sortByTestResults()
                                     }
                                     updating = false
-                                    toastRes(Res.string.subs_updated, n)
+                                    toastRes(Res.string.subs_updated, totalN)
                                 }
                             },
                         )
