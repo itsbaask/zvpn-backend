@@ -879,139 +879,23 @@ fun ServersScreen(
                         .padding(bottom = contentPadding.calculateBottomPadding()),
                 )
             } else {
-                val gridPadding = PaddingValues(
-                    start = 20.dp,
-                    end = 20.dp,
-                    bottom = contentPadding.calculateBottomPadding() + 88.dp,
+                val publicServers = remember(shown) {
+                    shown.map { ProfileToServerMapper.map(it) }
+                }
+
+                PublicServersTab(
+                    servers = publicServers,
+                    selectedId = activeId,
+                    userTier = com.zvpn.domain.billing.UserTier.Free,
+                    onSelect = { server ->
+                        repository.setActive(server.id)
+                        onServerActivated()
+                    },
+                    onLockedClick = { server ->
+                        platform.toast(lockedCannotShare)
+                    },
+                    modifier = Modifier.fillMaxSize().then(groupSwipe).padding(bottom = contentPadding.calculateBottomPadding())
                 )
-
-                val card: @Composable (VpnProfile) -> Unit = { profile ->
-                    ServerCard(
-                        modifier = if (twoColumns) Modifier.fillMaxHeight() else Modifier,
-                        profile = profile,
-                        active = profile.id == activeId,
-                        personalization = personalization,
-                        subscriptionName = subscriptions
-                            .firstOrNull { it.id == profile.subscriptionId }?.name,
-                        selecting = selecting,
-                        isSelected = profile.id in selected,
-                        onClick = {
-                            if (selecting) {
-                                selected = if (profile.id in selected) selected - profile.id
-                                else selected + profile.id
-                            } else {
-                                repository.setActive(profile.id)
-                                onServerActivated()
-                            }
-                        },
-
-                        shareLink = runCatching { repository.shareLinkOf(profile) }.getOrNull(),
-                        onShare = {
-                            val pl = runCatching { repository.shareLinkOf(profile) }.getOrNull()
-                            if (pl == null) platform.toast(lockedCannotShare) else platform.shareText(pl)
-                        },
-                        onShareQr = {
-                            qrTarget = runCatching { repository.shareLinkOf(profile) }.getOrNull()
-                                ?.let { profile.name to it }
-                        },
-                        onRename = { renameTarget = profile },
-                        onEdit = { editTarget = profile },
-                        onMoveGroup = { moveTarget = profile },
-                        onPingTcp = {
-                            scope.launch(kotlinx.coroutines.Dispatchers.Default) {
-                                repository.clearPings(listOf(profile.id), persist = false)
-                                val ms = PingService.tcpPing(profile.address, profile.port)
-                                val cc = if (ms > 0) GeoLookup.countryOf(profile.address) else null
-                                repository.setPing(profile.id, if (ms > 0) ms.toInt() else PingService.FAILED_PING, cc)
-                            }
-                        },
-                        onPingReal = {
-                            scope.launch(kotlinx.coroutines.Dispatchers.Default) {
-                                repository.clearPings(listOf(profile.id), persist = false)
-                                val ms = PingService.realDelay(
-                                    profile,
-                                    url = delayTestUrl.ifBlank { com.zvpn.data.net.NetworkInfoRepository.DELAY_TEST_URL },
-                                )
-                                val cc = if (ms > 0) GeoLookup.countryOf(profile.address) else null
-                                repository.setPing(profile.id, if (ms > 0) ms.toInt() else PingService.FAILED_PING, cc)
-                            }
-                        },
-                        onDelete = {
-                            if (confirmRemove) deleteTarget = profile else repository.remove(profile.id)
-                        },
-                    )
-                }
-
-                val gridState = rememberLazyGridState()
-                var order by remember { mutableStateOf(shown) }
-                LaunchedEffect(shown) { order = shown }
-                val reorderState = rememberReorderableLazyGridState(gridState) { from, to ->
-
-                    val fromIndex = order.indexOfFirst { it.id == from.key }
-                    val toIndex = order.indexOfFirst { it.id == to.key }
-                    if (fromIndex >= 0 && toIndex >= 0) {
-                        order = order.toMutableList().apply { add(toIndex, removeAt(fromIndex)) }
-                    }
-                }
-                Box(Modifier.fillMaxSize()) {
-                    LazyVerticalGrid(
-                        state = gridState,
-                        columns = GridCells.Fixed(if (twoColumns) 2 else 1),
-                        modifier = Modifier.fillMaxSize().then(groupSwipe),
-                        contentPadding = gridPadding,
-                        horizontalArrangement = Arrangement.spacedBy(personalization.density.gapDp.dp),
-                        verticalArrangement = Arrangement.spacedBy(personalization.density.gapDp.dp),
-                    ) {
-                        if (autoMembers.size >= 2) {
-                            item(key = "auto-select", span = { GridItemSpan(maxLineSpan) }) {
-                                AutoSelectCard(
-                                    groupLabel = autoLabel,
-                                    memberCount = autoMembers.size,
-                                    active = activeId == autoId,
-                                    live = autoLive,
-                                    memberName = { id -> profiles.firstOrNull { it.id == id }?.name },
-                                    onSelect = {
-                                        repository.setActive(autoId)
-                                        onServerActivated()
-                                    },
-                                    onDetails = { showAutoSheet = true },
-                                    personalization = personalization,
-                                )
-                            }
-                        }
-                        gridItemsIndexed(order, key = { _, p -> p.id }) { position, profile ->
-                            ReorderableItem(reorderState, key = profile.id) {
-                                Box(
-
-                                    Modifier
-                                        .then(if (twoColumns) Modifier.fillMaxHeight() else Modifier)
-
-                                        .then(if (position == 0) Modifier.tourTarget(TourTargets.SERVER_CARD) else Modifier)
-                                        .then(
-
-                                            if (selecting) Modifier
-                                            else Modifier.longPressDraggableHandle(
-                                                onDragStopped = { repository.reorder(order.map { it.id }) },
-                                            ),
-                                        ),
-                                ) {
-                                    card(profile)
-                                }
-                            }
-                        }
-                    }
-                    GridScrollbar(
-                        state = gridState,
-                        modifier = Modifier
-                            .align(Alignment.CenterEnd)
-                            .fillMaxHeight()
-                            .padding(
-                                top = gridPadding.calculateTopPadding(),
-                                bottom = gridPadding.calculateBottomPadding(),
-                                end = 2.dp,
-                            ),
-                    )
-                }
             }
         }
 

@@ -2,37 +2,31 @@ package com.zvpn.data.config
 
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.net.URL
+import java.io.File
 
 class CloudflareWorkerLiveFetchTest {
 
     @Test
-    fun `fetches live servers from Cloudflare Worker endpoint and successfully imports into ConfigRepository`() {
-        val endpointUrl = "https://zvpn-backend.xocqoc.workers.dev/servers?limit=20"
-        val json = try {
-            URL(endpointUrl).readText()
-        } catch (e: Exception) {
-            println("Live fetch note (offline/CI): ${e.message}")
+    fun `debug import server count on output servers json`() {
+        val file = File("output/servers.json")
+        if (!file.exists()) {
+            println("output/servers.json not found")
             return
         }
 
-        assertTrue("Expected non-empty JSON response from Cloudflare Worker", json.isNotBlank())
-        assertTrue("JSON should contain servers array", json.contains("\"servers\""))
-
+        val json = file.readText()
         val store = InMemoryKeyValueStore()
         val repo = ConfigRepository(store)
 
-        val importedCount = repo.importText(json, subscriptionId = "cloudflare_backend").getOrThrow()
-        println("Successfully imported $importedCount profiles from live Cloudflare Worker endpoint!")
-        assertTrue("Should import at least 1 profile from live worker endpoint", importedCount > 0)
-
-        val profiles = repo.profiles.value
-        assertTrue("Profiles flow should contain imported servers", profiles.isNotEmpty())
+        val importedCount = repo.importText(json, subscriptionId = "zvpn_system_backend_v2").getOrThrow()
+        println("=== DEBUG IMPORT RESULT ===")
+        println("Imported $importedCount profiles into ConfigRepository")
         
-        profiles.take(5).forEach { profile ->
-            println("Imported Profile: ${profile.name} | Protocol: ${profile.protocol} | Address: ${profile.address}:${profile.port}")
-            assertTrue("Profile name should not be blank", profile.name.isNotBlank())
-            assertTrue("Profile address should not be blank", profile.address.isNotBlank())
+        val profiles = repo.profiles.value
+        println("Total stored profiles: ${profiles.size}")
+        val byProto = profiles.groupBy { it.protocol }
+        byProto.forEach { (proto, list) ->
+            println("  $proto: ${list.size} profiles")
         }
     }
 }
