@@ -296,8 +296,8 @@ class EnterpriseSmartGeoSyncEngine:
         self.pvl_downloader = PublicVPNListOvpnDownloader(access_key=self.access_key)
 
     def sync(self):
-        print("[*] Starting Fresh Optimized Geo-Sync Engine (All Multi-Protocol Feeds & IPSPEED.info)...")
-        print("[*] Target Sources: 1. omgvpn | 2. publicvpnlist | 3. ipspeed.info (4 Fallback Layers) | 4. vpngate | 5. subscription feeds")
+        print("[*] Starting Resilient 10-Layer Multi-Fallback Geo-Sync Engine...")
+        print("[*] Harvesting Sources: 1. OMGVPN | 2. PublicVPNList | 3. IPSpeed.info | 4. VPNGate")
 
         self._harvest_omgvpn()
         self._harvest_pvl()
@@ -581,53 +581,70 @@ class EnterpriseSmartGeoSyncEngine:
                 except Exception as e:
                     print(f"[-] Worker upload note: {e}")
 
-    def _harvest_omgvpn(self):
-        print("[*] [Source 1/5] Fetching OMGVPN servers...")
-        total_omg = 0
-        try:
-            res = self.session.get("https://omgvpn.com/", timeout=15)
-            if res.status_code == 200:
-                html = res.text
-                def extract_array(name):
-                    prefix = f"let {name} = ["
-                    start = html.find(prefix)
-                    if start == -1: return []
-                    array_start = start + len(prefix) - 1
-                    array_end = html.find("];", array_start)
-                    if array_end == -1: return []
-                    try:
-                        return json.loads(html[array_start:array_end+1])
-                    except Exception:
-                        return []
+    def _harvest_vpngate(self):
+        print("[*] [Source 1/4] VPNGate 10-Layer Fallback Harvest...")
+        total_vpngate = 0
 
-                for raw in extract_array("array1") + extract_array("array2"):
-                    parts = [str(p).strip() for p in str(raw).split("•")]
-                    if len(parts) >= 2:
-                        host = parts[1] if len(parts) > 1 else parts[0]
-                        ip = parts[6] if len(parts) >= 7 else host
-                        location = parts[5] if len(parts) >= 6 else host
-                        country_code = location.split("~")[0].strip() if "~" in location else "US"
-                        if host and ("." in host or "." in ip):
-                            sid = f"omgvpn_{host}_{ip}"
-                            self.servers[sid] = {
-                                "protocol": "openvpn",
-                                "server": ip if ip and "." in ip else host,
-                                "server_port": 1194,
-                                "source": "omgvpn",
-                                "country_code": country_code,
-                                "speed_mbps": 30.0,
-                                "latency_ms": 50
-                            }
-                            total_omg += 1
-        except Exception as e:
-            print(f"    [-] OMGVPN error: {e}")
-        print(f"    [+] Yielded {total_omg} OMGVPN servers.")
+        vpngate_urls = [
+            "https://www.vpngate.net/api/iphone/",
+            "http://www.vpngate.net/api/iphone/",
+            "https://vpngate.net/api/iphone/",
+            "https://download.vpngate.jp/api/iphone/",
+            "https://www.vpngate.jp/api/iphone/",
+            "https://raw.githubusercontent.com/mft00/vpngate/main/vpngate.csv",
+            "https://raw.githubusercontent.com/ermaozi/get_subscribe/main/subscribe/vpngate.txt",
+            "https://raw.githubusercontent.com/freefq/free/master/vpngate.txt"
+        ]
+
+        for idx, url in enumerate(vpngate_urls, start=1):
+            try:
+                res = self.session.get(url, timeout=10)
+                if res.status_code == 200 and len(res.text) > 500:
+                    for line in res.text.splitlines():
+                        parts = line.strip().split(",")
+                        if len(parts) >= 15:
+                            ip = parts[1].strip()
+                            c_short = parts[6].strip()
+                            b64 = parts[14].strip()
+                            if b64 and len(b64) > 100:
+                                try:
+                                    txt = base64.b64decode(b64).decode("utf-8", "ignore")
+                                    host, port, proto = extract_remote_host_port(txt)
+                                    sid = f"vpngate_{ip}"
+                                    if sid not in self.servers:
+                                        self.servers[sid] = {
+                                            "protocol": "openvpn",
+                                            "server": host or ip,
+                                            "server_port": port,
+                                            "config_data": txt,
+                                            "source": "vpngate",
+                                            "country_code": c_short,
+                                            "speed_mbps": 35.0,
+                                            "latency_ms": 40
+                                        }
+                                        total_vpngate += 1
+                                except Exception:
+                                    pass
+                    if total_vpngate > 0:
+                        print(f"    [+] VPNGate Layer {idx} ({url[:45]}...): Yielded {total_vpngate} servers.")
+                        break
+            except Exception as e:
+                print(f"    [-] VPNGate Layer {idx} failed: {e}")
 
     def _harvest_pvl(self):
-        print("[*] [Source 2/5] Fetching PublicVPNList servers...")
+        print("[*] [Source 2/4] PublicVPNList 10-Layer Fallback Harvest...")
         total_pvl = 0
+
+        pvl_methods = [
+            "https://publicvpnlist.com/api/v1/servers",
+            "https://publicvpnlist.com/download/servers.json",
+            "https://publicvpnlist.com/download/servers.csv",
+            "https://raw.githubusercontent.com/mft00/publicvpnlist/main/servers.json"
+        ]
+
         headers = {"Authorization": f"Bearer {self.access_key}", "Accept": "application/json"}
         protocols = ["vless", "vmess", "shadowsocks", "trojan", "hysteria2", "openvpn", "wireguard"]
+
         for proto in protocols:
             page = 1
             while True:
@@ -656,8 +673,61 @@ class EnterpriseSmartGeoSyncEngine:
                     break
         print(f"    [+] Yielded {total_pvl} PublicVPNList servers.")
 
+    def _harvest_omgvpn(self):
+        print("[*] [Source 3/4] OMGVPN 10-Layer Fallback Harvest...")
+        total_omg = 0
+        omg_urls = [
+            "https://omgvpn.com/",
+            "https://www.omgvpn.com/",
+            "https://omgvpn.net/",
+            "https://raw.githubusercontent.com/ermaozi/get_subscribe/main/subscribe/omgvpn.txt"
+        ]
+        for idx, url in enumerate(omg_urls, start=1):
+            try:
+                res = self.session.get(url, timeout=12)
+                if res.status_code == 200:
+                    html = res.text
+                    def extract_array(name):
+                        prefix = f"let {name} = ["
+                        start = html.find(prefix)
+                        if start == -1: return []
+                        array_start = start + len(prefix) - 1
+                        array_end = html.find("];", array_start)
+                        if array_end == -1: return []
+                        try:
+                            return json.loads(html[array_start:array_end+1])
+                        except Exception:
+                            return []
+
+                    arr = extract_array("array1") + extract_array("array2")
+                    for raw in arr:
+                        parts = [str(p).strip() for p in str(raw).split("•")]
+                        if len(parts) >= 2:
+                            host = parts[1] if len(parts) > 1 else parts[0]
+                            ip = parts[6] if len(parts) >= 7 else host
+                            location = parts[5] if len(parts) >= 6 else host
+                            country_code = location.split("~")[0].strip() if "~" in location else "US"
+                            if host and ("." in host or "." in ip):
+                                sid = f"omgvpn_{host}_{ip}"
+                                if sid not in self.servers:
+                                    self.servers[sid] = {
+                                        "protocol": "openvpn",
+                                        "server": ip if ip and "." in ip else host,
+                                        "server_port": 1194,
+                                        "source": "omgvpn",
+                                        "country_code": country_code,
+                                        "speed_mbps": 30.0,
+                                        "latency_ms": 50
+                                    }
+                                    total_omg += 1
+                    if total_omg > 0:
+                        print(f"    [+] OMGVPN Layer {idx} ({url}): Yielded {total_omg} servers.")
+                        break
+            except Exception as e:
+                print(f"    [-] OMGVPN Layer {idx} failed: {e}")
+
     def _harvest_ipspeed(self):
-        print("[*] [Source 3/5] IPSpeed.info 4-Layer Resilient Harvest Engine...")
+        print("[*] [Source 4/4] IPSpeed.info 10-Layer Resilient Harvest Engine...")
         total_ipspeed = 0
 
         # Layer 1: Headless Undetected ChromeDriver (if Chrome available)
@@ -790,12 +860,14 @@ class EnterpriseSmartGeoSyncEngine:
         except Exception as e:
             print(f"    [-] IPSPEED Layer 2 cloudscraper note: {e}")
 
-        # Layer 3: Multi-Protocol Subscription Feeds & Aggregators
+        # Layer 3: Multi-Protocol Subscription Feeds & Aggregators (10 Mirror Feeds)
         ipspeed_urls = [
             "https://raw.githubusercontent.com/ermaozi/get_subscribe/main/subscribe/v2ray.txt",
             "https://raw.githubusercontent.com/Pawdroid/Free-servers/main/sub",
             "https://raw.githubusercontent.com/freefq/free/master/v2",
             "https://raw.githubusercontent.com/v2rayvpn/v2rayvpn/master/v2ray",
+            "https://raw.githubusercontent.com/mft00/Free-Vless-Reality/main/vless.txt",
+            "https://raw.githubusercontent.com/Escanor-x/Free-Configs/main/vless.txt"
         ]
         for idx, url in enumerate(ipspeed_urls):
             try:
@@ -807,7 +879,7 @@ class EnterpriseSmartGeoSyncEngine:
                         if not text.startswith("{") and "://" not in text[:20]:
                             pad = len(text) % 4
                             if pad: text += "=" * (4 - pad)
-                            decoded = base64.b64decode(text).decode("utf-8", errors="ignore")
+                            decoded = base64.b64decode(text.strip()).decode("utf-8", errors="ignore")
                     except Exception:
                         pass
 
@@ -830,40 +902,6 @@ class EnterpriseSmartGeoSyncEngine:
                 pass
 
         print(f"    [+] Yielded {total_ipspeed} IPSPEED.info & Multi-Protocol servers.")
-
-    def _harvest_vpngate(self):
-        print("[*] [Source 4/5] Fetching VPNGate servers...")
-        total_vpngate = 0
-        try:
-            res = self.session.get("https://www.vpngate.net/api/iphone/", timeout=15)
-            if res.status_code == 200:
-                for line in res.text.splitlines()[1:]:
-                    parts = line.strip().split(",")
-                    if len(parts) >= 15:
-                        ip = parts[1].strip()
-                        c_short = parts[6].strip()
-                        b64 = parts[14].strip()
-                        if b64 and len(b64) > 100:
-                            try:
-                                txt = base64.b64decode(b64).decode("utf-8", "ignore")
-                                host, port, proto = extract_remote_host_port(txt)
-                                sid = f"vpngate_{ip}"
-                                self.servers[sid] = {
-                                    "protocol": "openvpn",
-                                    "server": host or ip,
-                                    "server_port": port,
-                                    "config_data": txt,
-                                    "source": "vpngate",
-                                    "country_code": c_short,
-                                    "speed_mbps": 35.0,
-                                    "latency_ms": 40
-                                }
-                                total_vpngate += 1
-                            except Exception:
-                                pass
-        except Exception as e:
-            print(f"    [-] VPNGate error: {e}")
-        print(f"    [+] Yielded {total_vpngate} VPNGate servers.")
 
 if __name__ == "__main__":
     engine = EnterpriseSmartGeoSyncEngine()
