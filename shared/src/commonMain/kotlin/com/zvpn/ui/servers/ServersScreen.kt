@@ -294,8 +294,7 @@ fun ServersScreen(
     var deleteTarget by remember { mutableStateOf<VpnProfile?>(null) }
     var updating by remember { mutableStateOf(false) }
 
-    val pingProgress by PingCoordinator.progress.collectAsStateWithLifecycle()
-    val testing = pingProgress != null
+    val testing = rememberIsTesting()
 
     var showRealDelayNote by remember { mutableStateOf(false) }
     var confirmDeleteAll by remember { mutableStateOf(false) }
@@ -317,19 +316,23 @@ fun ServersScreen(
     var showProxyChain by remember { mutableStateOf(false) }
     var showCrossChain by remember { mutableStateOf(false) }
 
-    val servers = profiles.filterNot { it.isLocked }
+    val servers = remember(profiles) { profiles.filterNot { it.isLocked } }
 
-    val chainCandidates = servers.filter {
-        it.rawPayload() != null && (!it.isCustom || it.isServerless) && !it.isManagedTunnel && !it.isProxyChain &&
-                !it.isSingBoxConfig
+    val chainCandidates = remember(servers) {
+        servers.filter {
+            it.rawPayload() != null && (!it.isCustom || it.isServerless) && !it.isManagedTunnel && !it.isProxyChain &&
+                    !it.isSingBoxConfig
+        }
     }
 
-    val spoofCandidates = servers.filter {
-        it.rawPayload() != null && !it.isManagedTunnel && !it.isProxyChain &&
-                !it.isCrossChain && !it.isSniSpoof
+    val spoofCandidates = remember(servers) {
+        servers.filter {
+            it.rawPayload() != null && !it.isManagedTunnel && !it.isProxyChain &&
+                    !it.isCrossChain && !it.isSniSpoof
+        }
     }
-    val crossCarriers = servers.filter { it.canCarryChain && !it.isCrossChain }
-    val crossExits = servers.filter { it.canDialThroughProxy && !it.isCrossChain }
+    val crossCarriers = remember(servers) { servers.filter { it.canCarryChain && !it.isCrossChain } }
+    val crossExits = remember(servers) { servers.filter { it.canDialThroughProxy && !it.isCrossChain } }
 
     val udpMismatchTemplate = stringResource(Res.string.crosschain_udp_unsupported)
     val crossPairError: (VpnProfile, VpnProfile) -> String? = { inner, outer ->
@@ -377,12 +380,14 @@ fun ServersScreen(
         groupIndex = activeGroupIndex()
     }
 
-    val shown = when {
-        subscriptions.isEmpty() || groupIndex == 0 -> servers
-        groupIndex == 1 -> servers.filter { it.subscriptionId.isEmpty() }
-        else -> subscriptions.getOrNull(groupIndex - 2)?.let { sub ->
-            servers.filter { it.subscriptionId == sub.id }
-        } ?: servers
+    val shown = remember(servers, subscriptions, groupIndex) {
+        when {
+            subscriptions.isEmpty() || groupIndex == 0 -> servers
+            groupIndex == 1 -> servers.filter { it.subscriptionId.isEmpty() }
+            else -> subscriptions.getOrNull(groupIndex - 2)?.let { sub ->
+                servers.filter { it.subscriptionId == sub.id }
+            } ?: servers
+        }
     }
 
     val headerCount = shown.size
@@ -407,7 +412,7 @@ fun ServersScreen(
 
     var moveSelectionTo by remember { mutableStateOf(false) }
     var confirmDeleteSelection by remember { mutableStateOf(false) }
-    val shownIds = shown.map { it.id }
+    val shownIds = remember(shown) { shown.map { it.id } }
 
     LaunchedEffect(shownIds) {
         if (selecting) selected = selected.intersect(shownIds.toSet())
@@ -593,9 +598,7 @@ fun ServersScreen(
                 }
             }
 
-            pingProgress?.let { p ->
-                PingProgressCard(done = p.done, total = p.total, real = p.real)
-            }
+            PingProgressHost()
 
             // ── Group chips ───────────────────────────────────────────────
             if (subscriptions.isNotEmpty()) {
@@ -760,9 +763,7 @@ fun ServersScreen(
                         .padding(bottom = contentPadding.calculateBottomPadding()),
                 )
             } else {
-                val publicServers = remember(shown) {
-                    shown.map { ProfileToServerMapper.map(it) }
-                }
+                val publicServers = rememberPublicServers(shown)
 
                 PublicServersTab(
                     servers = publicServers,
