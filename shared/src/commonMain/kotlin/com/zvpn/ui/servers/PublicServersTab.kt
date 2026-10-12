@@ -6,7 +6,6 @@
 package com.zvpn.ui.servers
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
@@ -29,6 +28,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -40,11 +40,11 @@ import com.zvpn.shared.resources.*
 import org.jetbrains.compose.resources.painterResource
 
 /*
- * Layout notes
- *  - The whole screen is ONE LazyColumn: banner, search and filters scroll away,
- *    only the tier selector stays pinned. The server list gets the full screen height.
- *  - 8-pt grid, theme colours only (no hard-coded palette), soft primary-tinted shadow
- *    on the single hero element (the banner).
+ * World-Class 3-Level Accordion Server Architecture (Material 3 Theme-Adaptive)
+ *  - Level 1: Continents (Expandable)
+ *  - Level 2: Countries (Expandable)
+ *  - Level 3: Servers
+ *  - 100% Material 3 Theme Color Compliance (Light & Dark Mode)
  */
 
 private val BRACKET_TAG = Regex("""\s*\[.*?]""")
@@ -57,16 +57,15 @@ private fun tierLabel(tier: ServerTier): String = when (tier) {
     ServerTier.PremiumPlus -> "VIP"
 }
 
-private fun continentLabel(cont: String): String = when (cont) {
-    "All" -> "🌍 All Regions"
-    "Asia" -> "🌏 Asia"
-    "Europe" -> "🇪🇺 Europe"
-    "North America" -> "🌎 N. America"
-    "Middle East" -> "🇦🇪 Middle East"
-    "South America" -> "🌎 S. America"
-    "Africa" -> "🌍 Africa"
-    "Oceania" -> "🌏 Oceania"
-    else -> cont
+private fun continentEmoji(cont: String): String = when (cont.lowercase()) {
+    "asia" -> "🌏"
+    "europe" -> "🇪🇺"
+    "north america" -> "🌎"
+    "middle east" -> "🇦🇪"
+    "south america" -> "🌎"
+    "africa" -> "🌍"
+    "oceania" -> "🌏"
+    else -> "🌍"
 }
 
 @Composable
@@ -83,27 +82,18 @@ fun PublicServersTab(
     var selectedContinent by remember { mutableStateOf("All") }
     var searchQuery by remember { mutableStateOf("") }
     var currentSort by remember { mutableStateOf(SortOption.Recommended) }
+    var showFilterSheet by remember { mutableStateOf(false) }
 
-    // Set of expanded country names
+    // Expanded continents and countries sets
+    var expandedContinents by remember { mutableStateOf(setOf<String>()) }
     var expandedCountries by remember { mutableStateOf(setOf<String>()) }
 
-    // Open the tier + country of the currently selected server on first show.
+    // Automatically expand the continent & country of the selected server on first launch
     LaunchedEffect(Unit) {
         val current = servers.firstOrNull { it.id == selectedId } ?: return@LaunchedEffect
         if (UserTier.canAccess(userTier, current.tier.id)) activeTierTab = current.tier
+        expandedContinents = expandedContinents + current.continent
         expandedCountries = expandedCountries + current.countryName.ifBlank { "Global" }
-    }
-
-    val continents = remember(servers) {
-        listOf("All") + servers.map { it.continent }.filter { it.isNotBlank() && it != "Global" }.distinct().sorted()
-    }
-
-    val protocols = remember(servers, activeTierTab) {
-        listOf(ProtocolFilter.All) + servers
-            .filter { it.tier == activeTierTab }
-            .map { ProtocolFilter.fromId(it.protocolLabel.lowercase()) }
-            .distinct()
-            .sortedBy { it.label }
     }
 
     val tierCounts = remember(servers) { servers.groupingBy { it.tier }.eachCount() }
@@ -115,7 +105,6 @@ fun PublicServersTab(
             .filter { selectedContinent == "All" || it.continent.equals(selectedContinent, ignoreCase = true) }
             .filter { searchQuery.isBlank() || it.countryName.contains(searchQuery, ignoreCase = true) || it.displayName.contains(searchQuery, ignoreCase = true) }
 
-        // Servers without a valid ping always go last when sorting by ping.
         when (currentSort) {
             SortOption.Speed -> base.sortedByDescending { it.speedMbps }
             SortOption.Ping -> base.sortedBy { it.latencyMs?.takeIf { ms -> ms > 0 } ?: Int.MAX_VALUE }
@@ -126,13 +115,12 @@ fun PublicServersTab(
         }
     }
 
-    // Group servers by Country Name
-    val countryGroups = remember(filteredServers) {
-        filteredServers.groupBy { it.countryName.ifBlank { "Global" } }
+    // Group 1: Continent -> Group 2: Country -> List of Servers
+    val continentGroups = remember(filteredServers) {
+        filteredServers.groupBy { it.continent.ifBlank { "Global" } }
+            .mapValues { (_, sList) -> sList.groupBy { it.countryName.ifBlank { "Global" } } }
     }
-    val countryNames = remember(countryGroups) { countryGroups.keys.toList() }
 
-    // Fastest *measured* server the user can access; falls back to the first accessible one.
     val bestAutoServer = remember(servers, userTier) {
         val accessible = servers.filter { UserTier.canAccess(userTier, it.tier.id) }
         accessible.filter { (it.latencyMs ?: 0) > 0 }.minByOrNull { it.latencyMs ?: Int.MAX_VALUE }
@@ -140,9 +128,19 @@ fun PublicServersTab(
     }
 
     val hasActiveFilters = searchQuery.isNotBlank() || selectedProtocol != ProtocolFilter.All || selectedContinent != "All"
-    val allExpanded = countryNames.isNotEmpty() && countryNames.all { it in expandedCountries }
-
     val listState = rememberLazyListState()
+
+    if (showFilterSheet) {
+        FilterBottomSheet(
+            selectedProtocol = selectedProtocol,
+            onProtocolSelect = { selectedProtocol = it },
+            selectedContinent = selectedContinent,
+            onContinentSelect = { selectedContinent = it },
+            currentSort = currentSort,
+            onSortSelect = { currentSort = it },
+            onDismiss = { showFilterSheet = false }
+        )
+    }
 
     LazyColumn(
         state = listState,
@@ -150,24 +148,61 @@ fun PublicServersTab(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // 1. Hero: auto-select fastest
+        // 1. Auto-Select Banner
         if (bestAutoServer != null) {
             item(key = "auto-banner") {
                 AutoSelectBanner(server = bestAutoServer, onClick = { onSelect(bestAutoServer) })
             }
         }
 
-        // 2. Search + sort
+        // 2. Search & Filter Bar
         item(key = "search") {
-            SearchSortRow(
-                query = searchQuery,
-                onQueryChange = { searchQuery = it },
-                currentSort = currentSort,
-                onSortChange = { currentSort = it },
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Search country or server...") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    ),
+                    leadingIcon = {
+                        Icon(painter = painterResource(Res.drawable.ic_search), contentDescription = null)
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(painter = painterResource(Res.drawable.ic_close), contentDescription = "Clear")
+                            }
+                        }
+                    },
+                )
+
+                FilledTonalIconButton(
+                    onClick = { showFilterSheet = true },
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.size(56.dp),
+                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = if (hasActiveFilters) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer
+                    )
+                ) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_tune),
+                        contentDescription = "Filters",
+                        tint = if (hasActiveFilters) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
 
-        // 3. Tier selector (pinned)
+        // 3. Tier Tabs (Pinned Sticky Header)
         stickyHeader(key = "tiers") {
             Box(
                 Modifier
@@ -185,48 +220,32 @@ fun PublicServersTab(
             }
         }
 
-        // 4. Filters (only when there is something to filter)
-        if (continents.size > 2 || protocols.size > 2) {
-            item(key = "filters") {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (continents.size > 2) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            continents.forEach { cont ->
-                                FilterChip(
-                                    selected = selectedContinent == cont,
-                                    onClick = { selectedContinent = cont },
-                                    label = { Text(continentLabel(cont)) },
-                                    shape = CircleShape,
-                                )
-                            }
-                        }
-                    }
-                    if (protocols.size > 2) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            protocols.forEach { proto ->
-                                FilterChip(
-                                    selected = selectedProtocol == proto,
-                                    onClick = { selectedProtocol = proto },
-                                    label = { Text(proto.label) },
-                                    shape = CircleShape,
-                                )
-                            }
-                        }
-                    }
+        // 4. Quick Protocol Chips
+        item(key = "protocols") {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ProtocolFilter.entries.take(7).forEach { proto ->
+                    FilterChip(
+                        selected = selectedProtocol == proto,
+                        onClick = { selectedProtocol = proto },
+                        label = { Text(proto.label) },
+                        shape = CircleShape,
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    )
                 }
             }
         }
 
-        // 5. Summary + expand/collapse all
-        if (countryNames.isNotEmpty()) {
+        // 5. Summary Row
+        if (continentGroups.isNotEmpty()) {
             item(key = "summary") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -234,50 +253,44 @@ fun PublicServersTab(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "${countryNames.size} countries · ${filteredServers.size} servers",
+                        text = "${continentGroups.size} Continents · ${filteredServers.size} Servers",
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.SemiBold,
                     )
-                    TextButton(
-                        onClick = {
-                            expandedCountries = if (allExpanded) emptySet() else countryNames.toSet()
-                        },
-                    ) {
-                        Text(
-                            if (allExpanded) "Collapse all" else "Expand all",
-                            style = MaterialTheme.typography.labelLarge,
-                        )
-                    }
                 }
             }
         }
 
-        // 6. Country accordion cards
-        items(items = countryNames, key = { it }) { countryName ->
-            val countryServers = countryGroups[countryName].orEmpty()
-            val firstServer = countryServers.firstOrNull()
-            val isExpanded = countryName in expandedCountries
+        // 6. Level 1: Continent Accordion Cards
+        items(items = continentGroups.keys.toList(), key = { it }) { contName ->
+            val countryMap = continentGroups[contName] ?: emptyMap()
+            val contServers = countryMap.values.flatten()
+            val isContExpanded = contName in expandedContinents || selectedContinent != "All" || searchQuery.isNotBlank()
 
-            CountryAccordionCard(
+            ContinentAccordionCard(
                 modifier = Modifier.animateItem(),
-                countryName = countryName,
-                flag = firstServer?.flag ?: "🌐",
-                continent = firstServer?.continent ?: "Global",
-                servers = countryServers,
+                continentName = contName,
+                emoji = continentEmoji(contName),
+                countryMap = countryMap,
+                totalServers = contServers.size,
                 selectedId = selectedId,
                 userTier = userTier,
-                isExpanded = isExpanded,
+                isExpanded = isContExpanded,
+                expandedCountries = expandedCountries,
                 onToggleExpand = {
-                    expandedCountries = if (isExpanded) expandedCountries - countryName else expandedCountries + countryName
+                    expandedContinents = if (isContExpanded) expandedContinents - contName else expandedContinents + contName
+                },
+                onToggleCountryExpand = { country ->
+                    expandedCountries = if (country in expandedCountries) expandedCountries - country else expandedCountries + country
                 },
                 onSelectServer = onSelect,
                 onLockedClick = onLockedClick,
             )
         }
 
-        // 7. Empty result
-        if (countryNames.isEmpty()) {
+        // 7. Empty Results
+        if (continentGroups.isEmpty()) {
             item(key = "empty") {
                 EmptyResults(
                     message = if (searchQuery.isNotEmpty()) "No results for \"$searchQuery\""
@@ -294,39 +307,32 @@ fun PublicServersTab(
     }
 }
 
-// ───────────────────────────── Banner ─────────────────────────────
+// ───────────────────────────── AutoSelect Banner ─────────────────────────────
 
 @Composable
 private fun AutoSelectBanner(server: PublicServer, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val shape = RoundedCornerShape(24.dp)
-    val brush = remember(scheme.primary, scheme.tertiary) {
-        Brush.linearGradient(listOf(scheme.primary, lerp(scheme.primary, scheme.tertiary, 0.35f)))
-    }
     val ping = server.latencyMs?.takeIf { it > 0 }
     val subtitle = if (ping != null) "${cleanName(server.displayName)} · $ping ms" else cleanName(server.displayName)
 
-    Box(
-        Modifier
+    Surface(
+        modifier = Modifier
             .fillMaxWidth()
-            .shadow(
-                elevation = 8.dp,
-                shape = shape,
-                ambientColor = scheme.primary.copy(alpha = 0.20f),
-                spotColor = scheme.primary.copy(alpha = 0.30f),
-            )
-            .clip(shape)
-            .background(brush)
-            .clickable(onClick = onClick)
-            .padding(16.dp),
+            .clickable(onClick = onClick),
+        shape = shape,
+        color = scheme.primaryContainer,
+        tonalElevation = 4.dp
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Box(
-                modifier = Modifier.size(48.dp).background(scheme.onPrimary.copy(alpha = 0.18f), CircleShape),
+                modifier = Modifier.size(48.dp).background(scheme.primary, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -338,202 +344,58 @@ private fun AutoSelectBanner(server: PublicServer, onClick: () -> Unit) {
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    "Fastest server",
+                    "Fastest Server",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = scheme.onPrimary,
+                    fontWeight = FontWeight.Bold,
+                    color = scheme.onPrimaryContainer,
                 )
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(2.dp))
                 Text(
                     subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = scheme.onPrimary.copy(alpha = 0.85f),
+                    color = scheme.onPrimaryContainer.copy(alpha = 0.85f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
             Button(
                 onClick = onClick,
-                colors = ButtonDefaults.buttonColors(containerColor = scheme.onPrimary, contentColor = scheme.primary),
+                colors = ButtonDefaults.buttonColors(containerColor = scheme.primary, contentColor = scheme.onPrimary),
                 shape = RoundedCornerShape(16.dp),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             ) {
-                Text("Connect", fontWeight = FontWeight.SemiBold)
+                Text("Connect", fontWeight = FontWeight.Bold)
             }
         }
     }
 }
 
-// ───────────────────────────── Search + sort ─────────────────────────────
+// ───────────────────────────── Level 1: Continent Card ─────────────────────────────
 
 @Composable
-private fun SearchSortRow(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    currentSort: SortOption,
-    onSortChange: (SortOption) -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        OutlinedTextField(
-            value = query,
-            onValueChange = onQueryChange,
-            placeholder = { Text("Search country, location...") },
-            singleLine = true,
-            modifier = Modifier.weight(1f),
-            shape = RoundedCornerShape(16.dp),
-            leadingIcon = {
-                Icon(painter = painterResource(Res.drawable.ic_search), contentDescription = null)
-            },
-            trailingIcon = {
-                if (query.isNotEmpty()) {
-                    IconButton(onClick = { onQueryChange("") }) {
-                        Icon(painter = painterResource(Res.drawable.ic_close), contentDescription = "Clear")
-                    }
-                }
-            },
-        )
-
-        var sortExpanded by remember { mutableStateOf(false) }
-        Box {
-            FilledTonalIconButton(
-                onClick = { sortExpanded = true },
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.size(56.dp),
-            ) {
-                Icon(
-                    painter = painterResource(Res.drawable.ic_tune),
-                    contentDescription = "Sort: ${currentSort.label}",
-                )
-            }
-            DropdownMenu(
-                expanded = sortExpanded,
-                onDismissRequest = { sortExpanded = false },
-                shape = MaterialTheme.shapes.largeIncreased,
-            ) {
-                SortOption.entries.forEach { option ->
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                option.label,
-                                fontWeight = if (option == currentSort) FontWeight.SemiBold else FontWeight.Normal,
-                            )
-                        },
-                        trailingIcon = {
-                            if (option == currentSort) {
-                                Icon(
-                                    painterResource(Res.drawable.ic_check_circle),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                            }
-                        },
-                        onClick = {
-                            onSortChange(option)
-                            sortExpanded = false
-                        },
-                    )
-                }
-            }
-        }
-    }
-}
-
-// ───────────────────────────── Tier selector ─────────────────────────────
-
-/** Segmented control: Free / Pro / VIP, with server counts and a lock on tiers the user can't access. */
-@Composable
-private fun TierSelector(
-    active: ServerTier,
-    userTier: UserTier,
-    counts: Map<ServerTier, Int>,
-    onSelect: (ServerTier) -> Unit,
-    onLocked: (ServerTier) -> Unit,
-) {
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier.padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            ServerTier.entries.forEach { tier ->
-                val selected = active == tier
-                val locked = !UserTier.canAccess(userTier, tier.id)
-                val container by animateColorAsState(
-                    if (selected) MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color.Transparent,
-                    label = "tierContainer",
-                )
-                val content by animateColorAsState(
-                    if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    label = "tierContent",
-                )
-                Surface(
-                    onClick = { if (locked) onLocked(tier) else onSelect(tier) },
-                    shape = RoundedCornerShape(16.dp),
-                    color = container,
-                    contentColor = content,
-                    modifier = Modifier.weight(1f).height(48.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            tierLabel(tier),
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        if (locked) {
-                            Icon(painterResource(Res.drawable.ic_lock), null, modifier = Modifier.size(16.dp))
-                        } else {
-                            Text(
-                                "${counts[tier] ?: 0}",
-                                style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.alpha(0.75f),
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ───────────────────────────── Country card ─────────────────────────────
-
-@Composable
-private fun CountryAccordionCard(
-    countryName: String,
-    flag: String,
-    continent: String,
-    servers: List<PublicServer>,
+private fun ContinentAccordionCard(
+    continentName: String,
+    emoji: String,
+    countryMap: Map<String, List<PublicServer>>,
+    totalServers: Int,
     selectedId: String?,
     userTier: UserTier,
     isExpanded: Boolean,
+    expandedCountries: Set<String>,
     onToggleExpand: () -> Unit,
+    onToggleCountryExpand: (String) -> Unit,
     onSelectServer: (PublicServer) -> Unit,
     onLockedClick: (PublicServer) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
-    val bestPing = remember(servers) { servers.mapNotNull { it.latencyMs }.filter { it > 0 }.minOrNull() }
-    val bestPingColor = pingColor(bestPing)
-    val containsSelected = remember(servers, selectedId) { servers.any { it.id == selectedId } }
-    val chevron by animateFloatAsState(if (isExpanded) 180f else 0f, label = "chevron")
+    val chevron by animateFloatAsState(if (isExpanded) 180f else 0f, label = "chevronCont")
 
-    Surface(
+    Card(
         modifier = modifier.fillMaxWidth().animateContentSize(),
         shape = RoundedCornerShape(24.dp),
-        color = scheme.surfaceContainer,
-        border = if (containsSelected) BorderStroke(1.5.dp, scheme.primary.copy(alpha = 0.5f)) else null,
+        colors = CardDefaults.cardColors(containerColor = scheme.surfaceContainerHigh),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
@@ -542,71 +404,152 @@ private fun CountryAccordionCard(
                     .clickable { onToggleExpand() }
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
-                        .background(scheme.primary.copy(alpha = 0.10f), CircleShape),
+                        .size(46.dp)
+                        .background(scheme.primary.copy(alpha = 0.12f), CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(text = flag.ifBlank { "🌐" }, fontSize = 24.sp)
+                    Text(text = emoji, fontSize = 24.sp)
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = countryName,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false),
-                        )
-                        if (containsSelected) {
-                            Spacer(Modifier.width(8.dp))
-                            Box(Modifier.size(8.dp).background(scheme.primary, CircleShape))
-                        }
-                    }
-                    Spacer(Modifier.height(4.dp))
                     Text(
-                        text = "${servers.size} locations · $continent",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = scheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                        text = continentName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = scheme.onSurface
                     )
-                }
-
-                if (bestPing != null) {
-                    Surface(
-                        shape = CircleShape,
-                        color = bestPingColor.copy(alpha = 0.15f),
-                    ) {
-                        Text(
-                            text = "$bestPing ms",
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = bestPingColor,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = "${countryMap.size} Countries · $totalServers Servers",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = scheme.onSurfaceVariant
+                    )
                 }
 
                 Icon(
                     painter = painterResource(Res.drawable.ic_keyboard_arrow_down),
-                    contentDescription = if (isExpanded) "Collapse" else "Expand",
-                    tint = scheme.onSurfaceVariant,
+                    contentDescription = null,
+                    tint = scheme.primary,
                     modifier = Modifier.size(24.dp).rotate(chevron),
                 )
             }
 
+            // Expanded Level 2: Countries
             AnimatedVisibility(visible = isExpanded) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    HorizontalDivider(color = scheme.outlineVariant.copy(alpha = 0.4f))
+
+                    countryMap.keys.forEach { cName ->
+                        val cServers = countryMap[cName] ?: emptyList()
+                        val isCountryExpanded = cName in expandedCountries
+
+                        CountryAccordionCard(
+                            countryName = cName,
+                            flag = cServers.firstOrNull()?.flag ?: "🌐",
+                            servers = cServers,
+                            selectedId = selectedId,
+                            userTier = userTier,
+                            isExpanded = isCountryExpanded,
+                            onToggleExpand = { onToggleCountryExpand(cName) },
+                            onSelectServer = onSelectServer,
+                            onLockedClick = onLockedClick,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ───────────────────────────── Level 2: Country Card ─────────────────────────────
+
+@Composable
+private fun CountryAccordionCard(
+    countryName: String,
+    flag: String,
+    servers: List<PublicServer>,
+    selectedId: String?,
+    userTier: UserTier,
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit,
+    onSelectServer: (PublicServer) -> Unit,
+    onLockedClick: (PublicServer) -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val bestPing = remember(servers) { servers.mapNotNull { it.latencyMs }.filter { it > 0 }.minOrNull() }
+    val containsSelected = remember(servers, selectedId) { servers.any { it.id == selectedId } }
+    val chevron by animateFloatAsState(if (isExpanded) 180f else 0f, label = "chevronCountry")
+
+    Surface(
+        modifier = Modifier.fillMaxWidth().animateContentSize(),
+        shape = RoundedCornerShape(18.dp),
+        color = scheme.surfaceContainer,
+        border = if (containsSelected) BorderStroke(1.5.dp, scheme.primary) else null,
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggleExpand() }
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(text = flag.ifBlank { "🌐" }, fontSize = 22.sp)
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = countryName,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = scheme.onSurface
+                    )
+                    Text(
+                        text = "${servers.size} locations",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = scheme.onSurfaceVariant
+                    )
+                }
+
+                if (bestPing != null) {
+                    Surface(
+                        shape = CircleShape,
+                        color = scheme.secondaryContainer,
+                    ) {
+                        Text(
+                            text = "$bestPing ms",
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = scheme.onSecondaryContainer,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+
+                Icon(
+                    painter = painterResource(Res.drawable.ic_keyboard_arrow_down),
+                    contentDescription = null,
+                    tint = scheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp).rotate(chevron),
+                )
+            }
+
+            // Expanded Level 3: Servers
+            AnimatedVisibility(visible = isExpanded) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 10.dp, end = 10.dp, bottom = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     servers.forEach { server ->
                         ServerRowItem(
@@ -623,7 +566,7 @@ private fun CountryAccordionCard(
     }
 }
 
-// ───────────────────────────── Server row ─────────────────────────────
+// ───────────────────────────── Level 3: Server Row Item ─────────────────────────────
 
 @Composable
 private fun ServerRowItem(
@@ -637,82 +580,193 @@ private fun ServerRowItem(
     val locked = !UserTier.canAccess(userTier, server.tier.id)
     val name = remember(server.displayName) { cleanName(server.displayName) }
     val ping = server.latencyMs?.takeIf { it > 0 }
-    val textColor = if (isSelected) scheme.onPrimaryContainer else scheme.onSurface
-    val subtleColor = if (isSelected) scheme.onPrimaryContainer.copy(alpha = 0.8f) else scheme.onSurfaceVariant
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .alpha(if (locked) 0.6f else 1f)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(14.dp))
             .clickable { if (locked) onLockedClick() else onClick() },
-        color = if (isSelected) scheme.primaryContainer else scheme.surface,
-        shape = RoundedCornerShape(16.dp),
+        color = if (isSelected) scheme.primaryContainer else scheme.surfaceContainerLow,
+        shape = RoundedCornerShape(14.dp),
     ) {
         Row(
-            modifier = Modifier.heightIn(min = 56.dp).padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.heightIn(min = 48.dp).padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            // Signal dot: instantly shows quality before the user reads the number.
-            Box(
-                Modifier
-                    .size(8.dp)
-                    .background(if (ping != null) pingColor(ping) else scheme.outlineVariant, CircleShape),
+            RadioButton(
+                selected = isSelected,
+                onClick = null,
+                enabled = !locked,
+                colors = RadioButtonDefaults.colors(selectedColor = scheme.primary)
             )
 
             Text(
                 text = name,
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                color = textColor,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = if (isSelected) scheme.onPrimaryContainer else scheme.onSurface,
                 modifier = Modifier.weight(1f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
 
-            if (server.protocolLabel.isNotBlank()) {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = textColor.copy(alpha = 0.08f),
-                ) {
-                    Text(
-                        text = server.protocolLabel,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = subtleColor,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        maxLines = 1,
-                    )
-                }
-            }
-
             if (ping != null) {
                 Text(
                     text = "$ping ms",
                     style = MaterialTheme.typography.labelMedium,
-                    color = subtleColor,
+                    color = scheme.primary,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
 
-            when {
-                locked -> Icon(
+            if (locked) {
+                Icon(
                     painter = painterResource(Res.drawable.ic_lock),
                     contentDescription = "Locked",
                     tint = scheme.outline,
-                    modifier = Modifier.size(20.dp),
-                )
-                isSelected -> Icon(
-                    painter = painterResource(Res.drawable.ic_check_circle),
-                    contentDescription = "Selected",
-                    tint = scheme.primary,
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(16.dp),
                 )
             }
         }
     }
 }
 
-// ───────────────────────────── Empty result ─────────────────────────────
+// ───────────────────────────── Tier Selector ─────────────────────────────
+
+@Composable
+private fun TierSelector(
+    active: ServerTier,
+    userTier: UserTier,
+    counts: Map<ServerTier, Int>,
+    onSelect: (ServerTier) -> Unit,
+    onLocked: (ServerTier) -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            ServerTier.entries.forEach { tier ->
+                val selected = active == tier
+                val locked = !UserTier.canAccess(userTier, tier.id)
+                Surface(
+                    onClick = { if (locked) onLocked(tier) else onSelect(tier) },
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                    contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f).height(44.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            tierLabel(tier),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        if (locked) {
+                            Icon(painterResource(Res.drawable.ic_lock), null, modifier = Modifier.size(14.dp))
+                        } else {
+                            Text(
+                                "${counts[tier] ?: 0}",
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.alpha(0.8f),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ───────────────────────────── Filter BottomSheet ─────────────────────────────
+
+@Composable
+private fun FilterBottomSheet(
+    selectedProtocol: ProtocolFilter,
+    onProtocolSelect: (ProtocolFilter) -> Unit,
+    selectedContinent: String,
+    onContinentSelect: (String) -> Unit,
+    currentSort: SortOption,
+    onSortSelect: (SortOption) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text("Server Filters & Options", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+
+            Text("Select Protocol", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ProtocolFilter.entries.forEach { proto ->
+                    FilterChip(
+                        selected = selectedProtocol == proto,
+                        onClick = { onProtocolSelect(proto) },
+                        label = { Text(proto.label) }
+                    )
+                }
+            }
+
+            Text("Select Region", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf("All", "Asia", "Europe", "North America", "Middle East", "South America", "Africa", "Oceania").forEach { cont ->
+                    FilterChip(
+                        selected = selectedContinent == cont,
+                        onClick = { onContinentSelect(cont) },
+                        label = { Text(cont) }
+                    )
+                }
+            }
+
+            Text("Sort Order", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                SortOption.entries.forEach { sort ->
+                    FilterChip(
+                        selected = currentSort == sort,
+                        onClick = { onSortSelect(sort) },
+                        label = { Text(sort.label) }
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text("Apply & Close")
+            }
+        }
+    }
+}
+
+// ───────────────────────────── Empty Results ─────────────────────────────
 
 @Composable
 private fun EmptyResults(message: String, showReset: Boolean, onReset: () -> Unit) {
