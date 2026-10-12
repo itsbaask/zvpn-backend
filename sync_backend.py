@@ -297,7 +297,7 @@ class EnterpriseSmartGeoSyncEngine:
 
     def sync(self):
         print("[*] Starting Fresh Optimized Geo-Sync Engine (All Multi-Protocol Feeds & IPSPEED.info)...")
-        print("[*] Target Sources: 1. omgvpn | 2. publicvpnlist | 3. ipspeed.info (VLESS, OpenVPN, Proxy, L2TP) | 4. vpngate | 5. subscription feeds")
+        print("[*] Target Sources: 1. omgvpn | 2. publicvpnlist | 3. ipspeed.info (4 Fallback Layers) | 4. vpngate | 5. subscription feeds")
 
         self._harvest_omgvpn()
         self._harvest_pvl()
@@ -657,13 +657,14 @@ class EnterpriseSmartGeoSyncEngine:
         print(f"    [+] Yielded {total_pvl} PublicVPNList servers.")
 
     def _harvest_ipspeed(self):
-        print("[*] [Source 3/5] Direct Harvesting from IPSpeed.info & Multi-Protocol Feeds...")
+        print("[*] [Source 3/5] IPSpeed.info 4-Layer Resilient Harvest Engine...")
         total_ipspeed = 0
 
-        # Direct Scraper from ipspeed.info
+        # Layer 1: Headless Undetected ChromeDriver (if Chrome available)
         try:
             import undetected_chromedriver as uc
             options = uc.ChromeOptions()
+            options.add_argument('--headless')
             options.add_argument('--no-sandbox')
             options.add_argument('--disable-dev-shm-usage')
             driver = uc.Chrome(options=options)
@@ -679,7 +680,6 @@ class EnterpriseSmartGeoSyncEngine:
                 except Exception:
                     return ""
 
-            # 1. VLESS Reality
             vless_html = get_page_source("https://ipspeed.info/free-vless-reality.php")
             vless_uris = re.findall(r'vless://[^\s"\'<>]+', vless_html)
             for uri in vless_uris:
@@ -694,7 +694,6 @@ class EnterpriseSmartGeoSyncEngine:
                 }
                 total_ipspeed += 1
 
-            # 2. OpenVPN
             ovpn_html = get_page_source("https://ipspeed.info/free-openvpn.php")
             soup_o = BeautifulSoup(ovpn_html, "html.parser")
             for table in soup_o.find_all("table"):
@@ -716,7 +715,6 @@ class EnterpriseSmartGeoSyncEngine:
                             }
                             total_ipspeed += 1
 
-            # 3. Proxies (HTTP / SOCKS5)
             proxy_html = get_page_source("https://ipspeed.info/free-proxy.php")
             soup_p = BeautifulSoup(proxy_html, "html.parser")
             for table in soup_p.find_all("table"):
@@ -740,7 +738,6 @@ class EnterpriseSmartGeoSyncEngine:
                             }
                             total_ipspeed += 1
 
-            # 4. L2TP / IPsec
             l2tp_html = get_page_source("https://ipspeed.info/free-l2tpipsec.php")
             soup_l = BeautifulSoup(l2tp_html, "html.parser")
             for table in soup_l.find_all("table"):
@@ -764,9 +761,36 @@ class EnterpriseSmartGeoSyncEngine:
 
             driver.quit()
         except Exception as e:
-            print(f"    [-] IPSPEED browser note: {e}")
+            print(f"    [-] IPSPEED Layer 1 browser note: {e}")
 
-        # Fallback Multi-Protocol Subscription Feeds
+        # Layer 2: Cloudflare Scraper HTTP Session
+        try:
+            import cloudscraper
+            scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'linux', 'desktop': True})
+            for url, ptype in [
+                ("https://ipspeed.info/free-vless-reality.php", "vless"),
+                ("https://ipspeed.info/free-openvpn.php", "openvpn"),
+                ("https://ipspeed.info/free-proxy.php", "proxy"),
+                ("https://ipspeed.info/free-l2tpipsec.php", "l2tp")
+            ]:
+                r = scraper.get(url, timeout=10)
+                if r.status_code == 200:
+                    vless_matches = re.findall(r'vless://[^\s"\'<>]+', r.text)
+                    for uri in vless_matches:
+                        clean_uri = uri.replace("&amp;", "&").strip()
+                        sid = f"ipspeed_cs_vless_{hash(clean_uri) % 10000000}"
+                        self.servers[sid] = {
+                            "protocol": "vless",
+                            "raw_uri": clean_uri,
+                            "source": "ipspeed",
+                            "speed_mbps": 40.0,
+                            "latency_ms": 45
+                        }
+                        total_ipspeed += 1
+        except Exception as e:
+            print(f"    [-] IPSPEED Layer 2 cloudscraper note: {e}")
+
+        # Layer 3: Multi-Protocol Subscription Feeds & Aggregators
         ipspeed_urls = [
             "https://raw.githubusercontent.com/ermaozi/get_subscribe/main/subscribe/v2ray.txt",
             "https://raw.githubusercontent.com/Pawdroid/Free-servers/main/sub",
