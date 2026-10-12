@@ -17,11 +17,50 @@ from urllib.parse import urljoin, urlparse
 PERMANENT_KEY = "pvlk_eb8cc33936641d9492cf0a2740c8511bb737e1a611fa1035cb7c5c3006513bcc"
 MAX_SERVERS_PER_COUNTRY = 999999  # Keep ALL harvested servers!
 
-# Master Country Mapping (Code -> Continent, Country Name, Flag)
+# Master Comprehensive Global Country Mapping (221 Countries & Territories)
 COUNTRY_MAP = {
+    # North America
     "US": ("North America", "United States", "🇺🇸"),
     "CA": ("North America", "Canada", "🇨🇦"),
     "MX": ("North America", "Mexico", "🇲🇽"),
+    "CR": ("North America", "Costa Rica", "🇨🇷"),
+    "PA": ("North America", "Panama", "🇵🇦"),
+    "GT": ("North America", "Guatemala", "🇬🇹"),
+    "HN": ("North America", "Honduras", "🇭🇳"),
+    "SV": ("North America", "El Salvador", "🇸🇻"),
+    "NI": ("North America", "Nicaragua", "🇳🇮"),
+    "BZ": ("North America", "Belize", "🇧🇿"),
+    "JM": ("North America", "Jamaica", "🇯🇲"),
+    "HT": ("North America", "Haiti", "🇭🇹"),
+    "DO": ("North America", "Dominican Republic", "🇩🇴"),
+    "PR": ("North America", "Puerto Rico", "🇵🇷"),
+    "BS": ("North America", "Bahamas", "🇧🇸"),
+    "BB": ("North America", "Barbados", "🇧🇧"),
+    "TT": ("North America", "Trinidad and Tobago", "🇹🇹"),
+    "LC": ("North America", "Saint Lucia", "🇱🇨"),
+    "VC": ("North America", "Saint Vincent", "🇻🇨"),
+    "GD": ("North America", "Grenada", "🇬🇩"),
+    "AG": ("North America", "Antigua and Barbuda", "🇦🇬"),
+    "KN": ("North America", "Saint Kitts and Nevis", "🇰🇳"),
+    "DM": ("North America", "Dominica", "🇩🇲"),
+    "AW": ("North America", "Aruba", "🇦🇼"),
+    "CW": ("North America", "Curaçao", "🇨🇼"),
+    "SX": ("North America", "Sint Maarten", "🇸🇽"),
+    "GP": ("North America", "Guadeloupe", "🇬🇵"),
+    "MQ": ("North America", "Martinique", "🇲🇶"),
+    "KY": ("North America", "Cayman Islands", "🇰🇾"),
+    "BM": ("North America", "Bermuda", "🇧🇲"),
+    "TC": ("North America", "Turks and Caicos", "🇹🇨"),
+    "VG": ("North America", "British Virgin Islands", "🇻🇬"),
+    "VI": ("North America", "US Virgin Islands", "🇻🇮"),
+    "AI": ("North America", "Anguilla", "🇦🇮"),
+    "MS": ("North America", "Montserrat", "🇲🇸"),
+    "BL": ("North America", "Saint Barthélemy", "🇧🇱"),
+    "MF": ("North America", "Saint Martin", "🇲🇫"),
+    "PM": ("North America", "Saint Pierre and Miquelon", "🇵🇲"),
+    "GL": ("North America", "Greenland", "🇬🇱"),
+
+    # Europe
     "DE": ("Europe", "Germany", "🇩🇪"),
     "GB": ("Europe", "United Kingdom", "🇬🇧"),
     "FR": ("Europe", "France", "🇫🇷"),
@@ -33,30 +72,6 @@ COUNTRY_MAP = {
     "IT": ("Europe", "Italy", "🇮🇹"),
     "ES": ("Europe", "Spain", "🇪🇸"),
     "RU": ("Europe", "Russia", "🇷🇺"),
-    "JP": ("Asia", "Japan", "🇯🇵"),
-    "SG": ("Asia", "Singapore", "🇸🇬"),
-    "KR": ("Asia", "South Korea", "🇰🇷"),
-    "TR": ("Asia", "Turkey", "🇹🇷"),
-    "CN": ("Asia", "China", "🇨🇳"),
-    "HK": ("Asia", "Hong Kong", "🇭🇰"),
-    "TW": ("Asia", "Taiwan", "🇹🇼"),
-    "IN": ("Asia", "India", "🇮🇳"),
-    "ID": ("Asia", "Indonesia", "🇮🇩"),
-    "VN": ("Asia", "Vietnam", "🇻🇳"),
-    "TH": ("Asia", "Thailand", "🇹🇭"),
-    "MY": ("Asia", "Malaysia", "🇲🇾"),
-    "PH": ("Asia", "Philippines", "🇵🇭"),
-    "IR": ("Asia", "Iran", "🇮🇷"),
-    "AE": ("Middle East", "United Arab Emirates", "🇦🇪"),
-    "SA": ("Middle East", "Saudi Arabia", "🇸🇦"),
-    "BR": ("South America", "Brazil", "🇧🇷"),
-    "AR": ("South America", "Argentina", "🇦🇷"),
-    "CL": ("South America", "Chile", "🇨🇱"),
-    "CO": ("South America", "Colombia", "🇨🇴"),
-    "ZA": ("Africa", "South Africa", "🇿🇦"),
-    "EG": ("Africa", "Egypt", "🇪🇬"),
-    "AU": ("Oceania", "Australia", "🇦🇺"),
-    "NZ": ("Oceania", "New Zealand", "🇳🇿"),
     "FI": ("Europe", "Finland", "🇫🇮"),
     "NO": ("Europe", "Norway", "🇳🇴"),
     "DK": ("Europe", "Denmark", "🇩🇰"),
@@ -79,6 +94,40 @@ COUNTRY_MAP = {
     "IS": ("Europe", "Iceland", "🇮🇸"),
     "CY": ("Europe", "Cyprus", "🇨🇾"),
     "MT": ("Europe", "Malta", "🇲🇹"),
+    "AL": ("Europe", "Albania", "🇦🇱"),
+    "BA": ("Europe", "Bosnia and Herzegovina", "🇧🇦"),
+    "ME": ("Europe", "Montenegro", "🇲🇪"),
+    "MK": ("Europe", "North Macedonia", "🇲🇰"),
+    "RS": ("Europe", "Serbia", "🇷🇸"),
+    "MD": ("Europe", "Moldova", "🇲🇩"),
+    "BY": ("Europe", "Belarus", "🇧🇾"),
+    "AD": ("Europe", "Andorra", "🇦🇩"),
+    "SM": ("Europe", "San Marino", "🇸🇲"),
+    "MC": ("Europe", "Monaco", "🇲🇨"),
+    "LI": ("Europe", "Liechtenstein", "🇱🇮"),
+    "VA": ("Europe", "Vatican City", "🇻🇦"),
+    "FO": ("Europe", "Faroe Islands", "🇫🇴"),
+    "GI": ("Europe", "Gibraltar", "🇬🇮"),
+    "IM": ("Europe", "Isle of Man", "🇮🇲"),
+    "JE": ("Europe", "Jersey", "🇯🇪"),
+    "GG": ("Europe", "Guernsey", "🇬🇬"),
+    "AX": ("Europe", "Åland Islands", "🇦🇽"),
+
+    # Asia
+    "JP": ("Asia", "Japan", "🇯🇵"),
+    "SG": ("Asia", "Singapore", "🇸🇬"),
+    "KR": ("Asia", "South Korea", "🇰🇷"),
+    "TR": ("Asia", "Turkey", "🇹🇷"),
+    "CN": ("Asia", "China", "🇨🇳"),
+    "HK": ("Asia", "Hong Kong", "🇭🇰"),
+    "TW": ("Asia", "Taiwan", "🇹🇼"),
+    "IN": ("Asia", "India", "🇮🇳"),
+    "ID": ("Asia", "Indonesia", "🇮🇩"),
+    "VN": ("Asia", "Vietnam", "🇻🇳"),
+    "TH": ("Asia", "Thailand", "🇹🇭"),
+    "MY": ("Asia", "Malaysia", "🇲🇾"),
+    "PH": ("Asia", "Philippines", "🇵🇭"),
+    "IR": ("Asia", "Iran", "🇮🇷"),
     "GE": ("Asia", "Georgia", "🇬🇪"),
     "AM": ("Asia", "Armenia", "🇦🇲"),
     "AZ": ("Asia", "Azerbaijan", "🇦🇿"),
@@ -89,24 +138,121 @@ COUNTRY_MAP = {
     "LK": ("Asia", "Sri Lanka", "🇱🇰"),
     "NP": ("Asia", "Nepal", "🇳🇵"),
     "KH": ("Asia", "Cambodia", "🇰🇭"),
+    "LA": ("Asia", "Laos", "🇱🇦"),
+    "MM": ("Asia", "Myanmar", "🇲🇲"),
+    "MN": ("Asia", "Mongolia", "🇲🇳"),
+    "BT": ("Asia", "Bhutan", "🇧🇹"),
+    "MV": ("Asia", "Maldives", "🇲🇻"),
+    "TL": ("Asia", "East Timor", "🇹🇱"),
+    "BN": ("Asia", "Brunei", "🇧🇳"),
+    "MO": ("Asia", "Macau", "🇲🇴"),
+    "KG": ("Asia", "Kyrgyzstan", "🇰🇬"),
+    "TJ": ("Asia", "Tajikistan", "🇹🇯"),
+    "TM": ("Asia", "Turkmenistan", "🇹🇲"),
+    "AF": ("Asia", "Afghanistan", "🇦🇫"),
+
+    # Middle East
+    "AE": ("Middle East", "United Arab Emirates", "🇦🇪"),
+    "SA": ("Middle East", "Saudi Arabia", "🇸🇦"),
     "IL": ("Middle East", "Israel", "🇮🇱"),
     "QA": ("Middle East", "Qatar", "🇶🇦"),
     "KW": ("Middle East", "Kuwait", "🇰🇼"),
     "OM": ("Middle East", "Oman", "🇴🇲"),
-    "BH": ("Middle East", "Bahrain", "BH"),
+    "BH": ("Middle East", "Bahrain", "🇧🇭"),
     "JO": ("Middle East", "Jordan", "🇯🇴"),
     "LB": ("Middle East", "Lebanon", "🇱🇧"),
     "IQ": ("Middle East", "Iraq", "🇮🇶"),
+    "YE": ("Middle East", "Yemen", "🇾🇪"),
+    "SY": ("Middle East", "Syria", "🇸🇾"),
+    "PS": ("Middle East", "Palestine", "🇵🇸"),
+
+    # South America
+    "BR": ("South America", "Brazil", "🇧🇷"),
+    "AR": ("South America", "Argentina", "🇦🇷"),
+    "CL": ("South America", "Chile", "🇨🇱"),
+    "CO": ("South America", "Colombia", "🇨🇴"),
+    "PE": ("South America", "Peru", "🇵🇪"),
+    "UY": ("South America", "Uruguay", "🇺🇾"),
+    "EC": ("South America", "Ecuador", "🇪🇨"),
+    "VE": ("South America", "Venezuela", "🇻🇪"),
+    "BO": ("South America", "Bolivia", "🇧🇴"),
+    "PY": ("South America", "Paraguay", "🇵🇾"),
+    "GY": ("South America", "Guyana", "🇬🇾"),
+    "SR": ("South America", "Suriname", "🇸🇷"),
+    "GF": ("South America", "French Guiana", "🇬🇫"),
+
+    # Africa
+    "ZA": ("Africa", "South Africa", "🇿🇦"),
+    "EG": ("Africa", "Egypt", "🇪🇬"),
     "MA": ("Africa", "Morocco", "🇲🇦"),
     "TN": ("Africa", "Tunisia", "🇹🇳"),
     "DZ": ("Africa", "Algeria", "🇩🇿"),
     "NG": ("Africa", "Nigeria", "🇳🇬"),
     "KE": ("Africa", "Kenya", "🇰🇪"),
-    "PE": ("South America", "Peru", "🇵🇪"),
-    "UY": ("South America", "Uruguay", "🇺🇾"),
-    "EC": ("South America", "Ecuador", "🇪🇨"),
-    "CR": ("North America", "Costa Rica", "🇨🇷"),
-    "PA": ("North America", "Panama", "🇵🇦"),
+    "GH": ("Africa", "Ghana", "🇬🇭"),
+    "TZ": ("Africa", "Tanzania", "🇹🇿"),
+    "UG": ("Africa", "Uganda", "🇺🇬"),
+    "ET": ("Africa", "Ethiopia", "🇪🇹"),
+    "CI": ("Africa", "Ivory Coast", "🇨🇮"),
+    "SN": ("Africa", "Senegal", "🇸🇳"),
+    "CM": ("Africa", "Cameroon", "🇨🇲"),
+    "AO": ("Africa", "Angola", "🇦🇴"),
+    "ZM": ("Africa", "Zambia", "🇿🇲"),
+    "ZW": ("Africa", "Zimbabwe", "🇿🇼"),
+    "NA": ("Africa", "Namibia", "🇳🇦"),
+    "BW": ("Africa", "Botswana", "🇧🇼"),
+    "MZ": ("Africa", "Mozambique", "🇲🇿"),
+    "MG": ("Africa", "Madagascar", "🇲🇬"),
+    "RW": ("Africa", "Rwanda", "🇷🇼"),
+    "BI": ("Africa", "Burundi", "🇧🇮"),
+    "SD": ("Africa", "Sudan", "🇸🇩"),
+    "SS": ("Africa", "South Sudan", "🇸🇸"),
+    "LY": ("Africa", "Libya", "🇱🇾"),
+    "MR": ("Africa", "Mauritania", "🇲🇷"),
+    "ML": ("Africa", "Mali", "🇲🇱"),
+    "BF": ("Africa", "Burkina Faso", "🇧🇫"),
+    "NE": ("Africa", "Niger", "🇳🇪"),
+    "TD": ("Africa", "Chad", "🇹🇩"),
+    "CF": ("Africa", "Central African Republic", "🇨🇫"),
+    "CG": ("Africa", "Congo", "🇨🇬"),
+    "CD": ("Africa", "DR Congo", "🇨🇩"),
+    "GA": ("Africa", "Gabon", "🇬🇦"),
+    "GQ": ("Africa", "Equatorial Guinea", "🇬🇶"),
+    "GW": ("Africa", "Guinea-Bissau", "🇬🇼"),
+    "GM": ("Africa", "Gambia", "🇬🇲"),
+    "SL": ("Africa", "Sierra Leone", "🇸🇱"),
+    "LR": ("Africa", "Liberia", "🇱🇷"),
+    "TG": ("Africa", "Togo", "🇹🇬"),
+    "BJ": ("Africa", "Benin", "🇧🇯"),
+    "ST": ("Africa", "São Tomé and Príncipe", "🇸🇹"),
+    "DJ": ("Africa", "Djibouti", "🇩🇯"),
+    "SO": ("Africa", "Somalia", "🇸🇴"),
+    "ER": ("Africa", "Eritrea", "🇪🇷"),
+    "SC": ("Africa", "Seychelles", "🇸🇨"),
+    "MU": ("Africa", "Mauritius", "🇲🇺"),
+    "KM": ("Africa", "Comoros", "🇰🇲"),
+    "CV": ("Africa", "Cape Verde", "🇨🇻"),
+
+    # Oceania
+    "AU": ("Oceania", "Australia", "🇦🇺"),
+    "NZ": ("Oceania", "New Zealand", "🇳🇿"),
+    "FJ": ("Oceania", "Fiji", "🇫🇯"),
+    "PG": ("Oceania", "Papua New Guinea", "🇵🇬"),
+    "SB": ("Oceania", "Solomon Islands", "🇸🇧"),
+    "VU": ("Oceania", "Vanuatu", "🇻🇺"),
+    "NC": ("Oceania", "New Caledonia", "🇳🇨"),
+    "PF": ("Oceania", "French Polynesia", "🇵🇫"),
+    "GU": ("Oceania", "Guam", "🇬🇺"),
+    "MP": ("Oceania", "Northern Mariana Islands", "🇲🇵"),
+    "WS": ("Oceania", "Samoa", "🇼🇸"),
+    "TO": ("Oceania", "Tonga", "🇹🇴"),
+    "FM": ("Oceania", "Micronesia", "🇫🇲"),
+    "KI": ("Oceania", "Kiribati", "🇰🇮"),
+    "MH": ("Oceania", "Marshall Islands", "🇲🇭"),
+    "PW": ("Oceania", "Palau", "🇵🇼"),
+    "NR": ("Oceania", "Nauru", "🇳🇷"),
+    "TV": ("Oceania", "Tuvalu", "🇹🇻"),
+    "CK": ("Oceania", "Cook Islands", "🇨🇰"),
 }
 
 GEO_CACHE = {}
@@ -190,13 +336,43 @@ def verify_ip_geo(ip_or_host: str) -> tuple:
             import socket
             ip = socket.gethostbyname(ip_or_host)
 
-        res = requests.get(f"http://ip-api.com/json/{ip}?fields=status,countryCode,country", timeout=3)
-        if res.status_code == 200:
-            data = res.json()
-            if data.get("status") == "success":
-                cc = data.get("countryCode", "").upper()
-                if cc in COUNTRY_MAP:
-                    geo_result = (COUNTRY_MAP[cc][0], COUNTRY_MAP[cc][1], COUNTRY_MAP[cc][2], cc)
+        # Provider 1: ip-api.com
+        try:
+            res = requests.get(f"http://ip-api.com/json/{ip}?fields=status,countryCode,country", timeout=3)
+            if res.status_code == 200:
+                data = res.json()
+                if data.get("status") == "success":
+                    cc = data.get("countryCode", "").upper()
+                    if cc in COUNTRY_MAP:
+                        geo_result = (COUNTRY_MAP[cc][0], COUNTRY_MAP[cc][1], COUNTRY_MAP[cc][2], cc)
+        except Exception:
+            pass
+
+        # Provider 2: freeipapi.com (Fallback)
+        if not geo_result:
+            try:
+                res = requests.get(f"https://freeipapi.com/api/json/{ip}", timeout=3)
+                if res.status_code == 200:
+                    data = res.json()
+                    cc = data.get("countryCode", "").upper()
+                    if cc in COUNTRY_MAP:
+                        geo_result = (COUNTRY_MAP[cc][0], COUNTRY_MAP[cc][1], COUNTRY_MAP[cc][2], cc)
+            except Exception:
+                pass
+
+        # Provider 3: ipwhois.app (Fallback)
+        if not geo_result:
+            try:
+                res = requests.get(f"https://ipwhois.app/json/{ip}", timeout=3)
+                if res.status_code == 200:
+                    data = res.json()
+                    if data.get("success"):
+                        cc = data.get("country_code", "").upper()
+                        if cc in COUNTRY_MAP:
+                            geo_result = (COUNTRY_MAP[cc][0], COUNTRY_MAP[cc][1], COUNTRY_MAP[cc][2], cc)
+            except Exception:
+                pass
+
     except Exception:
         pass
 
@@ -296,7 +472,7 @@ class EnterpriseSmartGeoSyncEngine:
         self.pvl_downloader = PublicVPNListOvpnDownloader(access_key=self.access_key)
 
     def sync(self):
-        print("[*] Starting Resilient 10-Layer Multi-Fallback Geo-Sync Engine...")
+        print("[*] Starting Resilient 10-Layer Multi-Fallback Geo-Sync Engine (221 Global Countries Mapped)...")
         print("[*] Harvesting Sources: 1. OMGVPN | 2. PublicVPNList (100% Unfiltered Catalog) | 3. IPSpeed.info | 4. VPNGate")
 
         self._harvest_omgvpn()
@@ -329,13 +505,13 @@ class EnterpriseSmartGeoSyncEngine:
         print(f"[+] Deduplication complete: Unique pool size: {len(unique_servers)}.")
 
         # Batch Concurrent GeoIP Verification
-        print("[*] Performing Batch Concurrent GeoIP Verification on server IPs...")
+        print("[*] Performing Batch Concurrent Multi-Provider GeoIP Verification on server IPs...")
         hosts_to_resolve = list({extract_ip_or_host(item) for item in unique_servers.values() if extract_ip_or_host(item)})
 
         with ThreadPoolExecutor(max_workers=50) as executor:
             list(executor.map(verify_ip_geo, hosts_to_resolve))
 
-        print(f"[+] Verified GeoIP location for {len(GEO_CACHE)} unique server IPs.")
+        print(f"[+] Verified GeoIP location for {len(GEO_CACHE)} unique server IPs across 221 countries.")
 
         # 2. Strict Naming Standardization & Geo Resolution
         processed_servers = []
@@ -643,7 +819,6 @@ class EnterpriseSmartGeoSyncEngine:
             proto_count = 0
             while True:
                 try:
-                    # Unfiltered query without status=online restriction to fetch all 1,858 VLESS and 2,394 OpenVPN
                     url = f"https://publicvpnlist.com/api/v1/servers?protocol={proto}&per_page=100&page={page}"
                     res = self.session.get(url, headers=headers, timeout=10)
                     if res.status_code != 200:
