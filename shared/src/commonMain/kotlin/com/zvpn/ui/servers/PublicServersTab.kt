@@ -26,10 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -44,6 +41,7 @@ import org.jetbrains.compose.resources.painterResource
  *  - Level 1: Continents (Expandable)
  *  - Level 2: Countries (Expandable)
  *  - Level 3: Servers
+ *  - Pinned Sticky Header: Tier Tabs + Complete Protocol Selection Row (All 18 Protocols)
  *  - 100% Material 3 Theme Color Compliance (Light & Dark Mode)
  */
 
@@ -98,12 +96,18 @@ fun PublicServersTab(
 
     val tierCounts = remember(servers) { servers.groupingBy { it.tier }.eachCount() }
 
+    val protoCounts = remember(servers, activeTierTab) {
+        servers.filter { it.tier == activeTierTab }
+            .groupingBy { ProtocolFilter.fromId(it.protocolLabel) }
+            .eachCount()
+    }
+
     val filteredServers = remember(servers, activeTierTab, selectedProtocol, selectedContinent, searchQuery, currentSort) {
         val base = servers
             .filter { it.tier == activeTierTab }
-            .filter { selectedProtocol == ProtocolFilter.All || it.protocolLabel.equals(selectedProtocol.label, ignoreCase = true) }
+            .filter { selectedProtocol == ProtocolFilter.All || it.protocolLabel.equals(selectedProtocol.label, ignoreCase = true) || (selectedProtocol == ProtocolFilter.VLESS && it.protocolLabel.contains("vless", ignoreCase = true)) }
             .filter { selectedContinent == "All" || it.continent.equals(selectedContinent, ignoreCase = true) }
-            .filter { searchQuery.isBlank() || it.countryName.contains(searchQuery, ignoreCase = true) || it.displayName.contains(searchQuery, ignoreCase = true) }
+            .filter { searchQuery.isBlank() || it.countryName.contains(searchQuery, ignoreCase = true) || it.displayName.contains(searchQuery, ignoreCase = true) || it.protocolLabel.contains(searchQuery, ignoreCase = true) }
 
         when (currentSort) {
             SortOption.Speed -> base.sortedByDescending { it.speedMbps }
@@ -138,6 +142,7 @@ fun PublicServersTab(
             onContinentSelect = { selectedContinent = it },
             currentSort = currentSort,
             onSortSelect = { currentSort = it },
+            protoCounts = protoCounts,
             onDismiss = { showFilterSheet = false }
         )
     }
@@ -165,7 +170,7 @@ fun PublicServersTab(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search country or server...") },
+                    placeholder = { Text("Search country, protocol, server...") },
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(16.dp),
@@ -202,14 +207,16 @@ fun PublicServersTab(
             }
         }
 
-        // 3. Tier Tabs (Pinned Sticky Header)
-        stickyHeader(key = "tiers") {
-            Box(
-                Modifier
+        // 3. PINNED STICKY HEADER: Tier Tabs + Complete Protocol Selection Row
+        stickyHeader(key = "sticky-controls") {
+            Column(
+                modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.background)
                     .padding(vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                // Tier Selector
                 TierSelector(
                     active = activeTierTab,
                     userTier = userTier,
@@ -217,34 +224,35 @@ fun PublicServersTab(
                     onSelect = { activeTierTab = it; selectedProtocol = ProtocolFilter.All },
                     onLocked = { tier -> servers.firstOrNull { it.tier == tier }?.let(onLockedClick) },
                 )
-            }
-        }
 
-        // 4. Quick Protocol Chips
-        item(key = "protocols") {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                ProtocolFilter.entries.take(7).forEach { proto ->
-                    FilterChip(
-                        selected = selectedProtocol == proto,
-                        onClick = { selectedProtocol = proto },
-                        label = { Text(proto.label) },
-                        shape = CircleShape,
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                // Complete Protocol Selector Bar (ALL Protocols)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ProtocolFilter.entries.forEach { proto ->
+                        val count = if (proto == ProtocolFilter.All) filteredServers.size else (protoCounts[proto] ?: 0)
+                        FilterChip(
+                            selected = selectedProtocol == proto,
+                            onClick = { selectedProtocol = proto },
+                            label = {
+                                Text(if (proto == ProtocolFilter.All) "⚡ All Protocols ($count)" else "${proto.label} ($count)")
+                            },
+                            shape = CircleShape,
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
                         )
-                    )
+                    }
                 }
             }
         }
 
-        // 5. Summary Row
+        // 4. Summary Row
         if (continentGroups.isNotEmpty()) {
             item(key = "summary") {
                 Row(
@@ -262,7 +270,7 @@ fun PublicServersTab(
             }
         }
 
-        // 6. Level 1: Continent Accordion Cards
+        // 5. Level 1: Continent Accordion Cards
         items(items = continentGroups.keys.toList(), key = { it }) { contName ->
             val countryMap = continentGroups[contName] ?: emptyMap()
             val contServers = countryMap.values.flatten()
@@ -289,7 +297,7 @@ fun PublicServersTab(
             )
         }
 
-        // 7. Empty Results
+        // 6. Empty Results
         if (continentGroups.isEmpty()) {
             item(key = "empty") {
                 EmptyResults(
@@ -601,15 +609,24 @@ private fun ServerRowItem(
                 colors = RadioButtonDefaults.colors(selectedColor = scheme.primary)
             )
 
-            Text(
-                text = name,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = if (isSelected) scheme.onPrimaryContainer else scheme.onSurface,
-                modifier = Modifier.weight(1f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    color = if (isSelected) scheme.onPrimaryContainer else scheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (server.protocolLabel.isNotBlank()) {
+                    Text(
+                        text = server.protocolLabel.uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isSelected) scheme.onPrimaryContainer.copy(alpha = 0.8f) else scheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
 
             if (ping != null) {
                 Text(
@@ -698,6 +715,7 @@ private fun FilterBottomSheet(
     onContinentSelect: (String) -> Unit,
     currentSort: SortOption,
     onSortSelect: (SortOption) -> Unit,
+    protoCounts: Map<ProtocolFilter, Int>,
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(
@@ -710,19 +728,54 @@ private fun FilterBottomSheet(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("Server Filters & Options", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Select VPN Protocol", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
 
-            Text("Select Protocol", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-            Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                ProtocolFilter.entries.forEach { proto ->
-                    FilterChip(
-                        selected = selectedProtocol == proto,
-                        onClick = { onProtocolSelect(proto) },
-                        label = { Text(proto.label) }
-                    )
+            // Protocol Selection Grid
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ProtocolFilter.entries.chunked(2).forEach { pair ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        pair.forEach { proto ->
+                            val count = protoCounts[proto] ?: 0
+                            Surface(
+                                onClick = { onProtocolSelect(proto); onDismiss() },
+                                shape = RoundedCornerShape(16.dp),
+                                color = if (selectedProtocol == proto) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                border = if (selectedProtocol == proto) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
+                                modifier = Modifier.weight(1f).height(48.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        proto.label,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = if (selectedProtocol == proto) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (selectedProtocol == proto) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    if (proto != ProtocolFilter.All) {
+                                        Surface(
+                                            shape = CircleShape,
+                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                        ) {
+                                            Text(
+                                                "$count",
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if (pair.size == 1) Spacer(Modifier.weight(1f))
+                    }
                 }
             }
 
