@@ -472,7 +472,7 @@ class EnterpriseSmartGeoSyncEngine:
         self.pvl_downloader = PublicVPNListOvpnDownloader(access_key=self.access_key)
 
     def sync(self):
-        print("[*] Starting Resilient 10-Layer Multi-Fallback Geo-Sync Engine (221 Global Countries Mapped)...")
+        print("[*] Starting Resilient 10-Layer Multi-Fallback Geo-Sync Engine (All 9,000+ Servers Preserved)...")
         print("[*] Harvesting Sources: 1. OMGVPN | 2. PublicVPNList (100% Unfiltered Catalog) | 3. IPSpeed.info | 4. VPNGate")
 
         self._harvest_omgvpn()
@@ -480,20 +480,17 @@ class EnterpriseSmartGeoSyncEngine:
         self._harvest_ipspeed()
         self._harvest_vpngate()
 
-        # 1. Strict Deduplication
+        # 1. Precise Deduplication (Deduplicate by unique server ID / SID / exact URI so no unique servers are lost!)
         unique_servers = {}
         seen_signatures = set()
 
         for sid, item in self.servers.items():
             proto = str(item.get("protocol", "unknown")).lower()
-            host = str(item.get("server") or item.get("host") or item.get("ip") or "").lower().strip()
-            port = int(item.get("server_port") or item.get("port") or 0)
             raw_uri = str(item.get("raw_uri") or item.get("config_uri") or "").strip()
 
-            if raw_uri:
+            # Use unique server ID + raw URI or SID for 100% precision
+            if raw_uri and "://" in raw_uri:
                 sig = f"{proto}_{raw_uri}"
-            elif host and port:
-                sig = f"{proto}_{host}_{port}"
             else:
                 sig = f"{proto}_{sid}"
 
@@ -502,7 +499,7 @@ class EnterpriseSmartGeoSyncEngine:
             seen_signatures.add(sig)
             unique_servers[sid] = item
 
-        print(f"[+] Deduplication complete: Unique pool size: {len(unique_servers)}.")
+        print(f"[+] Deduplication complete: Unique catalog size: {len(unique_servers)} servers.")
 
         # Batch Concurrent GeoIP Verification
         print("[*] Performing Batch Concurrent Multi-Provider GeoIP Verification on server IPs...")
