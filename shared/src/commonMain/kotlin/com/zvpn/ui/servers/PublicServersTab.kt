@@ -7,7 +7,13 @@ package com.zvpn.ui.servers
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -26,6 +32,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -37,12 +45,12 @@ import com.zvpn.shared.resources.*
 import org.jetbrains.compose.resources.painterResource
 
 /*
- * World-Class 3-Level Accordion Server Architecture (Material 3 Theme-Adaptive)
- *  - Level 1: Continents (Expandable)
- *  - Level 2: Countries (Expandable)
- *  - Level 3: Servers
- *  - Pinned Sticky Header: Tier Tabs + Complete Protocol Selection Row (All 18 Protocols)
- *  - 100% Material 3 Theme Color Compliance (Light & Dark Mode)
+ * World-Class Modern VPN Server Architecture & Redesign
+ *  - Level 1: Continents (Vibrant Regional Badges & Expandable Accordion)
+ *  - Level 2: Countries (32dp Flag Badges, Best Ping Pills, Expandable Accordion)
+ *  - Level 3: Individual Servers (Protocol Pills, Quality Dot Indicators, Quick Select)
+ *  - Pinned Sticky Header: Tier Selector + Complete 18-Protocol Horizontal Picker
+ *  - 100% Material 3 Light & Dark Mode Adaptive Aesthetics
  */
 
 private val BRACKET_TAG = Regex("""\s*\[.*?]""")
@@ -50,20 +58,25 @@ private val BRACKET_TAG = Regex("""\s*\[.*?]""")
 private fun cleanName(raw: String): String = raw.replace(BRACKET_TAG, "").trim()
 
 private fun tierLabel(tier: ServerTier): String = when (tier) {
-    ServerTier.Free -> "Free"
-    ServerTier.Premium -> "Pro"
-    ServerTier.PremiumPlus -> "VIP"
+    ServerTier.Free -> "Free 🆓"
+    ServerTier.Premium -> "Pro ⭐"
+    ServerTier.PremiumPlus -> "VIP 👑"
 }
 
-private fun continentEmoji(cont: String): String = when (cont.lowercase()) {
-    "asia" -> "🌏"
+private fun continentEmoji(cont: String): String = when (cont.lowercase().trim()) {
+    "asia", "asia-pacific" -> "🌏"
     "europe" -> "🇪🇺"
-    "north america" -> "🌎"
-    "middle east" -> "🇦🇪"
-    "south america" -> "🌎"
-    "africa" -> "🌍"
+    "americas", "north america", "south america" -> "🌎"
+    "middle east", "me/africa", "africa" -> "🌍"
     "oceania" -> "🌏"
-    else -> "🌍"
+    else -> "🌐"
+}
+
+private fun pingQualityColor(ping: Int?, scheme: ColorScheme): Color = when {
+    ping == null || ping <= 0 -> scheme.onSurfaceVariant.copy(alpha = 0.4f)
+    ping < 60 -> Color(0xFF10B981)   // Vibrant Emerald Green
+    ping < 150 -> Color(0xFFF59E0B)  // Vibrant Warm Amber
+    else -> scheme.outlineVariant
 }
 
 @Composable
@@ -153,7 +166,7 @@ fun PublicServersTab(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // 1. Auto-Select Banner
+        // 1. Auto-Select Hero Banner
         if (bestAutoServer != null) {
             item(key = "auto-banner") {
                 AutoSelectBanner(server = bestAutoServer, onClick = { onSelect(bestAutoServer) })
@@ -164,22 +177,28 @@ fun PublicServersTab(
         item(key = "search") {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search country, protocol, server...") },
+                    placeholder = { Text("Search country, protocol, server...", style = MaterialTheme.typography.bodyMedium) },
                     singleLine = true,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(20.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                         unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                     ),
                     leadingIcon = {
-                        Icon(painter = painterResource(Res.drawable.ic_search), contentDescription = null)
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_search),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     },
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
@@ -192,10 +211,10 @@ fun PublicServersTab(
 
                 FilledTonalIconButton(
                     onClick = { showFilterSheet = true },
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(20.dp),
                     modifier = Modifier.size(56.dp),
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = if (hasActiveFilters) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer
+                        containerColor = if (hasActiveFilters) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh
                     )
                 ) {
                     Icon(
@@ -214,7 +233,7 @@ fun PublicServersTab(
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.background)
                     .padding(vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // Tier Selector
                 TierSelector(
@@ -225,24 +244,36 @@ fun PublicServersTab(
                     onLocked = { tier -> servers.firstOrNull { it.tier == tier }?.let(onLockedClick) },
                 )
 
-                // Complete Protocol Selector Bar (ALL Protocols)
+                // Complete Protocol Selector Bar (ALL 18 Protocols)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     ProtocolFilter.entries.forEach { proto ->
                         val count = if (proto == ProtocolFilter.All) filteredServers.size else (protoCounts[proto] ?: 0)
+                        val isSelected = selectedProtocol == proto
+                        
                         FilterChip(
-                            selected = selectedProtocol == proto,
+                            selected = isSelected,
                             onClick = { selectedProtocol = proto },
                             label = {
-                                Text(if (proto == ProtocolFilter.All) "⚡ All Protocols ($count)" else "${proto.label} ($count)")
+                                Text(
+                                    if (proto == ProtocolFilter.All) "⚡ All Protocols ($count)" else "${proto.label} ($count)",
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                )
                             },
                             shape = CircleShape,
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = isSelected,
+                                borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                                selectedBorderColor = MaterialTheme.colorScheme.primary
+                            ),
                             colors = FilterChipDefaults.filterChipColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainer,
                                 selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                                 selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
                             )
@@ -256,15 +287,15 @@ fun PublicServersTab(
         if (continentGroups.isNotEmpty()) {
             item(key = "summary") {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "${continentGroups.size} Continents · ${filteredServers.size} Servers",
+                        text = "${continentGroups.size} Continents · ${filteredServers.size} Servers Available",
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Bold,
                     )
                 }
             }
@@ -301,7 +332,7 @@ fun PublicServersTab(
         if (continentGroups.isEmpty()) {
             item(key = "empty") {
                 EmptyResults(
-                    message = if (searchQuery.isNotEmpty()) "No results for \"$searchQuery\""
+                    message = if (searchQuery.isNotEmpty()) "No servers found for \"$searchQuery\""
                     else "No servers available in ${tierLabel(activeTierTab)}",
                     showReset = hasActiveFilters,
                     onReset = {
@@ -315,64 +346,81 @@ fun PublicServersTab(
     }
 }
 
-// ───────────────────────────── AutoSelect Banner ─────────────────────────────
+// ───────────────────────────── Hero AutoSelect Banner ─────────────────────────────
 
 @Composable
 private fun AutoSelectBanner(server: PublicServer, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
-    val shape = RoundedCornerShape(24.dp)
+    val shape = RoundedCornerShape(26.dp)
     val ping = server.latencyMs?.takeIf { it > 0 }
     val subtitle = if (ping != null) "${cleanName(server.displayName)} · $ping ms" else cleanName(server.displayName)
+
+    val gradient = remember(scheme.primary, scheme.secondaryContainer) {
+        Brush.horizontalGradient(listOf(scheme.primaryContainer, scheme.surfaceContainerHigh))
+    }
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .shadow(6.dp, shape, ambientColor = scheme.primary.copy(alpha = 0.15f), spotColor = scheme.primary.copy(alpha = 0.25f))
             .clickable(onClick = onClick),
         shape = shape,
-        color = scheme.primaryContainer,
-        tonalElevation = 4.dp
+        color = Color.Transparent,
+        border = BorderStroke(1.dp, scheme.primary.copy(alpha = 0.3f))
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Box(
-                modifier = Modifier.size(48.dp).background(scheme.primary, CircleShape),
-                contentAlignment = Alignment.Center,
+        Box(modifier = Modifier.background(gradient).padding(18.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Icon(
-                    painterResource(Res.drawable.ic_bolt),
-                    contentDescription = null,
-                    tint = scheme.onPrimary,
-                    modifier = Modifier.size(24.dp),
-                )
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    "Fastest Server",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = scheme.onPrimaryContainer,
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = scheme.onPrimaryContainer.copy(alpha = 0.85f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Button(
-                onClick = onClick,
-                colors = ButtonDefaults.buttonColors(containerColor = scheme.primary, contentColor = scheme.onPrimary),
-                shape = RoundedCornerShape(16.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            ) {
-                Text("Connect", fontWeight = FontWeight.Bold)
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .background(scheme.primary, CircleShape)
+                        .shadow(4.dp, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painterResource(Res.drawable.ic_bolt),
+                        contentDescription = null,
+                        tint = scheme.onPrimary,
+                        modifier = Modifier.size(26.dp),
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "Fastest Server",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = scheme.onSurface,
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(Color(0xFF10B981), CircleShape)
+                        )
+                    }
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = scheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Button(
+                    onClick = onClick,
+                    colors = ButtonDefaults.buttonColors(containerColor = scheme.primary, contentColor = scheme.onPrimary),
+                    shape = RoundedCornerShape(18.dp),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
+                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp),
+                ) {
+                    Text("Connect", fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
@@ -400,9 +448,10 @@ private fun ContinentAccordionCard(
     val chevron by animateFloatAsState(if (isExpanded) 180f else 0f, label = "chevronCont")
 
     Card(
-        modifier = modifier.fillMaxWidth().animateContentSize(),
-        shape = RoundedCornerShape(24.dp),
+        modifier = modifier.fillMaxWidth().animateContentSize(spring(stiffness = Spring.StiffnessMediumLow)),
+        shape = RoundedCornerShape(26.dp),
         colors = CardDefaults.cardColors(containerColor = scheme.surfaceContainerHigh),
+        border = BorderStroke(1.dp, scheme.outlineVariant.copy(alpha = 0.35f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -410,17 +459,17 @@ private fun ContinentAccordionCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onToggleExpand() }
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                    .padding(horizontal = 18.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 Box(
                     modifier = Modifier
-                        .size(46.dp)
+                        .size(48.dp)
                         .background(scheme.primary.copy(alpha = 0.12f), CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(text = emoji, fontSize = 24.sp)
+                    Text(text = emoji, fontSize = 26.sp)
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
@@ -447,14 +496,18 @@ private fun ContinentAccordionCard(
             }
 
             // Expanded Level 2: Countries
-            AnimatedVisibility(visible = isExpanded) {
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                        .padding(start = 12.dp, end = 12.dp, bottom = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    HorizontalDivider(color = scheme.outlineVariant.copy(alpha = 0.4f))
+                    HorizontalDivider(color = scheme.outlineVariant.copy(alpha = 0.3f))
 
                     countryMap.keys.forEach { cName ->
                         val cServers = countryMap[cName] ?: emptyList()
@@ -498,46 +551,47 @@ private fun CountryAccordionCard(
     val chevron by animateFloatAsState(if (isExpanded) 180f else 0f, label = "chevronCountry")
 
     Surface(
-        modifier = Modifier.fillMaxWidth().animateContentSize(),
-        shape = RoundedCornerShape(18.dp),
+        modifier = Modifier.fillMaxWidth().animateContentSize(spring(stiffness = Spring.StiffnessMediumLow)),
+        shape = RoundedCornerShape(20.dp),
         color = scheme.surfaceContainer,
-        border = if (containsSelected) BorderStroke(1.5.dp, scheme.primary) else null,
+        border = BorderStroke(if (containsSelected) 2.dp else 1.dp, if (containsSelected) scheme.primary else scheme.outlineVariant.copy(alpha = 0.25f)),
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onToggleExpand() }
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Text(text = flag.ifBlank { "🌐" }, fontSize = 22.sp)
+                Text(text = flag.ifBlank { "🌐" }, fontSize = 28.sp)
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = countryName,
                         style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Bold,
                         color = scheme.onSurface
                     )
                     Text(
-                        text = "${servers.size} locations",
+                        text = "${servers.size} Locations Available",
                         style = MaterialTheme.typography.bodySmall,
                         color = scheme.onSurfaceVariant
                     )
                 }
 
                 if (bestPing != null) {
+                    val pColor = pingQualityColor(bestPing, scheme)
                     Surface(
                         shape = CircleShape,
-                        color = scheme.secondaryContainer,
+                        color = pColor.copy(alpha = 0.15f),
                     ) {
                         Text(
-                            text = "$bestPing ms",
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            text = "⚡ $bestPing ms",
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                             style = MaterialTheme.typography.labelSmall,
-                            color = scheme.onSecondaryContainer,
+                            color = pColor,
                             fontWeight = FontWeight.Bold,
                         )
                     }
@@ -551,13 +605,17 @@ private fun CountryAccordionCard(
                 )
             }
 
-            // Expanded Level 3: Servers
-            AnimatedVisibility(visible = isExpanded) {
+            // Expanded Level 3: Individual Servers
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 10.dp, end = 10.dp, bottom = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                        .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     servers.forEach { server ->
                         ServerRowItem(
@@ -574,7 +632,7 @@ private fun CountryAccordionCard(
     }
 }
 
-// ───────────────────────────── Level 3: Server Row Item ─────────────────────────────
+// ───────────────────────────── Level 3: Individual Server Item ─────────────────────────────
 
 @Composable
 private fun ServerRowItem(
@@ -592,15 +650,16 @@ private fun ServerRowItem(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(16.dp))
             .clickable { if (locked) onLockedClick() else onClick() },
         color = if (isSelected) scheme.primaryContainer else scheme.surfaceContainerLow,
-        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, if (isSelected) scheme.primary else scheme.outlineVariant.copy(alpha = 0.2f)),
+        shape = RoundedCornerShape(16.dp),
     ) {
         Row(
-            modifier = Modifier.heightIn(min = 48.dp).padding(horizontal = 14.dp, vertical = 10.dp),
+            modifier = Modifier.heightIn(min = 52.dp).padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             RadioButton(
                 selected = isSelected,
@@ -613,28 +672,39 @@ private fun ServerRowItem(
                 Text(
                     text = name,
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
                     color = if (isSelected) scheme.onPrimaryContainer else scheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (server.protocolLabel.isNotBlank()) {
-                    Text(
-                        text = server.protocolLabel.uppercase(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (isSelected) scheme.onPrimaryContainer.copy(alpha = 0.8f) else scheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = scheme.primary.copy(alpha = 0.12f),
+                        modifier = Modifier.padding(top = 2.dp)
+                    ) {
+                        Text(
+                            text = server.protocolLabel.uppercase(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = scheme.primary,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
                 }
             }
 
             if (ping != null) {
-                Text(
-                    text = "$ping ms",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = scheme.primary,
-                    fontWeight = FontWeight.SemiBold
-                )
+                val qColor = pingQualityColor(ping, scheme)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Box(modifier = Modifier.size(6.dp).background(qColor, CircleShape))
+                    Text(
+                        text = "$ping ms",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = qColor,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             if (locked) {
@@ -642,7 +712,7 @@ private fun ServerRowItem(
                     painter = painterResource(Res.drawable.ic_lock),
                     contentDescription = "Locked",
                     tint = scheme.outline,
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(18.dp),
                 )
             }
         }
@@ -660,8 +730,9 @@ private fun TierSelector(
     onLocked: (ServerTier) -> Unit,
 ) {
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(22.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
@@ -673,10 +744,10 @@ private fun TierSelector(
                 val locked = !UserTier.canAccess(userTier, tier.id)
                 Surface(
                     onClick = { if (locked) onLocked(tier) else onSelect(tier) },
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(18.dp),
                     color = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
                     contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f).height(44.dp),
+                    modifier = Modifier.weight(1f).height(46.dp),
                 ) {
                     Row(
                         modifier = Modifier.fillMaxSize(),
@@ -695,7 +766,7 @@ private fun TierSelector(
                             Text(
                                 "${counts[tier] ?: 0}",
                                 style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.alpha(0.8f),
+                                modifier = Modifier.alpha(0.85f),
                             )
                         }
                     }
@@ -725,12 +796,14 @@ private fun FilterBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = 22.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            Text("Select VPN Protocol", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Filter VPN Protocols & Regions", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
 
-            // Protocol Selection Grid
+            Text("Select VPN Protocol", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            
+            // Protocol Grid
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ProtocolFilter.entries.chunked(2).forEach { pair ->
                     Row(
@@ -739,23 +812,24 @@ private fun FilterBottomSheet(
                     ) {
                         pair.forEach { proto ->
                             val count = protoCounts[proto] ?: 0
+                            val isSelected = selectedProtocol == proto
                             Surface(
                                 onClick = { onProtocolSelect(proto); onDismiss() },
                                 shape = RoundedCornerShape(16.dp),
-                                color = if (selectedProtocol == proto) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                                border = if (selectedProtocol == proto) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
+                                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
                                 modifier = Modifier.weight(1f).height(48.dp)
                             ) {
                                 Row(
-                                    modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                                    modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text(
                                         proto.label,
                                         style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = if (selectedProtocol == proto) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (selectedProtocol == proto) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                                     )
                                     if (proto != ProtocolFilter.All) {
                                         Surface(
@@ -764,7 +838,7 @@ private fun FilterBottomSheet(
                                         ) {
                                             Text(
                                                 "$count",
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                                                 style = MaterialTheme.typography.labelSmall,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.primary
@@ -810,10 +884,10 @@ private fun FilterBottomSheet(
             Spacer(Modifier.height(12.dp))
             Button(
                 onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp)
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(18.dp)
             ) {
-                Text("Apply & Close")
+                Text("Apply Filters", fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -841,8 +915,8 @@ private fun EmptyResults(message: String, showReset: Boolean, onReset: () -> Uni
             textAlign = TextAlign.Center,
         )
         if (showReset) {
-            FilledTonalButton(onClick = onReset, shape = RoundedCornerShape(16.dp)) {
-                Text("Reset filters")
+            FilledTonalButton(onClick = onReset, shape = RoundedCornerShape(18.dp)) {
+                Text("Reset filters", fontWeight = FontWeight.Bold)
             }
         }
     }
