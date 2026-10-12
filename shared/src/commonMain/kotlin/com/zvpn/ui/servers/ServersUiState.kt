@@ -14,16 +14,37 @@ enum class ServerTier(val id: String, val labelResKey: String) {
 
 enum class ProtocolFilter(val id: String, val label: String) {
     All("all", "All"),
-    OpenVPN("openvpn", "OpenVPN"),
     VLESS("vless", "VLESS"),
     VMess("vmess", "VMess"),
-    Shadowsocks("shadowsocks", "Shadowsocks"),
-    WireGuard("wireguard", "WireGuard"),
     Trojan("trojan", "Trojan"),
-    Hysteria2("hysteria2", "Hysteria2");
+    Shadowsocks("shadowsocks", "Shadowsocks"),
+    Hysteria2("hysteria2", "Hysteria 2"),
+    TUIC("tuic", "TUIC"),
+    OpenVPN("openvpn", "OpenVPN"),
+    WireGuard("wireguard", "WireGuard"),
+    L2TP("l2tp", "L2TP"),
+    SSTP("sstp", "SSTP"),
+    IKEv2("ikev2", "IKEv2"),
+    HTTP("http", "HTTP"),
+    SOCKS5("socks5", "SOCKS5"),
+    SSH("ssh", "SSH"),
+    Tor("tor", "Tor"),
+    Psiphon("psiphon", "Psiphon"),
+    DNSTunnel("dnstunnel", "DNS Tunnel");
 
     companion object {
-        fun fromId(id: String): ProtocolFilter = entries.find { it.id.equals(id, true) } ?: All
+        fun fromId(id: String): ProtocolFilter {
+            val clean = id.trim().lowercase()
+            return entries.find {
+                it.id.equals(clean, true) ||
+                it.label.lowercase() == clean ||
+                (clean in listOf("ss", "shadowsocks2022") && it == Shadowsocks) ||
+                (clean in listOf("hy2", "hysteria") && it == Hysteria2) ||
+                (clean in listOf("awg", "amneziawg", "wg") && it == WireGuard) ||
+                (clean in listOf("socks", "socks5") && it == SOCKS5) ||
+                (clean in listOf("https") && it == HTTP)
+            } ?: All
+        }
     }
 }
 
