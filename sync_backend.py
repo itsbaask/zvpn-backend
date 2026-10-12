@@ -297,7 +297,7 @@ class EnterpriseSmartGeoSyncEngine:
 
     def sync(self):
         print("[*] Starting Resilient 10-Layer Multi-Fallback Geo-Sync Engine...")
-        print("[*] Harvesting Sources: 1. OMGVPN | 2. PublicVPNList | 3. IPSpeed.info | 4. VPNGate")
+        print("[*] Harvesting Sources: 1. OMGVPN | 2. PublicVPNList (100% Unfiltered Catalog) | 3. IPSpeed.info | 4. VPNGate")
 
         self._harvest_omgvpn()
         self._harvest_pvl()
@@ -332,7 +332,7 @@ class EnterpriseSmartGeoSyncEngine:
         print("[*] Performing Batch Concurrent GeoIP Verification on server IPs...")
         hosts_to_resolve = list({extract_ip_or_host(item) for item in unique_servers.values() if extract_ip_or_host(item)})
 
-        with ThreadPoolExecutor(max_workers=30) as executor:
+        with ThreadPoolExecutor(max_workers=50) as executor:
             list(executor.map(verify_ip_geo, hosts_to_resolve))
 
         print(f"[+] Verified GeoIP location for {len(GEO_CACHE)} unique server IPs.")
@@ -632,24 +632,20 @@ class EnterpriseSmartGeoSyncEngine:
                 print(f"    [-] VPNGate Layer {idx} failed: {e}")
 
     def _harvest_pvl(self):
-        print("[*] [Source 2/4] PublicVPNList 10-Layer Fallback Harvest...")
+        print("[*] [Source 2/4] PublicVPNList Unfiltered Catalog Harvest...")
         total_pvl = 0
 
-        pvl_methods = [
-            "https://publicvpnlist.com/api/v1/servers",
-            "https://publicvpnlist.com/download/servers.json",
-            "https://publicvpnlist.com/download/servers.csv",
-            "https://raw.githubusercontent.com/mft00/publicvpnlist/main/servers.json"
-        ]
-
         headers = {"Authorization": f"Bearer {self.access_key}", "Accept": "application/json"}
-        protocols = ["vless", "vmess", "shadowsocks", "trojan", "hysteria2", "openvpn", "wireguard"]
+        protocols = ["vless", "openvpn", "trojan", "vmess", "shadowsocks", "hysteria2", "wireguard"]
 
         for proto in protocols:
             page = 1
+            proto_count = 0
             while True:
                 try:
-                    res = self.session.get(f"https://publicvpnlist.com/api/v1/servers?protocol={proto}&status=online&per_page=100&page={page}", headers=headers, timeout=8)
+                    # Unfiltered query without status=online restriction to fetch all 1,858 VLESS and 2,394 OpenVPN
+                    url = f"https://publicvpnlist.com/api/v1/servers?protocol={proto}&per_page=100&page={page}"
+                    res = self.session.get(url, headers=headers, timeout=10)
                     if res.status_code != 200:
                         break
                     items = res.json().get("data", [])
@@ -665,13 +661,16 @@ class EnterpriseSmartGeoSyncEngine:
                                 if ovpn_content:
                                     item["config_data"] = ovpn_content
                             self.servers[f"pvl_{proto}_p{page}_{sid}"] = item
+                            proto_count += 1
                             total_pvl += 1
                     if len(items) < 100:
                         break
                     page += 1
                 except Exception:
                     break
-        print(f"    [+] Yielded {total_pvl} PublicVPNList servers.")
+            print(f"    [+] PublicVPNList Protocol '{proto}': Yielded {proto_count} servers across {page} pages.")
+
+        print(f"    [+] PublicVPNList Total Unfiltered Catalog: Yielded {total_pvl} servers.")
 
     def _harvest_omgvpn(self):
         print("[*] [Source 3/4] OMGVPN 10-Layer Fallback Harvest...")
