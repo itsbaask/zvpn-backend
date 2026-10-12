@@ -16,7 +16,7 @@ class MapViewModelTest {
         assertEquals("Asia-Pacific", RegionResolver.resolve("sg"))
         assertEquals("ME/Africa", RegionResolver.resolve("AE"))
         assertEquals("ME/Africa", RegionResolver.resolve("za"))
-        assertEquals("Other", RegionResolver.resolve("UNKNOWN"))
-        assertEquals("Other", RegionResolver.resolve(null))
+        assertEquals("Americas", RegionResolver.resolve("UNKNOWN"))
+        assertEquals("Americas", RegionResolver.resolve(null))
     }
 }

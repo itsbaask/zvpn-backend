@@ -30,7 +30,7 @@ object ProfileToServerMapper {
 
         val known = cc != UNKNOWN_CODE
         val flagEmoji = extractedFlag ?: if (known) countryCodeToEmoji(cc) else "🌐"
-        val continent = if (known) RegionResolver.resolve(cc) else GLOBAL
+        val continent = RegionResolver.resolve(cc)
 
         val tier = when {
             TIER_PLUS.containsMatchIn(rawName) -> ServerTier.PremiumPlus
