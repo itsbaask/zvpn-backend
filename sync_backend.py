@@ -572,6 +572,8 @@ class EnterpriseSmartGeoSyncEngine:
                     item["raw_uri"] = f"http://{server_host}:{server_port}"
                 elif proto == "l2tp" and server_host:
                     item["raw_uri"] = f"l2tp://{server_host}:{server_port}"
+                elif proto == "sstp" and server_host:
+                    item["raw_uri"] = f"sstp://{server_host}:{server_port}"
                 elif proto in ["vless", "vmess", "trojan", "shadowsocks", "ss", "hysteria2", "tuic", "wg", "wireguard"] and server_host:
                     uuid_val = item.get("uuid") or "11111111-2222-3333-4444-555555555555"
                     item["raw_uri"] = f"{proto}://{uuid_val}@{server_host}:{server_port}?security=none#{c_name}"
@@ -898,7 +900,7 @@ class EnterpriseSmartGeoSyncEngine:
                 print(f"    [-] OMGVPN Layer {idx} failed: {e}")
 
     def _harvest_ipspeed(self):
-        print("[*] [Source 4/4] IPSpeed.info 10-Layer Resilient Harvest Engine...")
+        print("[*] [Source 4/4] IPSpeed.info 10-Layer Resilient Harvest Engine (VLESS, OpenVPN, Proxies, L2TP, SSTP)...")
         total_ipspeed = 0
 
         # Layer 1: Headless Undetected ChromeDriver (if Chrome available)
@@ -921,6 +923,7 @@ class EnterpriseSmartGeoSyncEngine:
                 except Exception:
                     return ""
 
+            # 1. VLESS Reality
             vless_html = get_page_source("https://ipspeed.info/free-vless-reality.php")
             vless_uris = re.findall(r'vless://[^\s"\'<>]+', vless_html)
             for uri in vless_uris:
@@ -935,6 +938,7 @@ class EnterpriseSmartGeoSyncEngine:
                 }
                 total_ipspeed += 1
 
+            # 2. OpenVPN
             ovpn_html = get_page_source("https://ipspeed.info/free-openvpn.php")
             soup_o = BeautifulSoup(ovpn_html, "html.parser")
             for table in soup_o.find_all("table"):
@@ -956,6 +960,7 @@ class EnterpriseSmartGeoSyncEngine:
                             }
                             total_ipspeed += 1
 
+            # 3. PROXIES (HTTP / SOCKS5)
             proxy_html = get_page_source("https://ipspeed.info/free-proxy.php")
             soup_p = BeautifulSoup(proxy_html, "html.parser")
             for table in soup_p.find_all("table"):
@@ -979,6 +984,7 @@ class EnterpriseSmartGeoSyncEngine:
                             }
                             total_ipspeed += 1
 
+            # 4. L2TP / IPsec
             l2tp_html = get_page_source("https://ipspeed.info/free-l2tpipsec.php")
             soup_l = BeautifulSoup(l2tp_html, "html.parser")
             for table in soup_l.find_all("table"):
@@ -1000,6 +1006,32 @@ class EnterpriseSmartGeoSyncEngine:
                             }
                             total_ipspeed += 1
 
+            # 5. SSTP
+            sstp_html = get_page_source("https://ipspeed.info/free-sstp.php")
+            soup_s = BeautifulSoup(sstp_html, "html.parser")
+            for table in soup_s.find_all("table"):
+                for row in table.find_all("tr")[1:]:
+                    cols = [td.get_text(strip=True) for td in row.find_all("td")]
+                    if len(cols) >= 3:
+                        country = cols[1]
+                        host_or_ip = cols[2].strip()
+                        if ":" in host_or_ip:
+                            h_part, p_part = host_or_ip.split(":")[0], int(host_or_ip.split(":")[1])
+                        else:
+                            h_part, p_part = host_or_ip, 443
+                        if "." in h_part:
+                            sid = f"ipspeed_sstp_{h_part}_{p_part}"
+                            self.servers[sid] = {
+                                "protocol": "sstp",
+                                "server": h_part,
+                                "server_port": p_part,
+                                "source": "ipspeed",
+                                "country_code": country,
+                                "speed_mbps": 30.0,
+                                "latency_ms": 55
+                            }
+                            total_ipspeed += 1
+
             driver.quit()
         except Exception as e:
             print(f"    [-] IPSPEED Layer 1 browser note: {e}")
@@ -1012,7 +1044,8 @@ class EnterpriseSmartGeoSyncEngine:
                 ("https://ipspeed.info/free-vless-reality.php", "vless"),
                 ("https://ipspeed.info/free-openvpn.php", "openvpn"),
                 ("https://ipspeed.info/free-proxy.php", "proxy"),
-                ("https://ipspeed.info/free-l2tpipsec.php", "l2tp")
+                ("https://ipspeed.info/free-l2tpipsec.php", "l2tp"),
+                ("https://ipspeed.info/free-sstp.php", "sstp")
             ]:
                 r = scraper.get(url, timeout=10)
                 if r.status_code == 200:
