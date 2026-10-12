@@ -47,6 +47,7 @@ import com.zvpn.domain.model.ThemeMode
 import com.zvpn.domain.model.TrafficTileSize
 import com.zvpn.shared.resources.Res
 import com.zvpn.shared.resources.*
+import org.jetbrains.compose.resources.painterResource
 import com.zvpn.ui.theme.ThemeProfiles
 import com.zvpn.ui.theme.applyThemeProfile
 import org.jetbrains.compose.resources.stringResource
@@ -343,11 +344,10 @@ private fun TourOfferStep() {
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                "Z",
-                style = MaterialTheme.typography.displayLargeEmphasized,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
+            androidx.compose.foundation.Image(
+                painter = painterResource(Res.drawable.logo_connected),
+                contentDescription = "ZVPN Brand Logo",
+                modifier = Modifier.size(72.dp)
             )
             Spacer(Modifier.height(8.dp))
             Text(
