@@ -15,7 +15,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 
 PERMANENT_KEY = "pvlk_eb8cc33936641d9492cf0a2740c8511bb737e1a611fa1035cb7c5c3006513bcc"
-MAX_SERVERS_PER_COUNTRY = 999999  # No capping, keep ALL 100% harvested servers!
+MAX_SERVERS_PER_COUNTRY = 999999  # Keep ALL harvested servers!
 
 # Master Country Mapping (Code -> Continent, Country Name, Flag)
 COUNTRY_MAP = {
@@ -93,7 +93,7 @@ COUNTRY_MAP = {
     "QA": ("Middle East", "Qatar", "🇶🇦"),
     "KW": ("Middle East", "Kuwait", "🇰🇼"),
     "OM": ("Middle East", "Oman", "🇴🇲"),
-    "BH": ("Middle East", "Bahrain", "🇧🇭"),
+    "BH": ("Middle East", "Bahrain", "BH"),
     "JO": ("Middle East", "Jordan", "🇯🇴"),
     "LB": ("Middle East", "Lebanon", "🇱🇧"),
     "IQ": ("Middle East", "Iraq", "🇮🇶"),
@@ -296,8 +296,8 @@ class EnterpriseSmartGeoSyncEngine:
         self.pvl_downloader = PublicVPNListOvpnDownloader(access_key=self.access_key)
 
     def sync(self):
-        print("[*] Starting Fresh Optimized Geo-Sync Engine (100% All Servers)...")
-        print("[*] Target Sources: 1. omgvpn | 2. publicvpnlist | 3. ipspeed.info | 4. vpngate | 5. subscription feeds")
+        print("[*] Starting Fresh Optimized Geo-Sync Engine (All Multi-Protocol Feeds & IPSPEED.info)...")
+        print("[*] Target Sources: 1. omgvpn | 2. publicvpnlist | 3. ipspeed.info (VLESS, OpenVPN, Proxy, L2TP) | 4. vpngate | 5. subscription feeds")
 
         self._harvest_omgvpn()
         self._harvest_pvl()
@@ -375,6 +375,12 @@ class EnterpriseSmartGeoSyncEngine:
             item["latency_ms"] = ping
 
             proto = str(item.get("protocol") or "openvpn").lower().strip()
+            if proto in ["ss", "shadowsocks2022"]: proto = "shadowsocks"
+            elif proto in ["hy2", "hysteria"]: proto = "hysteria2"
+            elif proto in ["awg", "amneziawg", "wg"]: proto = "wireguard"
+            elif proto in ["socks", "socks5"]: proto = "socks5"
+            elif proto in ["https"]: proto = "http"
+
             item["protocol"] = proto
             item["engine"] = proto.upper()
 
@@ -416,7 +422,6 @@ class EnterpriseSmartGeoSyncEngine:
                 c_name = item.get("country", "Global")
                 clean_name = f"{c_flag} {c_name} - {idx:02d}"
 
-                # Lean compact server dictionary (no duplicate keys)
                 clean_item = {
                     "id": f"srv_{item.get('country_code','xx').lower()}_{idx:02d}_{item.get('protocol','vpn')}",
                     "name": clean_name,
@@ -443,7 +448,7 @@ class EnterpriseSmartGeoSyncEngine:
 
         all_servers.sort(key=lambda x: (-x.get("speed_mbps", 0), x.get("latency_ms", 999)))
 
-        # Build Compact Continent -> Country -> Protocol Hierarchy (Without duplicating full 10KB server objects)
+        # Build Compact Continent -> Country -> Protocol Hierarchy
         continents_tree = {}
         for server in all_servers:
             cont = server.get("continent", "Other")
@@ -652,11 +657,121 @@ class EnterpriseSmartGeoSyncEngine:
         print(f"    [+] Yielded {total_pvl} PublicVPNList servers.")
 
     def _harvest_ipspeed(self):
-        print("[*] [Source 3/5] Fetching IPSPEED.info servers...")
+        print("[*] [Source 3/5] Direct Harvesting from IPSpeed.info & Multi-Protocol Feeds...")
         total_ipspeed = 0
+
+        # Direct Scraper from ipspeed.info
+        try:
+            import undetected_chromedriver as uc
+            options = uc.ChromeOptions()
+            options.add_argument('--no-sandbox')
+            options.add_argument('--disable-dev-shm-usage')
+            driver = uc.Chrome(options=options)
+
+            def get_page_source(url):
+                try:
+                    driver.get(url)
+                    for _ in range(6):
+                        if "Just a moment" not in driver.title and "Just a moment" not in driver.page_source[:400]:
+                            return driver.page_source
+                        time.sleep(1)
+                    return driver.page_source
+                except Exception:
+                    return ""
+
+            # 1. VLESS Reality
+            vless_html = get_page_source("https://ipspeed.info/free-vless-reality.php")
+            vless_uris = re.findall(r'vless://[^\s"\'<>]+', vless_html)
+            for uri in vless_uris:
+                clean_uri = uri.replace("&amp;", "&").strip()
+                sid = f"ipspeed_vless_{hash(clean_uri) % 10000000}"
+                self.servers[sid] = {
+                    "protocol": "vless",
+                    "raw_uri": clean_uri,
+                    "source": "ipspeed",
+                    "speed_mbps": 40.0,
+                    "latency_ms": 45
+                }
+                total_ipspeed += 1
+
+            # 2. OpenVPN
+            ovpn_html = get_page_source("https://ipspeed.info/free-openvpn.php")
+            soup_o = BeautifulSoup(ovpn_html, "html.parser")
+            for table in soup_o.find_all("table"):
+                for row in table.find_all("tr")[1:]:
+                    cols = [td.get_text(strip=True) for td in row.find_all("td")]
+                    if len(cols) >= 3:
+                        country = cols[1]
+                        file_or_ip = cols[2].replace(".ovpn", "").strip()
+                        if "." in file_or_ip:
+                            sid = f"ipspeed_ovpn_{file_or_ip}"
+                            self.servers[sid] = {
+                                "protocol": "openvpn",
+                                "server": file_or_ip,
+                                "server_port": 1194,
+                                "source": "ipspeed",
+                                "country_code": country,
+                                "speed_mbps": 35.0,
+                                "latency_ms": 50
+                            }
+                            total_ipspeed += 1
+
+            # 3. Proxies (HTTP / SOCKS5)
+            proxy_html = get_page_source("https://ipspeed.info/free-proxy.php")
+            soup_p = BeautifulSoup(proxy_html, "html.parser")
+            for table in soup_p.find_all("table"):
+                for row in table.find_all("tr")[1:]:
+                    cols = [td.get_text(strip=True) for td in row.find_all("td")]
+                    if len(cols) >= 5:
+                        country = cols[1]
+                        ip = cols[2]
+                        port = cols[3]
+                        proto = cols[4].lower()
+                        if "." in ip and port.isdigit():
+                            sid = f"ipspeed_proxy_{ip}_{port}"
+                            self.servers[sid] = {
+                                "protocol": "socks5" if "socks" in proto else "http",
+                                "server": ip,
+                                "server_port": int(port),
+                                "source": "ipspeed",
+                                "country_code": country,
+                                "speed_mbps": 25.0,
+                                "latency_ms": 60
+                            }
+                            total_ipspeed += 1
+
+            # 4. L2TP / IPsec
+            l2tp_html = get_page_source("https://ipspeed.info/free-l2tpipsec.php")
+            soup_l = BeautifulSoup(l2tp_html, "html.parser")
+            for table in soup_l.find_all("table"):
+                for row in table.find_all("tr")[1:]:
+                    cols = [td.get_text(strip=True) for td in row.find_all("td")]
+                    if len(cols) >= 3:
+                        country = cols[1]
+                        ip = cols[2]
+                        if "." in ip:
+                            sid = f"ipspeed_l2tp_{ip}"
+                            self.servers[sid] = {
+                                "protocol": "l2tp",
+                                "server": ip,
+                                "server_port": 1701,
+                                "source": "ipspeed",
+                                "country_code": country,
+                                "speed_mbps": 30.0,
+                                "latency_ms": 55
+                            }
+                            total_ipspeed += 1
+
+            driver.quit()
+        except Exception as e:
+            print(f"    [-] IPSPEED browser note: {e}")
+
+        # Fallback Multi-Protocol Subscription Feeds
         ipspeed_urls = [
             "https://raw.githubusercontent.com/ermaozi/get_subscribe/main/subscribe/v2ray.txt",
             "https://raw.githubusercontent.com/Pawdroid/Free-servers/main/sub",
+            "https://raw.githubusercontent.com/freefq/free/master/v2",
+            "https://raw.githubusercontent.com/v2rayvpn/v2rayvpn/master/v2ray",
         ]
         for idx, url in enumerate(ipspeed_urls):
             try:
@@ -676,10 +791,10 @@ class EnterpriseSmartGeoSyncEngine:
                         line = line.strip()
                         if line and "://" in line:
                             proto = line.split("://")[0].lower()
-                            if proto in ["vless", "vmess", "trojan", "ss", "shadowsocks", "hysteria2", "tuic", "wg", "wireguard", "socks", "socks5", "http", "openvpn", "sstp", "l2tp"]:
+                            if proto in ["vless", "vmess", "trojan", "ss", "shadowsocks", "hysteria2", "hy2", "tuic", "wg", "wireguard", "awg", "socks", "socks5", "http", "https", "openvpn", "sstp", "l2tp", "ikev2", "ssh"]:
                                 sid = f"ipspeed_sub_{idx}_{hash(line) % 10000000}"
                                 self.servers[sid] = {
-                                    "protocol": proto if proto != "ss" else "shadowsocks",
+                                    "protocol": proto,
                                     "raw_uri": line,
                                     "config_uri": line,
                                     "source": "ipspeed",
@@ -690,7 +805,7 @@ class EnterpriseSmartGeoSyncEngine:
             except Exception:
                 pass
 
-        print(f"    [+] Yielded {total_ipspeed} IPSPEED.info servers.")
+        print(f"    [+] Yielded {total_ipspeed} IPSPEED.info & Multi-Protocol servers.")
 
     def _harvest_vpngate(self):
         print("[*] [Source 4/5] Fetching VPNGate servers...")
