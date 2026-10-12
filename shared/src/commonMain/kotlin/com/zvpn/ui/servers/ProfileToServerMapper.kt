@@ -4,28 +4,41 @@ import com.zvpn.data.map.RegionResolver
 import com.zvpn.domain.config.VpnProfile
 
 object ProfileToServerMapper {
+
+    private const val UNKNOWN_CODE = "XX"
+    private const val GLOBAL = "Global"
+
+    // Everything after the first separator (" - ", " | ", " · ", "[tag]", "(note)") is not part of the country.
+    private val COUNTRY_SPLIT = Regex("""\s+[-–—|·•]\s+|\s*[\[(]""")
+    private val BRACKET_TAG = Regex("""\s*\[.*?]""")
+
+    // Whole-word matches only: "VIP", "Pro", "Plus" — but not "Proxy" or "Provider".
+    private val TIER_PLUS = Regex("""\b(?:vip|plus|premium\+)\b""", RegexOption.IGNORE_CASE)
+    private val TIER_PRO = Regex("""\b(?:pro|premium)\b""", RegexOption.IGNORE_CASE)
+
     fun map(profile: VpnProfile): PublicServer {
         val rawName = profile.name.trim()
-        val flagMatch = Regex("""^([\uD83C][\uDDE6-\uDDFF]{2})\s*""").find(rawName)
-        val extractedFlag = flagMatch?.groupValues?.get(1)
-        val nameWithoutFlag = if (extractedFlag != null) rawName.substring(flagMatch.range.last + 1).trim() else rawName
+        val (extractedFlag, nameWithoutFlag) = splitLeadingFlag(rawName)
 
-        val countryName = nameWithoutFlag.substringBefore(" -").trim().ifBlank { "Global" }
-        
+        val countryName = nameWithoutFlag.split(COUNTRY_SPLIT, limit = 2).first().trim().ifBlank { GLOBAL }
+
+        // Priority: explicit country code on the profile → code guessed from the name → unknown.
+        // (Unknown no longer silently becomes "US".)
         val cc = profile.countryCode?.uppercase()?.takeIf { it.length == 2 }
             ?: countryNameToCode(countryName)
-            ?: "US"
+            ?: UNKNOWN_CODE
 
-        val flagEmoji = extractedFlag ?: countryCodeToEmoji(cc)
-        val continent = RegionResolver.resolve(cc)
+        val known = cc != UNKNOWN_CODE
+        val flagEmoji = extractedFlag ?: if (known) countryCodeToEmoji(cc) else "🌐"
+        val continent = if (known) RegionResolver.resolve(cc) else GLOBAL
 
         val tier = when {
-            profile.name.contains("VIP", true) || profile.name.contains("Plus", true) -> ServerTier.PremiumPlus
-            profile.name.contains("PRO", true) || profile.name.contains("Premium", true) -> ServerTier.Premium
+            TIER_PLUS.containsMatchIn(rawName) -> ServerTier.PremiumPlus
+            TIER_PRO.containsMatchIn(rawName) -> ServerTier.Premium
             else -> ServerTier.Free
         }
 
-        val cleanDisplayName = profile.name.replace(Regex("""\s*\[.*?]"""), "").trim()
+        val cleanDisplayName = nameWithoutFlag.replace(BRACKET_TAG, "").trim().ifBlank { rawName }
 
         return PublicServer(
             id = profile.id,
@@ -35,52 +48,103 @@ object ProfileToServerMapper {
             flag = flagEmoji,
             protocolLabel = profile.protocol.uppercase(),
             speedMbps = 35.0f,
-            latencyMs = profile.lastPingMs,
+            // A failed test is stored as a negative number; it must not look like "the fastest server".
+            latencyMs = profile.lastPingMs?.takeIf { it > 0 },
             tier = tier,
             continent = continent,
             profileUrl = "",
             configUri = profile.rawPayload() ?: "",
-            engine = profile.protocol.uppercase()
+            engine = profile.protocol.uppercase(),
         )
     }
 
-    private fun countryNameToCode(name: String): String? {
-        val n = name.lowercase()
-        return when {
-            "united states" in n || "us" in n -> "US"
-            "united kingdom" in n || "uk" in n || "britain" in n -> "GB"
-            "japan" in n -> "JP"
-            "south korea" in n || "korea" in n -> "KR"
-            "germany" in n -> "DE"
-            "france" in n -> "FR"
-            "canada" in n -> "CA"
-            "netherlands" in n -> "NL"
-            "singapore" in n -> "SG"
-            "australia" in n -> "AU"
-            "vietnam" in n -> "VN"
-            "turkey" in n -> "TR"
-            "switzerland" in n -> "CH"
-            "sweden" in n -> "SE"
-            "poland" in n -> "PL"
-            "brazil" in n -> "BR"
-            "india" in n -> "IN"
-            "indonesia" in n -> "ID"
-            "china" in n || "hong kong" in n -> "HK"
-            "taiwan" in n -> "TW"
-            "russia" in n -> "RU"
-            "italy" in n -> "IT"
-            "spain" in n -> "ES"
-            "finland" in n -> "FI"
-            "norway" in n -> "NO"
-            "denmark" in n -> "DK"
-            else -> null
+    /**
+     * A flag emoji is two regional-indicator code points = 4 UTF-16 chars:
+     * D83C DDE6..DDFF, D83C DDE6..DDFF. Returns (flag, restOfName).
+     */
+    private fun splitLeadingFlag(name: String): Pair<String?, String> {
+        if (name.length >= 4 &&
+            name[0] == '\uD83C' && name[2] == '\uD83C' &&
+            name[1] in '\uDDE6'..'\uDDFF' && name[3] in '\uDDE6'..'\uDDFF'
+        ) {
+            return name.substring(0, 4) to name.substring(4).trim()
         }
+        return null to name
     }
 
+    // Order matters: more specific names first ("hong kong" before "china", "north korea" before "korea").
+    private val COUNTRY_ALIASES: List<Pair<Regex, String>> = listOf(
+        "united states|usa|us|america" to "US",
+        "united kingdom|uk|britain|england" to "GB",
+        "united arab emirates|uae|dubai" to "AE",
+        "hong kong" to "HK",
+        "north korea" to "KP",
+        "south korea|korea" to "KR",
+        "south africa" to "ZA",
+        "new zealand" to "NZ",
+        "czech republic|czechia" to "CZ",
+        "saudi arabia" to "SA",
+        "china" to "CN",
+        "japan" to "JP",
+        "germany" to "DE",
+        "france" to "FR",
+        "canada" to "CA",
+        "netherlands|holland" to "NL",
+        "singapore" to "SG",
+        "australia" to "AU",
+        "vietnam" to "VN",
+        "turkey|türkiye|turkiye" to "TR",
+        "switzerland" to "CH",
+        "sweden" to "SE",
+        "poland" to "PL",
+        "brazil" to "BR",
+        "india" to "IN",
+        "indonesia" to "ID",
+        "taiwan" to "TW",
+        "russia" to "RU",
+        "ukraine" to "UA",
+        "italy" to "IT",
+        "spain" to "ES",
+        "portugal" to "PT",
+        "finland" to "FI",
+        "norway" to "NO",
+        "denmark" to "DK",
+        "ireland" to "IE",
+        "austria" to "AT",
+        "belgium" to "BE",
+        "romania" to "RO",
+        "bulgaria" to "BG",
+        "hungary" to "HU",
+        "greece" to "GR",
+        "latvia" to "LV",
+        "lithuania" to "LT",
+        "estonia" to "EE",
+        "luxembourg" to "LU",
+        "israel" to "IL",
+        "iran" to "IR",
+        "iraq" to "IQ",
+        "egypt" to "EG",
+        "mexico" to "MX",
+        "argentina" to "AR",
+        "chile" to "CL",
+        "thailand" to "TH",
+        "malaysia" to "MY",
+        "philippines" to "PH",
+        "pakistan" to "PK",
+        "kazakhstan" to "KZ",
+    ).map { (names, code) -> Regex("""\b(?:$names)\b""", RegexOption.IGNORE_CASE) to code }
+
+    private fun countryNameToCode(name: String): String? =
+        COUNTRY_ALIASES.firstOrNull { (regex, _) -> regex.containsMatchIn(name) }?.second
+
+    /** Common-code friendly (no java.lang.Character): regional indicators are D83C DDE6 + (letter - 'A'). */
     private fun countryCodeToEmoji(cc: String): String {
-        if (cc.length != 2) return "🌐"
-        val firstChar = Character.codePointAt(cc, 0) - 0x41 + 0x1F1E6
-        val secondChar = Character.codePointAt(cc, 1) - 0x41 + 0x1F1E6
-        return String(intArrayOf(firstChar, secondChar), 0, 2)
+        if (cc.length != 2 || cc.any { it !in 'A'..'Z' }) return "🌐"
+        return buildString {
+            cc.forEach { ch ->
+                append('\uD83C')
+                append((0xDDE6 + (ch - 'A')).toChar())
+            }
+        }
     }
 }

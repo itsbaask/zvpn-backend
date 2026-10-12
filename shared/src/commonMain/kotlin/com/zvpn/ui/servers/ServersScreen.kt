@@ -6,18 +6,15 @@
 
 package com.zvpn.ui.servers
 
-import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,26 +22,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import sh.calvin.reorderable.ReorderableItem
-import sh.calvin.reorderable.rememberReorderableLazyGridState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Button
 import androidx.compose.material3.ModalBottomSheet
@@ -62,9 +46,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.ui.Modifier
@@ -73,14 +55,11 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -88,34 +67,50 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zvpn.shared.resources.Res
 import com.zvpn.shared.resources.*
 import com.zvpn.data.config.ConfigRepository
-import com.zvpn.data.net.GeoLookup
 import com.zvpn.data.net.PingCoordinator
 import com.zvpn.data.net.PingService
 import com.zvpn.core.AutoSelect
 import com.zvpn.domain.config.AutoSelectIds
 import com.zvpn.domain.config.ConfigParseException
-import com.zvpn.domain.config.ConfigParser
 import com.zvpn.domain.config.VpnProfile
 import com.zvpn.ui.onboarding.TourTargets
 import com.zvpn.ui.onboarding.tourTarget
 import com.zvpn.ui.platform.LocalPlatform
-import com.zvpn.ui.format.formatBytes
-import com.zvpn.ui.components.MorphingBlob
 import com.zvpn.ui.components.PageHeader
 import com.zvpn.ui.theme.Personalization
-import com.zvpn.ui.theme.readableOn
-import com.zvpn.ui.theme.ZGradients
-import com.zvpn.ui.theme.pingColor
-import com.zvpn.ui.theme.ZLime
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.zvpn.ui.platform.mouseDragScroll
-import com.zvpn.ui.platform.onSecondaryClick
-import com.zvpn.ui.platform.GridScrollbar
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.ui.draw.clip
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ripple
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.style.TextAlign
+import com.zvpn.ui.components.MorphingBlob
+import com.zvpn.ui.platform.onSecondaryClick
+import com.zvpn.ui.theme.ZGradients
+import org.jetbrains.compose.resources.DrawableResource
 
 @Composable
 fun ServersScreen(
@@ -298,13 +293,11 @@ fun ServersScreen(
     var renameTarget by remember { mutableStateOf<VpnProfile?>(null) }
     var deleteTarget by remember { mutableStateOf<VpnProfile?>(null) }
     var updating by remember { mutableStateOf(false) }
-    var pingMenu by remember { mutableStateOf(false) }
 
     val pingProgress by PingCoordinator.progress.collectAsStateWithLifecycle()
     val testing = pingProgress != null
 
     var showRealDelayNote by remember { mutableStateOf(false) }
-    var overflowOpen by remember { mutableStateOf(false) }
     var confirmDeleteAll by remember { mutableStateOf(false) }
 
     var confirmDeleteInvalid by remember { mutableStateOf<Int?>(null) }
@@ -328,12 +321,12 @@ fun ServersScreen(
 
     val chainCandidates = servers.filter {
         it.rawPayload() != null && (!it.isCustom || it.isServerless) && !it.isManagedTunnel && !it.isProxyChain &&
-            !it.isSingBoxConfig
+                !it.isSingBoxConfig
     }
 
     val spoofCandidates = servers.filter {
         it.rawPayload() != null && !it.isManagedTunnel && !it.isProxyChain &&
-            !it.isCrossChain && !it.isSniSpoof
+                !it.isCrossChain && !it.isSniSpoof
     }
     val crossCarriers = servers.filter { it.canCarryChain && !it.isCrossChain }
     val crossExits = servers.filter { it.canDialThroughProxy && !it.isCrossChain }
@@ -380,7 +373,7 @@ fun ServersScreen(
         }
     }
 
-    androidx.compose.runtime.LaunchedEffect(activeId, subscriptions.size, showAllGroup) {
+    LaunchedEffect(activeId, subscriptions.size, showAllGroup) {
         groupIndex = activeGroupIndex()
     }
 
@@ -416,7 +409,7 @@ fun ServersScreen(
     var confirmDeleteSelection by remember { mutableStateOf(false) }
     val shownIds = shown.map { it.id }
 
-    androidx.compose.runtime.LaunchedEffect(shownIds) {
+    LaunchedEffect(shownIds) {
         if (selecting) selected = selected.intersect(shownIds.toSet())
     }
     var showAutoSheet by remember { mutableStateOf(false) }
@@ -427,6 +420,52 @@ fun ServersScreen(
             live = autoLive,
             onDismiss = { showAutoSheet = false },
         )
+    }
+
+    // ── Shared actions (previously duplicated inline) ──────────────────────
+
+    fun startPing(real: Boolean) {
+        PingCoordinator.start(
+            profiles = shown,
+            useRealDelay = real,
+            concurrency = realPingConcurrency,
+            delayUrl = delayTestUrl,
+            chainConfig = repository::chainProbeConfig,
+
+            clearPings = { repository.clearPings(it, persist = false) },
+            onResult = { id, ms, cc -> repository.setPing(id, ms, cc, persist = false) },
+            flush = { repository.flushProfiles() },
+
+            onFinished = { if (autoSortAfterTest) repository.sortByTestResults() },
+        )
+    }
+
+    fun updateAll() {
+        if (updating) return
+        updating = true
+        scope.launch(kotlinx.coroutines.Dispatchers.Default) {
+            val sysN = repository.syncSystemBackendServers(force = true).getOrDefault(0)
+            val subN = repository.updateAllSubscriptions()
+            val totalN = if (sysN > 0) sysN else subN
+            if (autoTestAfterUpdate) {
+                val all = repository.profiles.value
+                repository.clearPings(all.map { it.id }, persist = false)
+                PingService.measureAll(
+                    all,
+                    useRealDelay = true,
+                    concurrency = realPingConcurrency,
+                    delayUrl = delayTestUrl,
+                    chainConfig = repository::chainProbeConfig,
+                ) { id, ms, cc ->
+                    repository.setPing(id, ms, cc, persist = false)
+                }
+                repository.flushProfiles()
+                if (autoRemoveInvalidAfterTest) repository.removeInvalid()
+                if (autoSortAfterTest) repository.sortByTestResults()
+            }
+            updating = false
+            toastRes(Res.string.subs_updated, totalN)
+        }
     }
 
     if (showRealDelayNote) {
@@ -444,8 +483,7 @@ fun ServersScreen(
                     stringResource(Res.string.real_delay_note_body),
 
                     textAlign = androidx.compose.ui.text.style.TextAlign.Start,
-                    lineHeight = androidx.compose.material3.MaterialTheme.typography.bodyMedium
-                        .fontSize * 1.55f,
+                    lineHeight = MaterialTheme.typography.bodyMedium.fontSize * 1.55f,
                     modifier = Modifier.fillMaxWidth(),
                 )
             },
@@ -455,8 +493,10 @@ fun ServersScreen(
     Box(modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
             Spacer(Modifier.height(8.dp))
+
+            // ── Header: title + one compact action pill ───────────────────
             Row(
-                Modifier.fillMaxWidth().padding(end = 14.dp),
+                Modifier.fillMaxWidth().padding(end = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(Modifier.weight(1f)) {
@@ -468,258 +508,96 @@ fun ServersScreen(
                         singleLine = true,
                     )
                 }
-                Box {
-                    IconButton(
-                        enabled = !testing,
-                        onClick = { pingMenu = true },
-                        modifier = Modifier.tourTarget(TourTargets.SERVERS_PING),
-                    ) {
-                        Icon(
-                            painterResource(Res.drawable.ic_speed),
-                            contentDescription = stringResource(Res.string.ping_test),
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = pingMenu,
-                        onDismissRequest = { pingMenu = false },
-                        shape = MaterialTheme.shapes.largeIncreased,
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(Res.string.ping_tcp_all)) },
-                            onClick = {
-                                pingMenu = false
-
-                                PingCoordinator.start(
-                                    profiles = shown,
-                                    useRealDelay = false,
-                                    concurrency = realPingConcurrency,
-                                    delayUrl = delayTestUrl,
-                                    chainConfig = repository::chainProbeConfig,
-
-                                    clearPings = { repository.clearPings(it, persist = false) },
-                                    onResult = { id, ms, cc -> repository.setPing(id, ms, cc, persist = false) },
-                                    flush = { repository.flushProfiles() },
-
-                                    onFinished = { if (autoSortAfterTest) repository.sortByTestResults() },
-                                )
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(Res.string.ping_real_all)) },
-                            onClick = {
-                                pingMenu = false
-                                PingCoordinator.start(
-                                    profiles = shown,
-                                    useRealDelay = true,
-                                    concurrency = realPingConcurrency,
-                                    delayUrl = delayTestUrl,
-                                    chainConfig = repository::chainProbeConfig,
-
-                                    clearPings = { repository.clearPings(it, persist = false) },
-                                    onResult = { id, ms, cc -> repository.setPing(id, ms, cc, persist = false) },
-                                    flush = { repository.flushProfiles() },
-
-                                    onFinished = { if (autoSortAfterTest) repository.sortByTestResults() },
-                                )
-                            },
-                        )
-                    }
-                }
-
-                if (testing) {
-                    IconButton(onClick = { PingCoordinator.cancel() }) {
-                        Icon(
-                            painterResource(Res.drawable.ic_close),
-                            contentDescription = stringResource(Res.string.ping_stop),
-                        )
-                    }
-                }
-
-                if (updating) {
-                    Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                    }
-                } else {
-                    IconButton(
+                ServersActionBar(
+                    testing = testing,
+                    updating = updating,
+                    onPingTcp = { startPing(real = false) },
+                    onPingReal = { startPing(real = true) },
+                    onStopPing = { PingCoordinator.cancel() },
+                    onSubscriptions = { showSubs = true },
+                ) { dismiss ->
+                    DropdownMenuItem(
+                        text = { Text(stringResource(Res.string.real_delay_note_title)) },
+                        leadingIcon = { Icon(painterResource(Res.drawable.ic_info), null) },
                         onClick = {
-                            updating = true
-                            scope.launch(kotlinx.coroutines.Dispatchers.Default) {
-                                val sysN = repository.syncSystemBackendServers(force = true).getOrDefault(0)
-                                val subN = repository.updateAllSubscriptions()
-                                val totalN = if (sysN > 0) sysN else subN
-                                if (autoTestAfterUpdate) {
-                                    val all = repository.profiles.value
-                                    repository.clearPings(all.map { it.id }, persist = false)
-                                    PingService.measureAll(
-                                        all,
-                                        useRealDelay = true,
-                                        concurrency = realPingConcurrency,
-                                        delayUrl = delayTestUrl,
-                                        chainConfig = repository::chainProbeConfig,
-                                    ) { id, ms, cc ->
-                                        repository.setPing(id, ms, cc, persist = false)
-                                    }
-                                    repository.flushProfiles()
-                                    if (autoRemoveInvalidAfterTest) repository.removeInvalid()
-                                    if (autoSortAfterTest) repository.sortByTestResults()
-                                }
-                                updating = false
-                                toastRes(Res.string.subs_updated, totalN)
+                            dismiss()
+                            showRealDelayNote = true
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(Res.string.subs_update_all)) },
+                        leadingIcon = { Icon(painterResource(Res.drawable.ic_sync), null) },
+                        enabled = !updating,
+                        onClick = {
+                            dismiss()
+                            updateAll()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(Res.string.select_multiple)) },
+                        leadingIcon = { Icon(painterResource(Res.drawable.ic_check_circle), null) },
+                        enabled = shown.isNotEmpty(),
+                        onClick = {
+                            dismiss()
+                            selecting = true
+                            selected = emptySet()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(Res.string.sort_by_results)) },
+                        leadingIcon = { Icon(painterResource(Res.drawable.ic_tune), null) },
+                        onClick = {
+                            dismiss()
+                            repository.sortByTestResults()
+                        },
+                    )
+                    HorizontalDivider()
+                    DropdownMenuItem(
+                        text = { Text(stringResource(Res.string.del_duplicates)) },
+                        leadingIcon = { Icon(painterResource(Res.drawable.ic_delete), null) },
+                        onClick = {
+                            dismiss()
+                            val n = repository.removeDuplicates()
+                            toastRes(Res.string.removed_count, n)
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(Res.string.del_invalid)) },
+                        leadingIcon = { Icon(painterResource(Res.drawable.ic_delete), null) },
+                        onClick = {
+                            dismiss()
+                            confirmDeleteInvalid = repository.invalidCount()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(Res.string.export_all)) },
+                        leadingIcon = { Icon(painterResource(Res.drawable.ic_ios_share), null) },
+                        onClick = {
+                            dismiss()
+                            val payload = repository.exportAllPayloads()
+                            if (payload.isBlank()) {
+                                toastRes(Res.string.nothing_to_export)
+                            } else {
+                                platform.shareText(payload)
                             }
-                        }
-                    ) {
-                        Icon(
-                            painterResource(Res.drawable.ic_sync),
-                            contentDescription = stringResource(Res.string.subs_update_all),
-                        )
-                    }
-                }
-                IconButton(onClick = { showRealDelayNote = true }) {
-                    Icon(
-                        painterResource(Res.drawable.ic_info),
-                        contentDescription = stringResource(Res.string.real_delay_note_title),
+                        },
                     )
-                }
-                IconButton(
-                    onClick = { showSubs = true },
-                    modifier = Modifier.tourTarget(TourTargets.SERVERS_SUBS),
-                ) {
-                    Icon(
-                        painterResource(Res.drawable.ic_add_link),
-                        contentDescription = stringResource(Res.string.subs_title),
+                    DropdownMenuItem(
+                        text = { Text(stringResource(Res.string.del_all)) },
+                        leadingIcon = { Icon(painterResource(Res.drawable.ic_delete), null) },
+                        onClick = {
+                            dismiss()
+                            confirmDeleteAll = true
+                        },
                     )
-                }
-                Box {
-                    IconButton(
-                        onClick = { overflowOpen = true },
-                        modifier = Modifier.tourTarget(TourTargets.SERVERS_MORE),
-                    ) {
-                        Icon(
-                            painterResource(Res.drawable.ic_more_vert),
-                            contentDescription = stringResource(Res.string.servers_actions),
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = overflowOpen,
-                        onDismissRequest = { overflowOpen = false },
-                        shape = MaterialTheme.shapes.largeIncreased,
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(Res.string.subs_update_all)) },
-                            leadingIcon = { Icon(painterResource(Res.drawable.ic_schedule), null) },
-                            enabled = !updating,
-                            onClick = {
-                                overflowOpen = false
-                                updating = true
-
-                                scope.launch(kotlinx.coroutines.Dispatchers.Default) {
-                                    val sysN = repository.syncSystemBackendServers(force = true).getOrDefault(0)
-                                    val subN = repository.updateAllSubscriptions()
-                                    val totalN = if (sysN > 0) sysN else subN
-
-                                    if (autoTestAfterUpdate) {
-                                        val all = repository.profiles.value
-                                        repository.clearPings(all.map { it.id }, persist = false)
-                                        PingService.measureAll(
-                                            all,
-                                            useRealDelay = true,
-                                            concurrency = realPingConcurrency,
-                                            delayUrl = delayTestUrl,
-                                            chainConfig = repository::chainProbeConfig,
-                                        ) { id, ms, cc ->
-                                            repository.setPing(id, ms, cc, persist = false)
-                                        }
-                                        repository.flushProfiles()
-                                        if (autoRemoveInvalidAfterTest) repository.removeInvalid()
-                                        if (autoSortAfterTest) repository.sortByTestResults()
-                                    }
-                                    updating = false
-                                    toastRes(Res.string.subs_updated, totalN)
-                                }
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(Res.string.select_multiple)) },
-                            leadingIcon = { Icon(painterResource(Res.drawable.ic_check_circle), null) },
-                            enabled = shown.isNotEmpty(),
-                            onClick = {
-                                overflowOpen = false
-                                selecting = true
-                                selected = emptySet()
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(Res.string.sort_by_results)) },
-                            leadingIcon = { Icon(painterResource(Res.drawable.ic_tune), null) },
-                            onClick = {
-                                overflowOpen = false
-                                repository.sortByTestResults()
-                            },
-                        )
-                        HorizontalDivider()
-                        DropdownMenuItem(
-                            text = { Text(stringResource(Res.string.del_duplicates)) },
-                            leadingIcon = { Icon(painterResource(Res.drawable.ic_delete), null) },
-                            onClick = {
-                                overflowOpen = false
-                                val n = repository.removeDuplicates()
-                                toastRes(Res.string.removed_count, n)
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(Res.string.del_invalid)) },
-                            leadingIcon = { Icon(painterResource(Res.drawable.ic_delete), null) },
-                            onClick = {
-                                overflowOpen = false
-
-                                confirmDeleteInvalid = repository.invalidCount()
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(Res.string.export_all)) },
-                            leadingIcon = { Icon(painterResource(Res.drawable.ic_ios_share), null) },
-                            onClick = {
-                                overflowOpen = false
-                                val payload = repository.exportAllPayloads()
-                                if (payload.isBlank()) {
-                                    toastRes(Res.string.nothing_to_export)
-                                } else {
-                                    platform.shareText(payload)
-                                }
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(Res.string.del_all)) },
-                            leadingIcon = { Icon(painterResource(Res.drawable.ic_delete), null) },
-                            onClick = {
-                                overflowOpen = false
-                                confirmDeleteAll = true
-                            },
-                        )
-                    }
                 }
             }
 
             pingProgress?.let { p ->
-                Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp)) {
-                    Text(
-                        stringResource(
-                            if (p.real) Res.string.ping_progress_real else Res.string.ping_progress_tcp,
-                            p.done,
-                            p.total,
-                        ),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    LinearProgressIndicator(
-
-                        progress = { if (p.total <= 0) 0f else (p.done.toFloat() / p.total).coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
+                PingProgressCard(done = p.done, total = p.total, real = p.real)
             }
 
+            // ── Group chips ───────────────────────────────────────────────
             if (subscriptions.isNotEmpty()) {
                 val counts = remember(servers) { servers.groupingBy { it.subscriptionId }.eachCount() }
 
@@ -728,14 +606,14 @@ fun ServersScreen(
                 val groupRow = androidx.compose.foundation.lazy.rememberLazyListState()
                 androidx.compose.foundation.lazy.LazyRow(
                     state = groupRow,
-                    contentPadding = PaddingValues(horizontal = 20.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth().tourTarget(TourTargets.SERVERS_GROUPS)
                         .mouseDragScroll(groupRow),
                 ) {
                     if (showAllGroup) {
                         item(key = "group-all") {
-                            GroupTab(
+                            GroupChip(
                                 label = stringResource(Res.string.group_all),
                                 count = servers.size,
                                 selected = groupIndex == 0,
@@ -744,7 +622,7 @@ fun ServersScreen(
                         }
                     }
                     item(key = "group-manual") {
-                        GroupTab(
+                        GroupChip(
                             label = stringResource(Res.string.group_manual),
                             count = counts[""] ?: 0,
                             selected = groupIndex == 1,
@@ -754,14 +632,14 @@ fun ServersScreen(
                     itemsIndexed(subscriptions, key = { _, sub -> sub.id }) { index, sub ->
                         var menuOpen by remember { mutableStateOf(false) }
                         Box {
-                            GroupTab(
+                            GroupChip(
                                 label = sub.name,
                                 count = counts[sub.id] ?: 0,
                                 selected = groupIndex == index + 2,
                                 onClick = { groupIndex = index + 2 },
                                 onMenu = { menuOpen = true },
                             )
-                            DropdownMenu(
+                            androidx.compose.material3.DropdownMenu(
                                 expanded = menuOpen,
                                 onDismissRequest = { menuOpen = false },
                                 shape = MaterialTheme.shapes.largeIncreased,
@@ -789,15 +667,16 @@ fun ServersScreen(
                 }
             }
 
+            // ── Multi-select bar ──────────────────────────────────────────
             androidx.compose.animation.AnimatedVisibility(visible = selecting) {
                 Surface(
                     color = MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    shape = MaterialTheme.shapes.large,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 ) {
                     Row(
-                        Modifier.fillMaxWidth().padding(start = 14.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                        Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
@@ -874,8 +753,10 @@ fun ServersScreen(
             }
 
             if (shown.isEmpty()) {
-                EmptyState(
-                    Modifier.fillMaxSize().then(groupSwipe)
+                ServersEmptyState(
+                    onAdd = { showAddSheet = true },
+                    onPaste = { importFromClipboard() },
+                    modifier = Modifier.fillMaxSize().then(groupSwipe)
                         .padding(bottom = contentPadding.calculateBottomPadding()),
                 )
             } else {
@@ -894,11 +775,13 @@ fun ServersScreen(
                     onLockedClick = { server ->
                         platform.toast(lockedCannotShare)
                     },
-                    modifier = Modifier.fillMaxSize().then(groupSwipe).padding(bottom = contentPadding.calculateBottomPadding())
+                    modifier = Modifier.fillMaxSize().then(groupSwipe)
+                        .padding(bottom = contentPadding.calculateBottomPadding()),
                 )
             }
         }
 
+        // ── Scrim behind the speed dial ───────────────────────────────────
         androidx.compose.animation.AnimatedVisibility(
             visible = fanOpen,
             enter = androidx.compose.animation.fadeIn(),
@@ -916,14 +799,15 @@ fun ServersScreen(
             )
         }
 
+        // ── FAB + speed dial (thumb zone, bottom-end) ─────────────────────
         Column(
             horizontalAlignment = Alignment.End,
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 20.dp, bottom = contentPadding.calculateBottomPadding() + 14.dp),
+                .padding(end = 16.dp, bottom = contentPadding.calculateBottomPadding() + 16.dp),
         ) {
-            SpeedDialAction(
+            SpeedDialItem(
                 visible = fanOpen,
                 delayMs = 90,
                 icon = Res.drawable.ic_edit,
@@ -932,7 +816,7 @@ fun ServersScreen(
                 fanOpen = false
                 showManual = true
             }
-            SpeedDialAction(
+            SpeedDialItem(
                 visible = fanOpen,
                 delayMs = 45,
                 icon = Res.drawable.ic_content_paste,
@@ -941,7 +825,7 @@ fun ServersScreen(
                 fanOpen = false
                 importFromClipboard()
             }
-            SpeedDialAction(
+            SpeedDialItem(
                 visible = fanOpen,
                 delayMs = 0,
                 icon = Res.drawable.ic_more_vert,
@@ -951,32 +835,12 @@ fun ServersScreen(
                 showAddSheet = true
             }
 
-            val rotation by androidx.compose.animation.core.animateFloatAsState(
-                if (fanOpen) 45f else 0f, label = "fabRotation",
+            AddServerFab(
+                fanOpen = fanOpen,
+                onClick = { showAddSheet = true },
+                onLongClick = { fanOpen = true },
+                modifier = Modifier.tourTarget(TourTargets.SERVERS_ADD),
             )
-            Surface(
-                shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                shadowElevation = 6.dp,
-                modifier = Modifier
-                    .size(56.dp)
-                    .tourTarget(TourTargets.SERVERS_ADD)
-                    .combinedClickable(
-                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                        indication = androidx.compose.material3.ripple(),
-                        onClick = { showAddSheet = true },
-                        onLongClick = { fanOpen = true },
-                    ),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        painterResource(Res.drawable.ic_add),
-                        stringResource(Res.string.servers_add),
-                        modifier = Modifier.graphicsLayer { rotationZ = rotation },
-                    )
-                }
-            }
         }
     }
 
@@ -1033,7 +897,7 @@ fun ServersScreen(
     }
 
     if (showAddSheet) {
-        AddServerSheet(
+        AddServerSheetPro(
             onDismiss = { showAddSheet = false },
             onPasteLink = {
                 showAddSheet = false
@@ -1453,7 +1317,7 @@ fun ServersScreen(
             else -> {
                 val parsed = remember(target.id) {
                     target.rawPayload()?.let { payload ->
-                        runCatching { ConfigParser.parse(payload) }.getOrNull()
+                        runCatching { com.zvpn.domain.config.ConfigParser.parse(payload) }.getOrNull()
                     }
                 }
                 if (parsed == null) {
@@ -1673,418 +1537,6 @@ fun ServersScreen(
 }
 
 @Composable
-private fun GroupTab(
-    label: String,
-    count: Int,
-    selected: Boolean,
-    onClick: () -> Unit,
-    onMenu: (() -> Unit)? = null,
-) {
-    Surface(
-        shape = RoundedCornerShape(50),
-        color = if (selected) MaterialTheme.colorScheme.primary
-        else MaterialTheme.colorScheme.surfaceContainerHighest,
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .combinedClickable(onClick = onClick, onLongClick = onMenu)
-            .then(if (onMenu != null) Modifier.onSecondaryClick(onMenu) else Modifier),
-    ) {
-        Text(
-            text = "$label  $count",
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = if (selected) MaterialTheme.colorScheme.onPrimary
-            else MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-        )
-    }
-}
-
-@Composable
-private fun ServerCard(
-    profile: VpnProfile,
-    active: Boolean,
-    subscriptionName: String?,
-    onClick: () -> Unit,
-    onShare: () -> Unit,
-    onShareQr: () -> Unit,
-
-    shareLink: String?,
-    onRename: () -> Unit,
-    onEdit: () -> Unit,
-
-    onMoveGroup: (() -> Unit)? = null,
-
-    selecting: Boolean = false,
-    isSelected: Boolean = false,
-    onPingTcp: () -> Unit,
-    onPingReal: () -> Unit,
-    onDelete: () -> Unit,
-    personalization: Personalization = Personalization.Default,
-    modifier: Modifier = Modifier,
-) {
-    var menuOpen by remember { mutableStateOf(false) }
-    val container = if (active) {
-        personalization.serverActiveColor ?: MaterialTheme.colorScheme.primaryContainer
-    } else {
-        personalization.serverCardColor ?: MaterialTheme.colorScheme.surfaceContainerHigh
-    }
-
-    val onContainer = when {
-        active && personalization.serverActiveColor != null -> personalization.serverActiveColor.readableOn()
-        !active && personalization.serverCardColor != null -> personalization.serverCardColor.readableOn()
-        else -> MaterialTheme.colorScheme.onSurface
-    }
-    val vPad = personalization.density.cardVerticalDp.dp
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(personalization.cornerStyle.serverCardDp.dp),
-        color = if (selecting && isSelected) MaterialTheme.colorScheme.secondaryContainer else container,
-        contentColor = if (selecting && isSelected) MaterialTheme.colorScheme.onSecondaryContainer else onContainer,
-
-        border = if (selecting && isSelected) {
-            androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-        } else {
-            null
-        },
-
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Row(
-            Modifier.fillMaxWidth().padding(start = 14.dp, end = 4.dp, top = vPad, bottom = vPad),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = profile.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = onContainer,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                val subtle = onContainer.copy(alpha = 0.72f)
-
-                Text(
-                    text = "🔒 " + stringResource(Res.string.privacy_encrypted_tunnel),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = subtle,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (personalization.showServerUsage && (profile.bytesDown > 0 || profile.bytesUp > 0)) {
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = stringResource(
-                            Res.string.servers_usage,
-                            formatBytes(profile.bytesDown),
-                            formatBytes(profile.bytesUp),
-                        ),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = subtle.copy(alpha = 0.6f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-            profile.lastPingMs?.takeIf { personalization.showServerPing }?.let { ping ->
-
-                Text(
-                    text = if (ping < 0) "$ping" else "$ping ms",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-
-                    color = pingColor(ping, container),
-                )
-                Spacer(Modifier.width(4.dp))
-            }
-            if (active) {
-                Icon(
-                    painterResource(Res.drawable.ic_check_circle),
-                    contentDescription = stringResource(Res.string.config_active),
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-            Box {
-                IconButton(onClick = { menuOpen = true }) {
-                    Icon(
-                        painterResource(Res.drawable.ic_more_vert),
-                        contentDescription = stringResource(Res.string.servers_actions),
-                    )
-                }
-                DropdownMenu(
-                    expanded = menuOpen,
-                    onDismissRequest = { menuOpen = false },
-                    shape = MaterialTheme.shapes.largeIncreased,
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(Res.string.action_share)) },
-                        leadingIcon = { Icon(painterResource(Res.drawable.ic_ios_share), null) },
-
-                        enabled = shareLink != null,
-                        onClick = { menuOpen = false; onShare() },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(Res.string.action_share_qr)) },
-                        leadingIcon = { Icon(painterResource(Res.drawable.ic_qr_code_2), null) },
-                        enabled = shareLink != null,
-                        onClick = { menuOpen = false; onShareQr() },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(Res.string.action_edit)) },
-                        leadingIcon = { Icon(painterResource(Res.drawable.ic_edit), null) },
-                        enabled = profile.isEditable,
-                        onClick = { menuOpen = false; onEdit() },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(Res.string.servers_rename)) },
-                        leadingIcon = { Icon(painterResource(Res.drawable.ic_description), null) },
-                        onClick = { menuOpen = false; onRename() },
-                    )
-                    onMoveGroup?.let { move ->
-                        DropdownMenuItem(
-                            text = { Text(stringResource(Res.string.groups_move)) },
-                            leadingIcon = { Icon(painterResource(Res.drawable.ic_add_link), null) },
-                            onClick = { menuOpen = false; move() },
-                        )
-                    }
-
-                    if ((!profile.isManagedTunnel || profile.isSingBoxConfig) && !profile.isDnsBasedTunnel) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(Res.string.ping_tcp)) },
-                            leadingIcon = { Icon(painterResource(Res.drawable.ic_speed), null) },
-                            onClick = { menuOpen = false; onPingTcp() },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(Res.string.ping_real)) },
-                            leadingIcon = { Icon(painterResource(Res.drawable.ic_bolt), null) },
-                            onClick = { menuOpen = false; onPingReal() },
-                        )
-                    }
-                    HorizontalDivider()
-                    DropdownMenuItem(
-                        text = { Text(stringResource(Res.string.action_delete)) },
-                        leadingIcon = { Icon(painterResource(Res.drawable.ic_delete), null) },
-                        onClick = { menuOpen = false; onDelete() },
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SpeedDialAction(
-    visible: Boolean,
-    delayMs: Int,
-    icon: DrawableResource,
-    label: String,
-    onClick: () -> Unit,
-) {
-    androidx.compose.animation.AnimatedVisibility(
-        visible = visible,
-        enter = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(200, delayMs)) +
-            androidx.compose.animation.scaleIn(
-                androidx.compose.animation.core.tween(200, delayMs),
-                initialScale = 0.6f,
-                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 0.5f),
-            ),
-        exit = androidx.compose.animation.fadeOut() +
-            androidx.compose.animation.scaleOut(targetScale = 0.6f),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Surface(
-                shape = MaterialTheme.shapes.small,
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                shadowElevation = 2.dp,
-            ) {
-                Text(
-                    label,
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                )
-            }
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                shadowElevation = 4.dp,
-                modifier = Modifier.size(44.dp).clickable(onClick = onClick),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(painterResource(icon), contentDescription = label, modifier = Modifier.size(22.dp))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AddServerSheet(
-    onDismiss: () -> Unit,
-    onPasteLink: () -> Unit,
-    onImportFile: () -> Unit,
-    onScanQr: () -> Unit,
-    onScanQrImage: () -> Unit,
-    onManual: () -> Unit,
-    onCustom: () -> Unit,
-    onPsiphon: () -> Unit,
-    onDnsTunnel: () -> Unit,
-    onMasterDns: () -> Unit,
-    onOpenConnect: () -> Unit,
-    onIkev2: () -> Unit,
-    onTor: () -> Unit,
-    onSsh: () -> Unit,
-    onSniSpoof: () -> Unit,
-    onProxyChain: () -> Unit,
-    onCrossChain: () -> Unit,
-    onSubscription: () -> Unit,
-) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = 26.dp),
-        ) {
-            Text(
-                stringResource(Res.string.servers_add),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp),
-            )
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.tertiaryContainer,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-            ) {
-                Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    FreeBadge()
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        stringResource(Res.string.add_free_hint),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer,
-                    )
-                }
-            }
-
-            OptionGroup(Res.string.add_group_import)
-            Option(Res.drawable.ic_content_paste, Res.string.servers_add_clipboard, onPasteLink)
-            Option(Res.drawable.ic_description, Res.string.servers_add_file, onImportFile)
-
-            if (LocalPlatform.current.supportsQrScan) {
-                Option(Res.drawable.ic_qr_code_2, Res.string.servers_add_scan_qr, onScanQr)
-            }
-            Option(Res.drawable.ic_add_link, Res.string.servers_add_scan_image, onScanQrImage)
-            Option(Res.drawable.ic_edit, Res.string.servers_add_manual, onManual)
-            Option(Res.drawable.ic_description, Res.string.servers_add_custom, onCustom)
-
-            OptionGroup(Res.string.add_group_tunnels)
-            Option(Res.drawable.ic_bolt, Res.string.psiphon_add_title, onPsiphon, free = true)
-            Option(Res.drawable.ic_lock, Res.string.tor_add_title, onTor, free = true)
-            Option(Res.drawable.ic_speed, Res.string.ssh_add_title, onSsh)
-            Option(Res.drawable.ic_bolt, Res.string.snispoof_add_title, onSniSpoof)
-
-            OptionGroup(Res.string.add_group_dns)
-            Option(Res.drawable.ic_public, Res.string.dns_tunnel_add_title, onDnsTunnel)
-            Option(Res.drawable.ic_public, Res.string.master_dns_add_title, onMasterDns)
-
-            OptionGroup(Res.string.add_group_vpn)
-            Option(Res.drawable.ic_lock, Res.string.openconnect_add_title, onOpenConnect)
-            Option(Res.drawable.ic_lock, Res.string.ikev2_add_title, onIkev2)
-
-            OptionGroup(Res.string.add_group_chains)
-            Option(Res.drawable.ic_add_link, Res.string.proxychain_add_title, onProxyChain)
-            Option(Res.drawable.ic_add_link, Res.string.crosschain_add_title, onCrossChain)
-
-            OptionGroup(Res.string.add_group_subscription)
-            Option(Res.drawable.ic_add_link, Res.string.subs_add, onSubscription)
-        }
-    }
-}
-
-@Composable
-private fun OptionGroup(labelRes: StringResource) {
-    Text(
-        stringResource(labelRes),
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 14.dp, bottom = 4.dp),
-    )
-}
-
-@Composable
-private fun Option(iconRes: DrawableResource, labelRes: StringResource, onClick: () -> Unit, free: Boolean = false) {
-    Surface(onClick = onClick, color = Color.Transparent, modifier = Modifier.fillMaxWidth()) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 15.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(painterResource(iconRes), null, tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.width(18.dp))
-            Text(stringResource(labelRes), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f, fill = false))
-            if (free) {
-                Spacer(Modifier.width(10.dp))
-                FreeBadge()
-            }
-        }
-    }
-}
-
-@Composable
-private fun FreeBadge() {
-    Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.tertiary) {
-        Text(
-            stringResource(Res.string.add_free_badge),
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onTertiary,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-        )
-    }
-}
-
-@Composable
-private fun EmptyState(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier.padding(horizontal = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        MorphingBlob(progress = 0.35f, brush = ZGradients.idle, modifier = Modifier.size(136.dp)) {
-            Icon(
-                painterResource(Res.drawable.ic_dns),
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(50.dp),
-            )
-        }
-        Spacer(Modifier.height(22.dp))
-        Text(
-            stringResource(Res.string.servers_empty_title),
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            stringResource(Res.string.servers_empty_body),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-    }
-}
-
-@Composable
 private fun RawJsonSheet(
     title: String,
     initial: String,
@@ -2105,15 +1557,15 @@ private fun RawJsonSheet(
     val lines = remember(text) { text.count { it == '\n' } + 1 }
 
     var saveError by remember { mutableStateOf<String?>(null) }
-    androidx.compose.runtime.LaunchedEffect(text) { saveError = null }
+    LaunchedEffect(text) { saveError = null }
 
     val usable = remember(text, flavour) {
         parsed.isSuccess && when (flavour) {
             JsonFlavour.Xray -> com.zvpn.domain.config.CustomConfig.looksLikeCustomJson(text) &&
-                (allowList || parsed.getOrNull() is kotlinx.serialization.json.JsonObject)
+                    (allowList || parsed.getOrNull() is kotlinx.serialization.json.JsonObject)
             JsonFlavour.SingBox ->
                 com.zvpn.domain.config.SingBoxJson.shapeOf(text) !=
-                    com.zvpn.domain.config.SingBoxJson.Shape.None
+                        com.zvpn.domain.config.SingBoxJson.Shape.None
         }
     }
 
@@ -2127,7 +1579,7 @@ private fun RawJsonSheet(
                 .fillMaxSize()
                 .imePadding()
                 .padding(start = 20.dp, end = 20.dp, bottom = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
 
@@ -2181,6 +1633,7 @@ private fun RawJsonSheet(
                 onValueChange = { text = it },
                 label = { Text(stringResource(Res.string.custom_json_hint)) },
                 textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                shape = RoundedCornerShape(16.dp),
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.None,
                     autoCorrectEnabled = false,
@@ -2193,8 +1646,8 @@ private fun RawJsonSheet(
             Button(
                 onClick = { saveError = onSave(text.trim()) },
                 enabled = usable,
-                shape = RoundedCornerShape(18.dp),
-                modifier = Modifier.fillMaxWidth().height(54.dp),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth().height(56.dp),
             ) {
                 Text(stringResource(Res.string.action_save), fontWeight = FontWeight.SemiBold)
             }
@@ -2210,3 +1663,630 @@ private object JsonEditor {
 }
 
 private data class OvpnPrompt(val text: String, val name: String)
+
+/*
+ * Design system used here (8-pt grid):
+ *  - spacing: 4 / 8 / 12 / 16 / 24 / 32
+ *  - radii:   chips = full, cards = 20, buttons / FAB = 16-20
+ *  - tap targets >= 48dp
+ *  - colour: neutral surfaces 90%, primary only for the one thing that matters
+ *  - shadows tinted with the primary colour (never pure black)
+ */
+
+// ───────────────────────────── 1. Header actions ─────────────────────────────
+
+/**
+ * Replaces the 6 loose IconButtons in the header with a single pill that
+ * holds only the 3 primary actions. Everything else lives in the overflow menu.
+ */
+@Composable
+internal fun ServersActionBar(
+    testing: Boolean,
+    updating: Boolean,
+    onPingTcp: () -> Unit,
+    onPingReal: () -> Unit,
+    onStopPing: () -> Unit,
+    onSubscriptions: () -> Unit,
+    modifier: Modifier = Modifier,
+    overflowContent: @Composable ColumnScope.(dismiss: () -> Unit) -> Unit,
+) {
+    var pingMenu by remember { mutableStateOf(false) }
+    var overflow by remember { mutableStateOf(false) }
+
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = modifier,
+    ) {
+        Row(
+            Modifier.padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (testing) {
+                IconButton(onClick = onStopPing) {
+                    Icon(
+                        painterResource(Res.drawable.ic_close),
+                        contentDescription = stringResource(Res.string.ping_stop),
+                        tint = MaterialTheme.colorScheme.error,
+                    )
+                }
+            } else {
+                Box {
+                    IconButton(
+                        onClick = { pingMenu = true },
+                        modifier = Modifier.tourTarget(TourTargets.SERVERS_PING),
+                    ) {
+                        Icon(
+                            painterResource(Res.drawable.ic_speed),
+                            contentDescription = stringResource(Res.string.ping_test),
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = pingMenu,
+                        onDismissRequest = { pingMenu = false },
+                        shape = MaterialTheme.shapes.largeIncreased,
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(Res.string.ping_tcp_all)) },
+                            leadingIcon = { Icon(painterResource(Res.drawable.ic_speed), null) },
+                            onClick = { pingMenu = false; onPingTcp() },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(Res.string.ping_real_all)) },
+                            leadingIcon = { Icon(painterResource(Res.drawable.ic_bolt), null) },
+                            onClick = { pingMenu = false; onPingReal() },
+                        )
+                    }
+                }
+            }
+
+            if (updating) {
+                Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                }
+            }
+
+            IconButton(
+                onClick = onSubscriptions,
+                modifier = Modifier.tourTarget(TourTargets.SERVERS_SUBS),
+            ) {
+                Icon(
+                    painterResource(Res.drawable.ic_add_link),
+                    contentDescription = stringResource(Res.string.subs_title),
+                )
+            }
+
+            Box {
+                IconButton(
+                    onClick = { overflow = true },
+                    modifier = Modifier.tourTarget(TourTargets.SERVERS_MORE),
+                ) {
+                    Icon(
+                        painterResource(Res.drawable.ic_more_vert),
+                        contentDescription = stringResource(Res.string.servers_actions),
+                    )
+                }
+                DropdownMenu(
+                    expanded = overflow,
+                    onDismissRequest = { overflow = false },
+                    shape = MaterialTheme.shapes.largeIncreased,
+                ) {
+                    overflowContent { overflow = false }
+                }
+            }
+        }
+    }
+}
+
+// ───────────────────────────── 2. Group chips ─────────────────────────────
+
+/** Replaces GroupTab: the count becomes a small badge so the label stays the hero. */
+@Composable
+internal fun GroupChip(
+    label: String,
+    count: Int,
+    selected: Boolean,
+    onClick: () -> Unit,
+    onMenu: (() -> Unit)? = null,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val container by animateColorAsState(
+        if (selected) scheme.primary else scheme.surfaceContainerHigh,
+        label = "chipContainer",
+    )
+    val content by animateColorAsState(
+        if (selected) scheme.onPrimary else scheme.onSurfaceVariant,
+        label = "chipContent",
+    )
+    Surface(
+        shape = CircleShape,
+        color = container,
+        contentColor = content,
+        border = if (selected) null else BorderStroke(1.dp, scheme.outlineVariant.copy(alpha = 0.5f)),
+        modifier = Modifier
+            .height(40.dp)
+            .clip(CircleShape)
+            .combinedClickable(onClick = onClick, onLongClick = onMenu)
+            .then(if (onMenu != null) Modifier.onSecondaryClick(onMenu) else Modifier),
+    ) {
+        Row(
+            Modifier.padding(start = 16.dp, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 144.dp),
+            )
+            Box(
+                Modifier
+                    .defaultMinSize(minWidth = 24.dp, minHeight = 24.dp)
+                    .background(content.copy(alpha = 0.14f), CircleShape)
+                    .padding(horizontal = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "$count",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+    }
+}
+
+// ───────────────────────────── 3. Ping progress ─────────────────────────────
+
+/** Replaces the bare text + progress bar with a compact card and percentage. */
+@Composable
+internal fun PingProgressCard(
+    done: Int,
+    total: Int,
+    real: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val target = if (total <= 0) 0f else (done.toFloat() / total).coerceIn(0f, 1f)
+    val progress by animateFloatAsState(target, label = "pingProgress")
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(
+                        if (real) Res.string.ping_progress_real else Res.string.ping_progress_tcp,
+                        done,
+                        total,
+                    ),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    "${(progress * 100).toInt()}%",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            LinearProgressIndicator(
+                progress = { progress },
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                strokeCap = StrokeCap.Round,
+                modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
+            )
+        }
+    }
+}
+
+// ───────────────────────────── 4. Empty state ─────────────────────────────
+
+/** Replaces EmptyState: an empty screen now has a clear next step (CTA). */
+@Composable
+internal fun ServersEmptyState(
+    onAdd: () -> Unit,
+    onPaste: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.padding(horizontal = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        MorphingBlob(progress = 0.35f, brush = ZGradients.idle, modifier = Modifier.size(136.dp)) {
+            Icon(
+                painterResource(Res.drawable.ic_dns),
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(48.dp),
+            )
+        }
+        Spacer(Modifier.height(24.dp))
+        Text(
+            stringResource(Res.string.servers_empty_title),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            stringResource(Res.string.servers_empty_body),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(32.dp))
+        Button(
+            onClick = onAdd,
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.widthIn(max = 320.dp).fillMaxWidth().height(56.dp),
+        ) {
+            Icon(painterResource(Res.drawable.ic_add), null, Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(Res.string.servers_add), fontWeight = FontWeight.SemiBold)
+        }
+        Spacer(Modifier.height(8.dp))
+        FilledTonalButton(
+            onClick = onPaste,
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.widthIn(max = 320.dp).fillMaxWidth().height(56.dp),
+        ) {
+            Icon(painterResource(Res.drawable.ic_content_paste), null, Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(Res.string.servers_add_clipboard), fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+// ───────────────────────────── 5. FAB + speed dial ─────────────────────────────
+
+/** Extended FAB with a label (clearer than a bare "+") and a primary-tinted shadow. */
+@Composable
+internal fun AddServerFab(
+    fanOpen: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(20.dp)
+    val rotation by animateFloatAsState(if (fanOpen) 45f else 0f, label = "fabRotation")
+    Surface(
+        shape = shape,
+        color = scheme.primaryContainer,
+        contentColor = scheme.onPrimaryContainer,
+        modifier = modifier
+            .height(56.dp)
+            .shadow(
+                elevation = 8.dp,
+                shape = shape,
+                ambientColor = scheme.primary.copy(alpha = 0.25f),
+                spotColor = scheme.primary.copy(alpha = 0.35f),
+            )
+            .clip(shape)
+            .combinedClickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(),
+                onClick = onClick,
+                onLongClick = onLongClick,
+            ),
+    ) {
+        Row(
+            Modifier.padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(
+                painterResource(Res.drawable.ic_add),
+                contentDescription = null,
+                modifier = Modifier.graphicsLayer { rotationZ = rotation },
+            )
+            Text(
+                stringResource(Res.string.servers_add),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
+}
+
+/** Replaces SpeedDialAction: 48dp tap target, same animation. */
+@Composable
+internal fun SpeedDialItem(
+    visible: Boolean,
+    delayMs: Int,
+    icon: DrawableResource,
+    label: String,
+    onClick: () -> Unit,
+) {
+    androidx.compose.animation.AnimatedVisibility(
+        visible = visible,
+        enter = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(200, delayMs)) +
+                androidx.compose.animation.scaleIn(
+                    androidx.compose.animation.core.tween(200, delayMs),
+                    initialScale = 0.6f,
+                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 0.5f),
+                ),
+        exit = androidx.compose.animation.fadeOut() +
+                androidx.compose.animation.scaleOut(targetScale = 0.6f),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                shadowElevation = 2.dp,
+            ) {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                )
+            }
+            Surface(
+                onClick = onClick,
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                shadowElevation = 4.dp,
+                modifier = Modifier.size(48.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(painterResource(icon), contentDescription = label, modifier = Modifier.size(24.dp))
+                }
+            }
+        }
+    }
+}
+
+// ───────────────────────────── 6. Add-server sheet ─────────────────────────────
+
+private data class SheetItem(
+    val icon: DrawableResource,
+    val label: StringResource,
+    val onClick: () -> Unit,
+    val free: Boolean = false,
+)
+
+/**
+ * Replaces AddServerSheet (same parameters).
+ * Top: the 3-4 most common actions as big tiles (thumb-friendly).
+ * Below: advanced protocols grouped inside rounded cards instead of one long flat list.
+ */
+@Composable
+internal fun AddServerSheetPro(
+    onDismiss: () -> Unit,
+    onPasteLink: () -> Unit,
+    onImportFile: () -> Unit,
+    onScanQr: () -> Unit,
+    onScanQrImage: () -> Unit,
+    onManual: () -> Unit,
+    onCustom: () -> Unit,
+    onPsiphon: () -> Unit,
+    onDnsTunnel: () -> Unit,
+    onMasterDns: () -> Unit,
+    onOpenConnect: () -> Unit,
+    onIkev2: () -> Unit,
+    onTor: () -> Unit,
+    onSsh: () -> Unit,
+    onSniSpoof: () -> Unit,
+    onProxyChain: () -> Unit,
+    onCrossChain: () -> Unit,
+    onSubscription: () -> Unit,
+) {
+    val supportsQr = LocalPlatform.current.supportsQrScan
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(start = 16.dp, end = 16.dp, bottom = 32.dp),
+        ) {
+            Text(
+                stringResource(Res.string.servers_add),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+            )
+
+            // Free hint banner
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            ) {
+                Row(
+                    Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    FreePill()
+                    Text(
+                        stringResource(Res.string.add_free_hint),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // Quick actions
+            Row(
+                Modifier.fillMaxWidth().height(IntrinsicSize.Max),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                QuickTile(Res.drawable.ic_content_paste, Res.string.servers_add_clipboard, onPasteLink, Modifier.weight(1f))
+                if (supportsQr) {
+                    QuickTile(Res.drawable.ic_qr_code_2, Res.string.servers_add_scan_qr, onScanQr, Modifier.weight(1f))
+                }
+                QuickTile(Res.drawable.ic_description, Res.string.servers_add_file, onImportFile, Modifier.weight(1f))
+                QuickTile(Res.drawable.ic_edit, Res.string.servers_add_manual, onManual, Modifier.weight(1f))
+            }
+
+            SheetSection(
+                Res.string.add_group_import,
+                listOf(
+                    SheetItem(Res.drawable.ic_add_link, Res.string.servers_add_scan_image, onScanQrImage),
+                    SheetItem(Res.drawable.ic_description, Res.string.servers_add_custom, onCustom),
+                ),
+            )
+            SheetSection(
+                Res.string.add_group_tunnels,
+                listOf(
+                    SheetItem(Res.drawable.ic_bolt, Res.string.psiphon_add_title, onPsiphon, free = true),
+                    SheetItem(Res.drawable.ic_lock, Res.string.tor_add_title, onTor, free = true),
+                    SheetItem(Res.drawable.ic_speed, Res.string.ssh_add_title, onSsh),
+                    SheetItem(Res.drawable.ic_bolt, Res.string.snispoof_add_title, onSniSpoof),
+                ),
+            )
+            SheetSection(
+                Res.string.add_group_dns,
+                listOf(
+                    SheetItem(Res.drawable.ic_public, Res.string.dns_tunnel_add_title, onDnsTunnel),
+                    SheetItem(Res.drawable.ic_public, Res.string.master_dns_add_title, onMasterDns),
+                ),
+            )
+            SheetSection(
+                Res.string.add_group_vpn,
+                listOf(
+                    SheetItem(Res.drawable.ic_lock, Res.string.openconnect_add_title, onOpenConnect),
+                    SheetItem(Res.drawable.ic_lock, Res.string.ikev2_add_title, onIkev2),
+                ),
+            )
+            SheetSection(
+                Res.string.add_group_chains,
+                listOf(
+                    SheetItem(Res.drawable.ic_add_link, Res.string.proxychain_add_title, onProxyChain),
+                    SheetItem(Res.drawable.ic_add_link, Res.string.crosschain_add_title, onCrossChain),
+                ),
+            )
+            SheetSection(
+                Res.string.add_group_subscription,
+                listOf(SheetItem(Res.drawable.ic_add_link, Res.string.subs_add, onSubscription)),
+            )
+        }
+    }
+}
+
+@Composable
+private fun QuickTile(
+    icon: DrawableResource,
+    label: StringResource,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        modifier = modifier.fillMaxHeight(),
+    ) {
+        Column(
+            Modifier.padding(horizontal = 8.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Box(
+                Modifier.size(40.dp).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(painterResource(icon), null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+            }
+            Text(
+                stringResource(label),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SheetSection(title: StringResource, items: List<SheetItem>) {
+    Text(
+        stringResource(title),
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 24.dp, bottom = 8.dp),
+    )
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column {
+            items.forEachIndexed { index, item ->
+                SheetRow(item)
+                if (index < items.lastIndex) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = 72.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SheetRow(item: SheetItem) {
+    Surface(onClick = item.onClick, color = Color.Transparent, modifier = Modifier.fillMaxWidth()) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier.size(40.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painterResource(item.icon),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Spacer(Modifier.width(16.dp))
+            Text(
+                stringResource(item.label),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            if (item.free) {
+                Spacer(Modifier.width(8.dp))
+                FreePill()
+            }
+        }
+    }
+}
+
+@Composable
+private fun FreePill() {
+    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.tertiary) {
+        Text(
+            stringResource(Res.string.add_free_badge),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onTertiary,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+        )
+    }
+}

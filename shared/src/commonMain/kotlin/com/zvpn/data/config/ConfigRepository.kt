@@ -1655,7 +1655,8 @@ class ConfigRepository(private val store: KeyValueStore) {
     }
 
     private fun persistProfiles() {
-        store.putString(KEY_PROFILES, json.encodeToString(_profiles.value))
+        val userProfilesOnly = _profiles.value.filterNot { it.isSystemBackend }
+        store.putString(KEY_PROFILES, json.encodeToString(userProfilesOnly))
     }
 
     private fun persistSubscriptions() {
