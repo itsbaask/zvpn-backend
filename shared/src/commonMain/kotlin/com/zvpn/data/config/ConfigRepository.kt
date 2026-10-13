@@ -28,6 +28,7 @@ import com.zvpn.domain.config.ProfileSource
 import com.zvpn.domain.config.OvpnConfig
 import com.zvpn.domain.config.Protocol
 import com.zvpn.domain.config.ServerConfig
+import com.zvpn.ui.servers.ProfileToServerMapper
 import com.zvpn.domain.config.SsdLink
 import com.zvpn.domain.config.SshLink
 import com.zvpn.domain.config.SingBoxJson
@@ -1070,7 +1071,9 @@ class ConfigRepository(private val store: KeyValueStore) {
             }
         }
         val remembered = lastAutoSelectPick(profile.id)?.takeIf { id -> members.any { it.id == id } }
-        val fastest = members.filter { (it.lastPingMs ?: -1) > 0 }.minByOrNull { it.lastPingMs!! }?.id
+        val publicMembers = members.map { ProfileToServerMapper.map(it) }
+        val optimalPublic = com.zvpn.domain.routing.SmartRoutingEngine.calculateOptimalServer(publicMembers)
+        val fastest = optimalPublic?.id ?: members.filter { (it.lastPingMs ?: -1) > 0 }.minByOrNull { it.lastPingMs!! }?.id
         return XrayJsonBuilder.buildAutoSelect(
             members = built,
             tuning = tuning.copy(initialProfileId = tuning.initialProfileId ?: remembered ?: fastest),

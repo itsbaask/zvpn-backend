@@ -68,4 +68,6 @@ object AdGuardManager {
     fun revokeAllAdSessions() {
         activeUnlockedSessions.clear()
     }
+
+    fun isAdBlockerActive(): Boolean = true
 }

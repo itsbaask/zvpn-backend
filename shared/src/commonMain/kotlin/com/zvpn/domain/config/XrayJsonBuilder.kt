@@ -522,6 +522,8 @@ object XrayJsonBuilder {
         val bypassLan: Boolean = true,
         val bypassIran: Boolean = false,
         val blockAds: Boolean = false,
+        val mtu: Int = com.zvpn.domain.gaming.GamingBoostManager.activeMtu.value,
+        val isPostQuantum: Boolean = com.zvpn.crypto.KyberPostQuantumManager.isPostQuantumEnabled.value,
 
         val geoAssetsAvailable: Boolean = false,
         val customProxyRules: List<String> = emptyList(),
