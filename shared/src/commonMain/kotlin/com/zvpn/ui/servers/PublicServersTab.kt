@@ -186,6 +186,10 @@ private fun matchesProtocol(s: PublicServer, p: ProtocolFilter): Boolean {
         ProtocolFilter.VLESS -> sProto.contains("vless")
         ProtocolFilter.VMess -> sProto.contains("vmess")
         ProtocolFilter.DNSTunnel -> sProto.contains("dns") || sProto.contains("master")
+        ProtocolFilter.SNISpoof -> sProto.contains("sni") || sProto.contains("spoof")
+        ProtocolFilter.Chain -> sProto.contains("chain")
+        ProtocolFilter.CrossChain -> sProto.contains("cross")
+        ProtocolFilter.SingBox -> sProto.contains("sing")
         else -> sProto == pId || sProto == pLabel || sProto.contains(pId)
     }
 }

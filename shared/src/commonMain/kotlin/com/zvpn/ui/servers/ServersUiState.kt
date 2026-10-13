@@ -25,12 +25,18 @@ enum class ProtocolFilter(val id: String, val label: String) {
     L2TP("l2tp", "L2TP"),
     SSTP("sstp", "SSTP"),
     IKEv2("ikev2", "IKEv2"),
+    OpenConnect("openconnect", "OpenConnect"),
     HTTP("http", "HTTP"),
     SOCKS5("socks5", "SOCKS5"),
     SSH("ssh", "SSH"),
     Tor("tor", "Tor"),
     Psiphon("psiphon", "Psiphon"),
-    DNSTunnel("dnstunnel", "DNS Tunnel");
+    DNSTunnel("dnstunnel", "DNS Tunnel"),
+    SNISpoof("sni-spoof", "SNI Spoof"),
+    Chain("chain", "Proxy Chain"),
+    CrossChain("crosschain", "Cross Chain"),
+    SingBox("sing-box", "sing-box"),
+    Custom("custom", "Custom");
 
     companion object {
         fun fromId(id: String): ProtocolFilter {
@@ -43,7 +49,13 @@ enum class ProtocolFilter(val id: String, val label: String) {
                 (clean in listOf("awg", "amneziawg", "wg", "wireguard") && it == WireGuard) ||
                 (clean in listOf("socks", "socks5", "socks4") && it == SOCKS5) ||
                 (clean in listOf("http", "https") && it == HTTP) ||
-                (clean in listOf("masterdns", "dnstunnel", "dns") && it == DNSTunnel)
+                (clean in listOf("masterdns", "dnstunnel", "dns", "dnstt", "vaydns") && it == DNSTunnel) ||
+                (clean in listOf("openconnect") && it == OpenConnect) ||
+                (clean in listOf("sni-spoof", "snispoof") && it == SNISpoof) ||
+                (clean in listOf("chain", "proxychain") && it == Chain) ||
+                (clean in listOf("crosschain") && it == CrossChain) ||
+                (clean in listOf("sing-box", "singbox") && it == SingBox) ||
+                (clean in listOf("custom", "json") && it == Custom)
             } ?: All
         }
     }
