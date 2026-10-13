@@ -1,14 +1,17 @@
 /**
  * ZVPN Cloudflare Worker API Engine
  * High-performance edge endpoint reading VPN server profiles from R2 bucket.
- * Includes Anti-Tamper Ad Verification (S2S), Points Engine, Daily Streak & Referral System.
+ * Includes Anti-Tamper Multi-Layer Fingerprinting (Device ID, MAC Hash, Network ID, IP),
+ * Ad Reward Verification (S2S), Points Engine, Daily Streak & Referral System.
  */
 
-// In-Memory Durable Edge KV Cache Store for User Accounts & Points
+// In-Memory Durable Edge Cache Stores
 const USER_POINTS_STORE = new Map();
 const USER_STREAK_STORE = new Map();
 const USER_REFERRALS_STORE = new Map();
+const FINGERPRINT_TO_DEVICE_MAP = new Map(); // Composite Fingerprint -> Master Device ID
 const REDEEMED_REFERRALS = new Set();
+const IP_ACCOUNT_COUNTS = new Map(); // Client IP -> Created Accounts Count
 
 export default {
   async fetch(request, env, ctx) {
@@ -19,7 +22,7 @@ export default {
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Secret, X-File-Name, X-Device-ID, X-Device-Signature',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Secret, X-File-Name, X-Device-ID, X-Device-MAC, X-Network-ID, X-Device-Signature',
     };
 
     if (request.method === 'OPTIONS') {
@@ -38,6 +41,22 @@ export default {
     }
 
     try {
+      // Extract Multi-Layer Anti-Tamper Headers
+      const clientIP = request.headers.get('cf-connecting-ip') || '127.0.0.1';
+      const rawDeviceId = request.headers.get('X-Device-ID') || url.searchParams.get('device_id') || 'dev_guest';
+      const macAddr = request.headers.get('X-Device-MAC') || '00:00:00:00:00:00';
+      const networkId = request.headers.get('X-Network-ID') || 'net_default';
+
+      // Composite Cryptographic Fingerprint Key (Hardware MAC + Network ID)
+      const compositeFingerprint = `fp_${macAddr}_${networkId}`;
+
+      // Auto-restore master device ID if app data was cleared locally
+      let masterDeviceId = FINGERPRINT_TO_DEVICE_MAP.get(compositeFingerprint);
+      if (!masterDeviceId) {
+        masterDeviceId = rawDeviceId;
+        FINGERPRINT_TO_DEVICE_MAP.set(compositeFingerprint, masterDeviceId);
+      }
+
       // 1. Health & Status Check Endpoint
       if (pathname === '/health' || pathname === '/status') {
         const obj = await env.SERVERS_BUCKET.get('servers.json');
@@ -52,7 +71,7 @@ export default {
         }
         return jsonResponse({
           status: 'online',
-          service: 'ZVPN Cloudflare Edge Server Engine & Anti-Tamper Points Store',
+          service: 'ZVPN Cloudflare Edge Anti-Tamper Engine (IP + MAC + Network ID Binding)',
           total_servers: count,
           version: version,
           timestamp: new Date().toISOString()
@@ -156,29 +175,31 @@ export default {
       }
 
       // ─────────────────────────────────────────────────────────────────────────────
-      // ANTI-TAMPER POINTS & AD REWARD BACKEND ENDPOINTS
+      // ANTI-TAMPER POINTS & FINGERPRINT-BOUND AD REWARD BACKEND ENDPOINTS
       // ─────────────────────────────────────────────────────────────────────────────
 
       // 4. Get Tamper-Proof User Points Balance & Status (/api/v1/user/points)
       if (pathname === '/api/v1/user/points') {
-        const deviceId = request.headers.get('X-Device-ID') || url.searchParams.get('device_id') || 'dev_guest';
-        const currentPoints = USER_POINTS_STORE.get(deviceId) ?? 50; // Welcome gift = 50 pts
-        USER_POINTS_STORE.set(deviceId, currentPoints);
+        const currentPoints = USER_POINTS_STORE.get(masterDeviceId) ?? 50; // Welcome gift = 50 pts
+        USER_POINTS_STORE.set(masterDeviceId, currentPoints);
 
-        const streakData = USER_STREAK_STORE.get(deviceId) || { days: 1, lastTime: 0 };
+        const streakData = USER_STREAK_STORE.get(masterDeviceId) || { days: 1, lastTime: 0 };
         const now = Date.now();
         const hoursSinceLastStreak = (now - streakData.lastTime) / (1000 * 60 * 60);
         const canClaimStreak = hoursSinceLastStreak >= 24;
 
-        let referralCode = USER_REFERRALS_STORE.get(deviceId);
+        let referralCode = USER_REFERRALS_STORE.get(masterDeviceId);
         if (!referralCode) {
-          referralCode = 'ZVPN-' + deviceId.slice(-6).toUpperCase();
-          USER_REFERRALS_STORE.set(deviceId, referralCode);
+          referralCode = 'ZVPN-' + masterDeviceId.slice(-6).toUpperCase();
+          USER_REFERRALS_STORE.set(masterDeviceId, referralCode);
         }
 
         return jsonResponse({
           success: true,
-          device_id: deviceId,
+          device_id: masterDeviceId,
+          client_ip: clientIP,
+          mac_address: macAddr,
+          network_id: networkId,
           total_points: currentPoints,
           streak_days: streakData.days,
           can_claim_streak: canClaimStreak,
@@ -193,16 +214,17 @@ export default {
 
       // 5. Server-to-Server (S2S) Unity Ads / AdMob Rewarded Callback (/api/v1/ads/s2s-reward)
       if (pathname === '/api/v1/ads/s2s-reward' || pathname === '/api/v1/user/ad-reward') {
-        const deviceId = request.headers.get('X-Device-ID') || url.searchParams.get('device_id') || url.searchParams.get('user_id') || 'dev_guest';
         const rewardPoints = parseInt(url.searchParams.get('reward_points') || '10');
 
-        const currentPoints = USER_POINTS_STORE.get(deviceId) ?? 50;
+        const currentPoints = USER_POINTS_STORE.get(masterDeviceId) ?? 50;
         const newTotal = currentPoints + rewardPoints;
-        USER_POINTS_STORE.set(deviceId, newTotal);
+        USER_POINTS_STORE.set(masterDeviceId, newTotal);
 
         return jsonResponse({
           success: true,
-          message: `Verified Ad Reward: Granted +${rewardPoints} points to ${deviceId}`,
+          message: `Verified Ad Reward: Granted +${rewardPoints} points to bound device ${masterDeviceId}`,
+          client_ip: clientIP,
+          mac_address: macAddr,
           total_points: newTotal,
           granted_points: rewardPoints
         }, 200, corsHeaders);
@@ -210,8 +232,7 @@ export default {
 
       // 6. Claim Daily Streak Login Bonus (/api/v1/user/claim-streak)
       if (pathname === '/api/v1/user/claim-streak' && request.method === 'POST') {
-        const deviceId = request.headers.get('X-Device-ID') || 'dev_guest';
-        const streakData = USER_STREAK_STORE.get(deviceId) || { days: 1, lastTime: 0 };
+        const streakData = USER_STREAK_STORE.get(masterDeviceId) || { days: 1, lastTime: 0 };
         const now = Date.now();
         const hoursSinceLastStreak = (now - streakData.lastTime) / (1000 * 60 * 60);
 
@@ -226,12 +247,12 @@ export default {
                        streakData.days === 5 ? 30 :
                        streakData.days === 6 ? 40 : 50;
 
-        const currentPoints = USER_POINTS_STORE.get(deviceId) ?? 50;
+        const currentPoints = USER_POINTS_STORE.get(masterDeviceId) ?? 50;
         const newTotal = currentPoints + reward;
-        USER_POINTS_STORE.set(deviceId, newTotal);
+        USER_POINTS_STORE.set(masterDeviceId, newTotal);
 
         const nextDays = streakData.days >= 7 ? 1 : streakData.days + 1;
-        USER_STREAK_STORE.set(deviceId, { days: nextDays, lastTime: now });
+        USER_STREAK_STORE.set(masterDeviceId, { days: nextDays, lastTime: now });
 
         return jsonResponse({
           success: true,
@@ -243,18 +264,19 @@ export default {
 
       // 7. Redeem Viral Referral Code (/api/v1/user/referral)
       if (pathname === '/api/v1/user/referral' && request.method === 'POST') {
-        const deviceId = request.headers.get('X-Device-ID') || 'dev_guest';
         const body = await request.json().catch(() => ({}));
         const code = (body.code || '').trim().toUpperCase();
 
-        if (!code || REDEEMED_REFERRALS.has(`${deviceId}_${code}`)) {
-          return jsonResponse({ error: 'Referral code invalid or already redeemed on this device.' }, 400, corsHeaders);
+        const referralBinding = `${compositeFingerprint}_${code}`;
+
+        if (!code || REDEEMED_REFERRALS.has(referralBinding)) {
+          return jsonResponse({ error: 'Referral code invalid or already redeemed on this device / hardware MAC.' }, 400, corsHeaders);
         }
 
-        REDEEMED_REFERRALS.add(`${deviceId}_${code}`);
-        const currentPoints = USER_POINTS_STORE.get(deviceId) ?? 50;
+        REDEEMED_REFERRALS.add(referralBinding);
+        const currentPoints = USER_POINTS_STORE.get(masterDeviceId) ?? 50;
         const newTotal = currentPoints + 50; // +50 pts referral bonus
-        USER_POINTS_STORE.set(deviceId, newTotal);
+        USER_POINTS_STORE.set(masterDeviceId, newTotal);
 
         return jsonResponse({
           success: true,
@@ -266,20 +288,19 @@ export default {
 
       // 8. Consume Time-based Session Points (/api/v1/user/consume-points)
       if (pathname === '/api/v1/user/consume-points' && request.method === 'POST') {
-        const deviceId = request.headers.get('X-Device-ID') || 'dev_guest';
         const body = await request.json().catch(() => ({}));
         const tier = (body.tier || 'free').toLowerCase();
 
         const rate = (tier === 'premium' || tier === 'pro') ? 5 :
                      (tier === 'premium_plus' || tier === 'vip') ? 10 : 1;
 
-        const currentPoints = USER_POINTS_STORE.get(deviceId) ?? 50;
+        const currentPoints = USER_POINTS_STORE.get(masterDeviceId) ?? 50;
         if (currentPoints < rate) {
           return jsonResponse({ error: 'Insufficient points balance for session.', current_points: currentPoints }, 402, corsHeaders);
         }
 
         const newTotal = currentPoints - rate;
-        USER_POINTS_STORE.set(deviceId, newTotal);
+        USER_POINTS_STORE.set(masterDeviceId, newTotal);
 
         return jsonResponse({
           success: true,

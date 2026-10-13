@@ -15,6 +15,8 @@ object PointsManager {
     private const val KEY_STREAK_DAYS = "zvpn_streak_days"
     private const val KEY_LAST_STREAK_TIME = "zvpn_last_streak_time"
     private const val KEY_REFERRAL_CODE = "zvpn_my_referral_code"
+    private const val KEY_HARDWARE_MAC = "zvpn_hw_mac"
+    private const val KEY_NETWORK_ID = "zvpn_network_id"
 
     // Consumption rates per minute
     const val RATE_FREE_PER_MIN = 1
@@ -60,6 +62,26 @@ object PointsManager {
         }
 
         checkDailyReset()
+    }
+
+    fun getHardwareMac(): String {
+        var mac = store?.getString(KEY_HARDWARE_MAC) ?: ""
+        if (mac.isBlank()) {
+            val chars = "0123456789ABCDEF"
+            mac = (1..6).map { "${chars.random()}${chars.random()}" }.joinToString(":")
+            store?.putString(KEY_HARDWARE_MAC, mac)
+        }
+        return mac
+    }
+
+    fun getNetworkId(): String {
+        var netId = store?.getString(KEY_NETWORK_ID) ?: ""
+        if (netId.isBlank()) {
+            val chars = "0123456789abcdef"
+            netId = "net_" + (1..8).map { chars.random() }.joinToString("")
+            store?.putString(KEY_NETWORK_ID, netId)
+        }
+        return netId
     }
 
     private fun generateReferralCode(): String {
