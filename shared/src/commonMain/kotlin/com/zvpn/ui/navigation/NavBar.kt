@@ -96,32 +96,14 @@ private fun FloatingPillBar(
             }
 
             if (onOpenPremium != null) {
-                Surface(
+                GenericNavPill(
+                    iconRes = Res.drawable.ic_bolt,
+                    label = "Premium ⚡",
+                    selected = false,
+                    compact = compact,
                     onClick = onOpenPremium,
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.padding(start = 2.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Icon(
-                            painter = painterResource(Res.drawable.ic_bolt),
-                            contentDescription = "Go Premium",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Text(
-                            text = "Premium ⚡",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
-                    }
-                }
+                    isPremium = true,
+                )
             }
         }
     }
@@ -198,30 +180,13 @@ private fun ExpressivePillBar(
                 }
 
                 if (onOpenPremium != null) {
-                    Surface(
-                        onClick = onOpenPremium,
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    ) {
-                        Row(
-                            Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            Icon(
-                                painterResource(Res.drawable.ic_bolt),
-                                contentDescription = "Go Premium",
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(18.dp),
-                            )
-                            Text(
-                                text = "Premium ⚡",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            )
-                        }
+                    IconButton(onClick = onOpenPremium) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_bolt),
+                            contentDescription = "Premium",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp),
+                        )
                     }
                 }
             }
@@ -398,6 +363,70 @@ private fun NavPill(
         val sizeMod = if (compact) Modifier.size(38.dp) else Modifier
         if (isSelected) {
             FilledIconButton(onClick = onClick, modifier = sizeMod) { icon() }
+        } else {
+            IconButton(onClick = onClick, modifier = sizeMod) { icon() }
+        }
+    }
+}
+
+@Composable
+private fun GenericNavPill(
+    iconRes: org.jetbrains.compose.resources.DrawableResource,
+    label: String,
+    selected: Boolean,
+    compact: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    isPremium: Boolean = false,
+) {
+    val iconSize by animateDpAsState(
+        targetValue = when {
+            compact -> if (selected) 21.dp else 19.dp
+            selected -> 25.dp
+            else -> 22.dp
+        },
+        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+        label = "generic-icon-size",
+    )
+    val icon = @Composable {
+        Icon(
+            painter = painterResource(iconRes),
+            contentDescription = label,
+            tint = if (isPremium && !selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(iconSize),
+        )
+    }
+    AnimatedContent(
+        targetState = selected,
+        transitionSpec = {
+            (scaleIn(initialScale = 0.85f) + fadeIn()) togetherWith
+                (scaleOut(targetScale = 0.85f) + fadeOut())
+        },
+        label = "generic-pill",
+        modifier = modifier,
+    ) { isSelected ->
+        val sizeMod = if (compact) Modifier.size(38.dp) else Modifier
+        if (isSelected) {
+            Surface(
+                onClick = onClick,
+                shape = CircleShape,
+                color = if (isPremium) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.primary,
+                contentColor = if (isPremium) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onPrimary,
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    icon()
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                    )
+                }
+            }
         } else {
             IconButton(onClick = onClick, modifier = sizeMod) { icon() }
         }
