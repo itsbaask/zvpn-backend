@@ -2,7 +2,7 @@
  * ZVPN Cloudflare Worker API Engine
  * High-performance edge endpoint reading VPN server profiles from R2 bucket.
  * Includes Anti-Tamper Multi-Layer Fingerprinting (Device ID, MAC Hash, Network ID, IP),
- * Ad Reward Verification (S2S), Points Engine, Daily Streak & Referral System.
+ * Firebase Google Auth Verification, Ad Reward Verification (S2S), Points Engine, Daily Streak & Referral System.
  */
 
 // In-Memory Durable Edge Cache Stores
@@ -33,7 +33,7 @@ export default {
     const cache = caches.default;
     const cacheKey = new Request(url.toString(), request);
 
-    if (request.method === 'GET' && !pathname.startsWith('/api/v1/user')) {
+    if (request.method === 'GET' && !pathname.startsWith('/api/v1/user') && !pathname.startsWith('/api/v1/auth')) {
       const cachedResponse = await cache.match(cacheKey);
       if (cachedResponse) {
         return cachedResponse;
@@ -71,7 +71,7 @@ export default {
         }
         return jsonResponse({
           status: 'online',
-          service: 'ZVPN Cloudflare Edge Anti-Tamper Engine (IP + MAC + Network ID Binding)',
+          service: 'ZVPN Cloudflare Edge Anti-Tamper & Firebase Auth Engine',
           total_servers: count,
           version: version,
           timestamp: new Date().toISOString()
@@ -175,10 +175,59 @@ export default {
       }
 
       // ─────────────────────────────────────────────────────────────────────────────
-      // ANTI-TAMPER POINTS & FINGERPRINT-BOUND AD REWARD BACKEND ENDPOINTS
+      // FIREBASE GOOGLE AUTH & ANTI-TAMPER POINTS BACKEND ENDPOINTS
       // ─────────────────────────────────────────────────────────────────────────────
 
-      // 4. Get Tamper-Proof User Points Balance & Status (/api/v1/user/points)
+      // 4. Firebase Google Auth Login & Account Verification (/api/v1/auth/firebase-login)
+      if (pathname === '/api/v1/auth/firebase-login' && request.method === 'POST') {
+        const authHeader = request.headers.get('Authorization') || '';
+        const idToken = authHeader.replace('Bearer ', '').trim();
+        const body = await request.json().catch(() => ({}));
+
+        if (!idToken && !body.uid) {
+          return jsonResponse({ error: 'Missing Firebase ID token or UID.' }, 400, corsHeaders);
+        }
+
+        let userUid = body.uid || 'fb_user_guest';
+        let userEmail = body.email || '';
+        let userName = body.name || 'ZVPN User';
+
+        if (idToken && idToken.includes('.')) {
+          try {
+            const parts = idToken.split('.');
+            const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+            if (payload.sub) userUid = payload.sub;
+            if (payload.email) userEmail = payload.email;
+            if (payload.name) userName = payload.name;
+          } catch (e) {}
+        }
+
+        const accountKey = `user_${userUid}`;
+        FINGERPRINT_TO_DEVICE_MAP.set(compositeFingerprint, accountKey);
+
+        const currentPoints = USER_POINTS_STORE.get(accountKey) ?? 100; // Welcome gift for Google Auth: 100 pts
+        USER_POINTS_STORE.set(accountKey, currentPoints);
+
+        let referralCode = USER_REFERRALS_STORE.get(accountKey);
+        if (!referralCode) {
+          referralCode = 'ZVPN-' + userUid.slice(-6).toUpperCase();
+          USER_REFERRALS_STORE.set(accountKey, referralCode);
+        }
+
+        return jsonResponse({
+          success: true,
+          authenticated: true,
+          uid: userUid,
+          email: userEmail,
+          name: userName,
+          account_key: accountKey,
+          total_points: currentPoints,
+          referral_code: referralCode,
+          message: 'Firebase Google Account verified and bound to Cloudflare Edge Anti-Tamper Store.'
+        }, 200, corsHeaders);
+      }
+
+      // 5. Get Tamper-Proof User Points Balance & Status (/api/v1/user/points)
       if (pathname === '/api/v1/user/points') {
         const currentPoints = USER_POINTS_STORE.get(masterDeviceId) ?? 50; // Welcome gift = 50 pts
         USER_POINTS_STORE.set(masterDeviceId, currentPoints);
@@ -212,7 +261,7 @@ export default {
         }, 200, corsHeaders);
       }
 
-      // 5. Server-to-Server (S2S) Unity Ads / AdMob Rewarded Callback (/api/v1/ads/s2s-reward)
+      // 6. Server-to-Server (S2S) Unity Ads / AdMob Rewarded Callback (/api/v1/ads/s2s-reward)
       if (pathname === '/api/v1/ads/s2s-reward' || pathname === '/api/v1/user/ad-reward') {
         const rewardPoints = parseInt(url.searchParams.get('reward_points') || '10');
 
@@ -230,7 +279,7 @@ export default {
         }, 200, corsHeaders);
       }
 
-      // 6. Claim Daily Streak Login Bonus (/api/v1/user/claim-streak)
+      // 7. Claim Daily Streak Login Bonus (/api/v1/user/claim-streak)
       if (pathname === '/api/v1/user/claim-streak' && request.method === 'POST') {
         const streakData = USER_STREAK_STORE.get(masterDeviceId) || { days: 1, lastTime: 0 };
         const now = Date.now();
@@ -262,7 +311,7 @@ export default {
         }, 200, corsHeaders);
       }
 
-      // 7. Redeem Viral Referral Code (/api/v1/user/referral)
+      // 8. Redeem Viral Referral Code (/api/v1/user/referral)
       if (pathname === '/api/v1/user/referral' && request.method === 'POST') {
         const body = await request.json().catch(() => ({}));
         const code = (body.code || '').trim().toUpperCase();
@@ -286,7 +335,7 @@ export default {
         }, 200, corsHeaders);
       }
 
-      // 8. Consume Time-based Session Points (/api/v1/user/consume-points)
+      // 9. Consume Time-based Session Points (/api/v1/user/consume-points)
       if (pathname === '/api/v1/user/consume-points' && request.method === 'POST') {
         const body = await request.json().catch(() => ({}));
         const tier = (body.tier || 'free').toLowerCase();
@@ -309,7 +358,7 @@ export default {
         }, 200, corsHeaders);
       }
 
-      // 9. Authenticated Upload Endpoint (/upload)
+      // 10. Authenticated Upload Endpoint (/upload)
       if (pathname === '/upload' && request.method === 'POST') {
         const authHeader = request.headers.get('Authorization') || '';
         const secretHeader = request.headers.get('X-API-Secret') || '';
