@@ -418,6 +418,7 @@ fun ServersScreen(
         if (selecting) selected = selected.intersect(shownIds.toSet())
     }
     var showAutoSheet by remember { mutableStateOf(false) }
+    var showPaywallSheet by remember { mutableStateOf(false) }
     if (showAutoSheet) {
         AutoSelectSheet(
             groupLabel = autoLabel,
@@ -425,6 +426,21 @@ fun ServersScreen(
             live = autoLive,
             onDismiss = { showAutoSheet = false },
         )
+    }
+
+    if (showPaywallSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showPaywallSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        ) {
+            com.zvpn.ui.premium.PaywallScreen(
+                onPlanSelected = { productId ->
+                    showPaywallSheet = false
+                    platform.toast("Selected plan: $productId")
+                },
+                onDismiss = { showPaywallSheet = false },
+            )
+        }
     }
 
     // ── Shared actions (previously duplicated inline) ──────────────────────
@@ -521,6 +537,14 @@ fun ServersScreen(
                     onStopPing = { PingCoordinator.cancel() },
                     onSubscriptions = { showSubs = true },
                 ) { dismiss ->
+                    DropdownMenuItem(
+                        text = { Text("Go Premium ⚡") },
+                        leadingIcon = { Icon(painterResource(Res.drawable.ic_bolt), null, tint = MaterialTheme.colorScheme.primary) },
+                        onClick = {
+                            dismiss()
+                            showPaywallSheet = true
+                        },
+                    )
                     DropdownMenuItem(
                         text = { Text(stringResource(Res.string.real_delay_note_title)) },
                         leadingIcon = { Icon(painterResource(Res.drawable.ic_info), null) },
@@ -774,7 +798,7 @@ fun ServersScreen(
                         onServerActivated()
                     },
                     onLockedClick = { server ->
-                        platform.toast(lockedCannotShare)
+                        showPaywallSheet = true
                     },
                     modifier = Modifier.fillMaxSize().then(groupSwipe)
                         .padding(bottom = contentPadding.calculateBottomPadding()),
