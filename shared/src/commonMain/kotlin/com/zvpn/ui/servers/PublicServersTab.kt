@@ -127,9 +127,24 @@ private class ContinentEntry(val group: ContinentGroup, val expanded: Boolean) :
 private class CountryEntry(val ckey: String, val group: CountryGroup, val expanded: Boolean) : Entry("k:$ckey", 1)
 private class ServerEntry(val server: PublicServer, key: String) : Entry(key, 2)
 
-private fun matchesProtocol(s: PublicServer, p: ProtocolFilter): Boolean =
-    s.protocolLabel.equals(p.label, ignoreCase = true) ||
-        (p == ProtocolFilter.VLESS && s.protocolLabel.contains("vless", ignoreCase = true))
+private fun matchesProtocol(s: PublicServer, p: ProtocolFilter): Boolean {
+    if (p == ProtocolFilter.All) return true
+    val sProto = s.protocolLabel.trim().lowercase()
+    val pId = p.id.lowercase()
+    val pLabel = p.label.trim().lowercase()
+
+    return when (p) {
+        ProtocolFilter.Hysteria2 -> sProto.contains("hysteria") || sProto.contains("hy2")
+        ProtocolFilter.Shadowsocks -> sProto == "shadowsocks" || sProto == "ss" || sProto.contains("shadow")
+        ProtocolFilter.WireGuard -> sProto == "wireguard" || sProto == "wg" || sProto.contains("amnezia")
+        ProtocolFilter.SOCKS5 -> sProto.contains("socks")
+        ProtocolFilter.HTTP -> sProto.contains("http")
+        ProtocolFilter.VLESS -> sProto.contains("vless")
+        ProtocolFilter.VMess -> sProto.contains("vmess")
+        ProtocolFilter.DNSTunnel -> sProto.contains("dns") || sProto.contains("master")
+        else -> sProto == pId || sProto == pLabel || sProto.contains(pId)
+    }
+}
 
 private fun buildModel(
     servers: List<PublicServer>,

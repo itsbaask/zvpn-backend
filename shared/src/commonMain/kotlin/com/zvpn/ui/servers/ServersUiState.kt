@@ -38,11 +38,12 @@ enum class ProtocolFilter(val id: String, val label: String) {
             return entries.find {
                 it.id.equals(clean, true) ||
                 it.label.lowercase() == clean ||
-                (clean in listOf("ss", "shadowsocks2022") && it == Shadowsocks) ||
-                (clean in listOf("hy2", "hysteria") && it == Hysteria2) ||
-                (clean in listOf("awg", "amneziawg", "wg") && it == WireGuard) ||
-                (clean in listOf("socks", "socks5") && it == SOCKS5) ||
-                (clean in listOf("https") && it == HTTP)
+                (clean in listOf("ss", "shadowsocks", "shadowsocks2022") && it == Shadowsocks) ||
+                (clean in listOf("hy2", "hysteria", "hysteria2") && it == Hysteria2) ||
+                (clean in listOf("awg", "amneziawg", "wg", "wireguard") && it == WireGuard) ||
+                (clean in listOf("socks", "socks5", "socks4") && it == SOCKS5) ||
+                (clean in listOf("http", "https") && it == HTTP) ||
+                (clean in listOf("masterdns", "dnstunnel", "dns") && it == DNSTunnel)
             } ?: All
         }
     }
