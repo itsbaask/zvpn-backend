@@ -853,7 +853,7 @@ class EnterpriseSmartGeoSyncEngine:
 
         for proto in protocols:
             page = 1
-            while page <= 10:
+            while True:
                 url = f"https://publicvpnlist.com/{proto}/?page={page}"
                 try:
                     r = self.session.get(url, headers=headers, timeout=10)
