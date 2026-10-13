@@ -77,6 +77,7 @@ data class PublicServer(
     val engine: String = "OPENVPN",
     val isFavorite: Boolean = false,
     val isPinging: Boolean = false,
+    val isSystem: Boolean = false,
 )
 
 data class ServersUiState(

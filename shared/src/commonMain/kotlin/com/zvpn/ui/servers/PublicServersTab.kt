@@ -37,20 +37,15 @@ import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.painterResource
 
 /*
- * Fast server list. Colours are unchanged: only existing MaterialTheme tokens and the same ping colours.
+ * Fast server list.
  *
  *  - ONE flat LazyColumn. Each continent is drawn as a single "card" by giving its rows matching corner
  *    shapes (top / middle / bottom) instead of nesting Cards, so nothing is composed off-screen.
- *  - Filtering, grouping, counting and sorting run on Dispatchers.Default; typing is debounced and
- *    ping-driven list updates are throttled (max 4 refreshes / second).
- *  - No shadows, gradients, nested animations or per-row Card / RadioButton / FilterChip.
+ *  - Filtering, grouping, counting and sorting run on Dispatchers.Default.
+ *  - Random servers (null/empty/XX countryCode) are numbered on full list and grouped at the very end.
  */
 
 // ───────────────────────────── Helpers ─────────────────────────────
-
-private val BRACKET_TAG = Regex("""\s*\[.*?]""")
-
-private fun cleanName(raw: String): String = raw.replace(BRACKET_TAG, "").trim()
 
 private fun tierLabel(tier: ServerTier): String = when (tier) {
     ServerTier.Free -> "Free"
@@ -95,7 +90,7 @@ private fun cardShape(top: Boolean, bottom: Boolean): RoundedCornerShape = when 
 // ───────────────────────────── List model (built off the main thread) ─────────────────────────────
 
 @Immutable
-private class CountryGroup(
+data class CountryGroup(
     val name: String,
     val flag: String,
     val servers: List<PublicServer>,
@@ -103,7 +98,7 @@ private class CountryGroup(
 )
 
 @Immutable
-private class ContinentGroup(
+internal class ContinentGroup(
     val name: String,
     val countries: List<CountryGroup>,
     val serverCount: Int,
@@ -117,6 +112,55 @@ private class ListModel(
     val bestAuto: PublicServer?,
     val byId: Map<String, PublicServer>,
 )
+
+object RandomServerGrouping {
+    val isRandomServer: (PublicServer) -> Boolean = { s ->
+        !s.isSystem && (s.countryCode.isBlank() || s.countryCode == "XX")
+    }
+
+    fun computeRandomDisplayNameMap(servers: List<PublicServer>): Map<String, String> {
+        val fullRandomServers = servers.filter(isRandomServer).sortedBy { it.id }
+        return fullRandomServers.mapIndexed { idx, s ->
+            s.id to "Random ${idx + 1}"
+        }.toMap()
+    }
+
+    fun buildRandomCountryGroups(
+        randomBase: List<PublicServer>,
+        displayNameMap: Map<String, String>
+    ): List<CountryGroup> {
+        if (randomBase.isEmpty()) return emptyList()
+        val totalRandom = randomBase.size
+        return if (totalRandom <= 100) {
+            val serversWithNumberedNames = randomBase.map { server ->
+                server.copy(displayName = displayNameMap[server.id] ?: server.displayName)
+            }
+            listOf(
+                CountryGroup(
+                    name = "Random",
+                    flag = "🌐",
+                    servers = serversWithNumberedNames,
+                    bestPing = serversWithNumberedNames.mapNotNull { it.latencyMs }.filter { it > 0 }.minOrNull(),
+                )
+            )
+        } else {
+            randomBase.chunked(100).mapIndexed { chunkIdx, chunk ->
+                val startNum = chunkIdx * 100 + 1
+                val endNum = startNum + chunk.size - 1
+                val groupTitle = "Random $startNum-$endNum"
+                val serversWithNumberedNames = chunk.map { server ->
+                    server.copy(displayName = displayNameMap[server.id] ?: server.displayName)
+                }
+                CountryGroup(
+                    name = groupTitle,
+                    flag = "🌐",
+                    servers = serversWithNumberedNames,
+                    bestPing = serversWithNumberedNames.mapNotNull { it.latencyMs }.filter { it > 0 }.minOrNull(),
+                )
+            }
+        }
+    }
+}
 
 private sealed class Entry(val key: String, val type: Int) {
     /** True for the last row of a continent card (gets the rounded bottom corners). */
@@ -159,6 +203,8 @@ private fun buildModel(
     val inTier = servers.filter { it.tier == tier }
     val protoCounts = inTier.groupingBy { ProtocolFilter.fromId(it.protocolLabel) }.eachCount()
 
+    val randomDisplayNameMap = RandomServerGrouping.computeRandomDisplayNameMap(servers)
+
     val q = query.trim()
     val base = inTier.filter { s ->
         (protocol == ProtocolFilter.All || matchesProtocol(s, protocol)) &&
@@ -169,26 +215,43 @@ private fun buildModel(
                 s.protocolLabel.contains(q, ignoreCase = true))
     }
 
-    val sorted = when (sort) {
-        SortOption.Speed -> base.sortedByDescending { it.speedMbps }
-        SortOption.Ping -> base.sortedBy { it.latencyMs?.takeIf { ms -> ms > 0 } ?: Int.MAX_VALUE }
-        SortOption.Name -> base.sortedBy { it.countryName }
-        SortOption.Favorites, SortOption.Recommended -> base.sortedWith(
+    val regularBase = base.filterNot(RandomServerGrouping.isRandomServer)
+    val randomBase = base.filter(RandomServerGrouping.isRandomServer).sortedBy { it.id }
+
+    val sortedRegular = when (sort) {
+        SortOption.Speed -> regularBase.sortedByDescending { it.speedMbps }
+        SortOption.Ping -> regularBase.sortedBy { it.latencyMs?.takeIf { ms -> ms > 0 } ?: Int.MAX_VALUE }
+        SortOption.Name -> regularBase.sortedBy { it.countryName }
+        SortOption.Favorites, SortOption.Recommended -> regularBase.sortedWith(
             compareBy<PublicServer> { it.countryName }
                 .thenBy { it.latencyMs?.takeIf { ms -> ms > 0 } ?: Int.MAX_VALUE },
         )
     }
 
-    val groups = sorted.groupBy { it.continent.ifBlank { "Global" } }.map { (cont, list) ->
-        val countries = list.groupBy { it.countryName.ifBlank { "Global" } }.map { (cn, cl) ->
+    // Grouping by countryCode as requested
+    val regularGroups = sortedRegular.groupBy { it.continent.ifBlank { "Other" } }.map { (cont, list) ->
+        val countries = list.groupBy { it.countryCode.ifBlank { "XX" } }.map { (_, cl) ->
+            val first = cl.first()
             CountryGroup(
-                name = cn,
-                flag = cl.first().flag.ifBlank { "🌐" },
+                name = first.countryName.ifBlank { "Unknown" },
+                flag = first.flag.ifBlank { "🌐" },
                 servers = cl,
                 bestPing = cl.mapNotNull { it.latencyMs }.filter { it > 0 }.minOrNull(),
             )
         }
         ContinentGroup(cont, countries, list.size)
+    }
+
+    // Construct Random Section at the very end calling shared RandomServerGrouping
+    val randomCountryGroups = RandomServerGrouping.buildRandomCountryGroups(randomBase, randomDisplayNameMap)
+    val randomContinentGroup = if (randomCountryGroups.isNotEmpty()) {
+        ContinentGroup("Random", randomCountryGroups, randomBase.size)
+    } else null
+
+    val groups = if (randomContinentGroup != null) {
+        regularGroups + randomContinentGroup
+    } else {
+        regularGroups
     }
 
     var best: PublicServer? = null
@@ -223,7 +286,6 @@ private fun flatten(
                 out += CountryEntry(ck, country, countryOpen)
                 if (!countryOpen) continue
                 for (s in country.servers) {
-                    // LazyColumn keys must be unique; guard against duplicate profile ids.
                     val key = if (seen.add(s.id)) "s:${s.id}" else "s:${s.id}#${out.size}"
                     out += ServerEntry(s, key)
                 }
@@ -234,16 +296,14 @@ private fun flatten(
     return out
 }
 
-// ───────────────────────────── Ping helpers (keep ServersScreen from recomposing on every tick) ─────────────────────────────
+// ───────────────────────────── Ping helpers ─────────────────────────────
 
-/** Collects ping progress inside its own scope so only this card recomposes while testing. */
 @Composable
 internal fun PingProgressHost() {
     val p by PingCoordinator.progress.collectAsStateWithLifecycle()
     p?.let { PingProgressCard(done = it.done, total = it.total, real = it.real) }
 }
 
-/** Boolean-only view of the ping state: changes twice per test run instead of on every result. */
 @Composable
 internal fun rememberIsTesting(): Boolean {
     val initial = remember { PingCoordinator.progress.value != null }
@@ -274,7 +334,6 @@ fun PublicServersTab(
     var expandedContinents by remember { mutableStateOf(setOf<String>()) }
     var expandedCountries by remember { mutableStateOf(setOf<String>()) }
 
-    // Throttle: ping tests update the server list many times a second; refresh the UI at most every 250 ms.
     val latestServers by rememberUpdatedState(servers)
     var stableServers by remember { mutableStateOf(servers) }
     LaunchedEffect(Unit) {
@@ -284,13 +343,11 @@ fun PublicServersTab(
         }
     }
 
-    // Debounce typing.
     LaunchedEffect(searchQuery) {
         if (searchQuery.isNotBlank()) delay(250)
         debouncedQuery = searchQuery
     }
 
-    // Open the continent/country of the selected server once servers are available.
     LaunchedEffect(servers.isNotEmpty()) {
         val current = servers.firstOrNull { it.id == selectedId } ?: return@LaunchedEffect
         if (UserTier.canAccess(userTier, current.tier.id)) activeTierTab = current.tier
@@ -312,7 +369,6 @@ fun PublicServersTab(
     val protoCounts = model?.protoCounts ?: emptyMap()
     val bestAutoServer = model?.bestAuto
 
-    // Only show protocols that actually have servers (plus "All" and the current pick).
     val visibleProtocols = remember(protoCounts, selectedProtocol) {
         ProtocolFilter.entries.filter {
             it == ProtocolFilter.All || it == selectedProtocol || (protoCounts[it] ?: 0) > 0
@@ -346,7 +402,6 @@ fun PublicServersTab(
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        // ── Fixed controls ──
         SearchRow(
             query = searchQuery,
             onQueryChange = { searchQuery = it },
@@ -377,7 +432,6 @@ fun PublicServersTab(
             }
         }
 
-        // ── Flat lazy list ──
         LazyColumn(
             modifier = Modifier.weight(1f).fillMaxWidth(),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 96.dp),
@@ -587,7 +641,7 @@ private fun ProtocolChip(label: String, selected: Boolean, onClick: () -> Unit) 
 private fun AutoSelectBanner(server: PublicServer, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val ping = server.latencyMs?.takeIf { it > 0 }
-    val name = remember(server.displayName) { cleanName(server.displayName) }
+    val name = server.displayName
     val subtitle = if (ping != null) "$name · $ping ms" else name
 
     Row(
@@ -732,11 +786,10 @@ private fun ServerRow(
     onClick: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
-    val name = remember(server.displayName) { cleanName(server.displayName) }
+    val name = server.displayName
     val ping = server.latencyMs?.takeIf { it > 0 }
     val pColor = pingQualityColor(ping, scheme)
 
-    // Outer box continues the card background; the inner row is the tappable / highlighted pill.
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -829,7 +882,6 @@ private fun FilterBottomSheet(
                 modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                // Must match the labels produced by RegionResolver / Continent.
                 REGION_FILTERS.forEach { cont ->
                     FilterChip(
                         selected = selectedContinent == cont,

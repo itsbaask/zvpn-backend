@@ -97,6 +97,9 @@ data class VpnProfile(
     val subscriptionId: String = "",
     val lastPingMs: Int? = null,
     val countryCode: String? = null,
+    val countryName: String? = null,
+    val flag: String? = null,
+    val continent: String? = null,
 
     val bytesDown: Long = 0,
     val bytesUp: Long = 0,

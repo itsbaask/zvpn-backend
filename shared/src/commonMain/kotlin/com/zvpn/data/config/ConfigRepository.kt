@@ -290,13 +290,37 @@ class ConfigRepository(private val store: KeyValueStore) {
             ?: return null
         if (serversArray.isEmpty()) return null
 
+        val schemaVersion = (root["schema_version"] as? JsonPrimitive)?.contentOrNull?.toIntOrNull() ?: 1
+        val cacheKey = "cached_schema_version_$subscriptionId"
+        val previousSchemaVersion = store.getInt(cacheKey, 1)
+
         val current = _profiles.value
+        val isSchemaChanged = schemaVersion != previousSchemaVersion
+        store.putInt(cacheKey, schemaVersion)
+
+        val previousProfiles = if (subscriptionId.isNotBlank() && !isSchemaChanged) {
+            current.filter { it.subscriptionId == subscriptionId }
+        } else {
+            emptyList()
+        }
+        val previousMap = previousProfiles.associateBy { it.id }
+
         val fresh = mutableListOf<VpnProfile>()
         var duplicates = 0
         val now = currentTimeMillis()
 
         serversArray.forEach { element ->
             val server = element as? JsonObject ?: return@forEach
+            val serverId = (server["id"] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() } ?: newId()
+            val countryCode = (server["country_code"] as? JsonPrimitive)?.contentOrNull
+            val countryName = (server["country_name"] as? JsonPrimitive)?.contentOrNull
+            val flag = (server["flag"] as? JsonPrimitive)?.contentOrNull
+            val continent = (server["continent"] as? JsonPrimitive)?.contentOrNull
+
+            if (countryCode.isNullOrBlank() || countryName.isNullOrBlank()) {
+                println("[DEBUG-WARN] [$subscriptionId | $serverId] Missing country_code or country_name in JSON payload.")
+            }
+
             val rawUri = (server["raw_uri"] as? JsonPrimitive)?.contentOrNull 
                 ?: (server["config_uri"] as? JsonPrimitive)?.contentOrNull 
                 ?: ""
@@ -308,30 +332,28 @@ class ConfigRepository(private val store: KeyValueStore) {
                 ?: ""
 
             runCatching {
+                var profile: VpnProfile? = null
+                var singServerObj: SingBoxJson.Server? = null
                 when {
                     configData.isNotBlank() || OvpnConfig.looksLikeOvpn(configData) -> {
                         val fragment = OvpnConfig.toSingBoxFragment(configData, name = displayName.takeIf { it.isNotBlank() })
                         val singServer = SingBoxJson.servers(fragment).firstOrNull() ?: return@runCatching
-                        val profile = VpnProfile.fromSingBox(
+                        singServerObj = singServer
+                        profile = VpnProfile.fromSingBox(
                             server = singServer,
-                            id = newId(),
+                            id = serverId,
                             addedAt = now,
                             subscriptionId = subscriptionId,
                             name = displayName.ifBlank { null },
                         )
-                        val duplicate = (current + fresh).any {
-                            it.subscriptionId == subscriptionId &&
-                                (it.source as? ProfileSource.SingBox)?.json == singServer.fragment
-                        }
-                        if (duplicate) duplicates++ else fresh += profile
                     }
                     rawUri.isNotBlank() && ConfigParser.isSupportedLink(rawUri) -> {
-                        val profile = if (SingBoxLinks.handles(rawUri)) {
+                        profile = if (SingBoxLinks.handles(rawUri)) {
                             val parsed = SingBoxLinks.parse(rawUri)
                             val singServer2 = SingBoxJson.servers(parsed.fragment).first()
                             VpnProfile.fromSingBox(
                                 server = singServer2,
-                                id = newId(),
+                                id = serverId,
                                 addedAt = now,
                                 subscriptionId = subscriptionId,
                                 name = displayName.ifBlank { parsed.name },
@@ -339,16 +361,33 @@ class ConfigRepository(private val store: KeyValueStore) {
                         } else {
                             VpnProfile.fromLink(
                                 link = rawUri,
-                                id = newId(),
+                                id = serverId,
                                 addedAt = now,
                                 subscriptionId = subscriptionId,
                                 name = displayName,
                             )
                         }
-                        val duplicate = (current + fresh).any {
-                            it.rawPayload() == rawUri && it.subscriptionId == subscriptionId
-                        }
-                        if (duplicate) duplicates++ else fresh += profile
+                    }
+                }
+
+                if (profile != null) {
+                    val duplicate = fresh.any { it.id == serverId } || (current + fresh).any {
+                        it.subscriptionId == subscriptionId &&
+                            ((rawUri.isNotBlank() && it.rawPayload() == rawUri) ||
+                             (singServerObj != null && (it.source as? ProfileSource.SingBox)?.json == singServerObj.fragment))
+                    }
+                    if (duplicate) {
+                        duplicates++
+                    } else {
+                        val existing = previousMap[serverId]
+                        val updatedProfile = profile.copy(
+                            countryCode = countryCode,
+                            countryName = countryName,
+                            flag = flag,
+                            continent = continent,
+                            lastPingMs = existing?.lastPingMs ?: profile.lastPingMs,
+                        )
+                        fresh += updatedProfile
                     }
                 }
             }
@@ -356,7 +395,7 @@ class ConfigRepository(private val store: KeyValueStore) {
 
         lastImportDuplicates += duplicates
         if (fresh.isEmpty() && duplicates == 0) return null
-        if (fresh.isNotEmpty()) {
+        if (fresh.isNotEmpty() || isSchemaChanged) {
             val base = if (subscriptionId.isNotBlank()) current.filterNot { it.subscriptionId == subscriptionId } else current
             _profiles.value = base + fresh
             persistProfiles()

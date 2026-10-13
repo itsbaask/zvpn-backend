@@ -51,6 +51,9 @@ ref*.png
 
 __pycache__/
 *.pyc
+output/
+GeoLite2-Country.mmdb
+audit_report.csv
 .wrangler/
 backend/.wrangler/
 .artifacts/
