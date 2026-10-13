@@ -965,9 +965,11 @@ class EnterpriseSmartGeoSyncEngine:
 
     def _harvest_ipspeed(self):
         ipspeed_urls = [
+            "https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge.txt",
             "https://raw.githubusercontent.com/ermaozi/get_subscribe/main/subscribe/v2ray.txt",
             "https://raw.githubusercontent.com/Pawdroid/Free-servers/main/sub",
-            "https://raw.githubusercontent.com/freefq/free/master/v2"
+            "https://raw.githubusercontent.com/freefq/free/master/v2",
+            "https://raw.githubusercontent.com/mftst/v2ray/main/v2ray"
         ]
         for idx, url in enumerate(ipspeed_urls):
             try:
