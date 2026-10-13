@@ -49,8 +49,8 @@ import org.jetbrains.compose.resources.painterResource
 
 private fun tierLabel(tier: ServerTier): String = when (tier) {
     ServerTier.Free -> "Free"
-    ServerTier.Premium -> "Pro ⭐"
-    ServerTier.PremiumPlus -> "VIP 👑"
+    ServerTier.Premium -> "Pro"
+    ServerTier.PremiumPlus -> "VIP"
 }
 
 private fun continentEmoji(cont: String): String = when (cont.lowercase().trim()) {
