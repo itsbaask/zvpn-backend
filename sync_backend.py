@@ -133,6 +133,33 @@ EXACT_COUNTRY_NAME_TO_CODE = {
     "ARGENTINA": "AR",
     "CHILE": "CL",
     "COLOMBIA": "CO",
+    "PERU": "PE",
+    "PARAGUAY": "PY",
+    "URUGUAY": "UY",
+    "VENEZUELA": "VE",
+    "DOMINICAN REPUBLIC": "DO",
+    "SERBIA": "RS",
+    "ALBANIA": "AL",
+    "MAURITIUS": "MU",
+    "SYRIA": "SY",
+    "BELARUS": "BY",
+    "MOLDOVA": "MD",
+    "MONTENEGRO": "ME",
+    "BOSNIA AND HERZEGOVINA": "BA",
+    "BOSNIA": "BA",
+    "MACEDONIA": "MK",
+    "NORTH MACEDONIA": "MK",
+    "GEORGIA": "GE",
+    "ARMENIA": "AM",
+    "AZERBAIJAN": "AZ",
+    "KAZAKHSTAN": "KZ",
+    "UZBEKISTAN": "UZ",
+    "KYRGYZSTAN": "KG",
+    "TAJIKISTAN": "TJ",
+    "TURKMENISTAN": "TM",
+    "LAOS": "LA",
+    "MYANMAR": "MM",
+    "CAMBODIA": "KH",
     "SOUTH AFRICA": "ZA",
     "EGYPT": "EG",
     "AUSTRALIA": "AU",
@@ -803,60 +830,95 @@ class EnterpriseSmartGeoSyncEngine:
                 logger.warning(f"VPNGate harvest error: {e}")
 
     def _harvest_pvl(self):
-        headers = {"Authorization": f"Bearer {self.access_key}", "Accept": "application/json"}
-        protocols = ["vless", "openvpn", "trojan", "vmess", "shadowsocks", "hysteria2"]
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        protocols = ["vless", "vmess", "trojan", "shadowsocks", "hysteria2", "proxies"]
 
-        def fetch_pvl_config(item_data):
-            sid = str(item_data.get("id", ""))
-            proto = item_data.get("protocol", "vless")
-            if proto == "openvpn":
-                ovpn_content = self.pvl_downloader.download_openvpn_profile(sid)
-                if ovpn_content:
-                    item_data["config_data"] = ovpn_content
-                return item_data
-
+        def fetch_pvl_raw_config(item_data):
             dl_url = item_data.get("config_download_url")
             if not dl_url:
                 return item_data
             try:
-                res = self.session.get(dl_url, timeout=6)
+                res = self.session.get(dl_url, headers=headers, timeout=8)
                 if res.status_code == 200 and len(res.text) > 10:
-                    item_data["raw_uri"] = res.text.strip()
+                    text = res.text.strip()
+                    if "client" in text or "remote " in text:
+                        item_data["config_data"] = text
+                    else:
+                        item_data["raw_uri"] = text
             except Exception:
                 pass
             return item_data
 
+        pvl_scraped_items = []
+
         for proto in protocols:
             page = 1
-            while True:
+            while page <= 10:
+                url = f"https://publicvpnlist.com/{proto}/?page={page}"
                 try:
-                    url = f"https://publicvpnlist.com/api/v1/servers?protocol={proto}&per_page=100&page={page}"
-                    res = self.session.get(url, headers=headers, timeout=10)
-                    if res.status_code != 200:
+                    r = self.session.get(url, headers=headers, timeout=10)
+                    if r.status_code != 200:
                         break
-                    items = res.json().get("data", [])
-                    if not items:
+                    soup = BeautifulSoup(r.text, "html.parser")
+                    rows = soup.find_all("tr")
+                    if len(rows) <= 1:
                         break
 
-                    with ThreadPoolExecutor(max_workers=20) as executor:
-                        fetched_items = list(executor.map(fetch_pvl_config, items))
+                    count_page = 0
+                    for tr in rows[1:]:
+                        text = tr.get_text(strip=True, separator=" ")
+                        links = [a['href'] for a in tr.find_all('a') if 'href' in a.attrs]
 
-                    for item in fetched_items:
-                        if not item:
+                        dl_link = next((l for l in links if "download.php" in l or "download-vpn-list" in l), None)
+                        if dl_link and not dl_link.startswith("http"):
+                            dl_link = "https://publicvpnlist.com" + dl_link
+
+                        server_link = next((l for l in links if f"/{proto}/server/" in l or "/server/" in l), None)
+                        if not server_link:
                             continue
-                        sid = str(item.get("id", ""))
-                        if sid:
-                            source_id = sid
-                            upsert_key = f"publicvpnlist_{source_id}"
-                            item["source_name"] = "publicvpnlist"
-                            item["source_id"] = source_id
-                            item["protocol"] = proto
-                            self.servers[upsert_key] = item
-                    if len(items) < 100:
+
+                        sid = server_link.strip("/").split("/")[-1]
+
+                        # Exact country match in table row text
+                        country_code = None
+                        country_name = None
+
+                        for name_upper, code in EXACT_COUNTRY_NAME_TO_CODE.items():
+                            if re.search(r'\b' + re.escape(name_upper) + r'\b', text.upper()):
+                                country_code = code
+                                country_name = ALL_ISO_TO_NAME.get(code, name_upper.title())
+                                break
+
+                        raw_item = {
+                            "id": sid,
+                            "source_name": "publicvpnlist",
+                            "source_id": sid,
+                            "protocol": proto,
+                            "country_code": country_code,
+                            "country_name": country_name,
+                            "config_download_url": dl_link,
+                        }
+                        pvl_scraped_items.append(raw_item)
+                        count_page += 1
+
+                    if count_page == 0:
                         break
                     page += 1
-                except Exception:
+                except Exception as e:
+                    logger.warning(f"PVL HTML Scraper Error ({url}): {e}")
                     break
+
+        if pvl_scraped_items:
+            logger.info(f"PVL HTML Scraper harvested {len(pvl_scraped_items)} server rows with verified country metadata.")
+            with ThreadPoolExecutor(max_workers=20) as executor:
+                fetched_items = list(executor.map(fetch_pvl_raw_config, pvl_scraped_items))
+
+            for item in fetched_items:
+                if not item: continue
+                sid = item.get("id", "")
+                if sid:
+                    upsert_key = f"publicvpnlist_{sid}"
+                    self.servers[upsert_key] = item
 
     def _harvest_omgvpn(self):
         omg_urls = ["https://omgvpn.com/"]
