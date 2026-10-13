@@ -39,6 +39,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zvpn.data.config.ConfigRepository
 import com.zvpn.shared.resources.Res
+import com.zvpn.shared.resources.ic_bolt
+import androidx.compose.foundation.clickable
 import com.zvpn.shared.resources.auto_title_for
 import com.zvpn.shared.resources.tour_done
 import com.zvpn.shared.resources.tour_next
@@ -57,7 +59,7 @@ import com.zvpn.ui.update.NudgeHost
 import com.zvpn.ui.vault.VaultImportHost
 import com.zvpn.ui.vault.VaultScreen
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun MainScaffold(
     settings: AppSettings,
@@ -163,17 +165,74 @@ fun MainScaffold(
 
     Box(Modifier.fillMaxSize()) {
         var showMyIpDialog by rememberSaveable { mutableStateOf(false) }
+        var showPaywallSheet by rememberSaveable { mutableStateOf(false) }
+
         if (showMyIpDialog) {
             com.zvpn.ui.components.MyIpDialog(onDismiss = { showMyIpDialog = false })
         }
+
+        if (showPaywallSheet) {
+            androidx.compose.material3.ModalBottomSheet(
+                onDismissRequest = { showPaywallSheet = false },
+                sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            ) {
+                com.zvpn.ui.premium.PaywallScreen(
+                    onPlanSelected = { productId ->
+                        showPaywallSheet = false
+                        platform.toast("Selected plan: $productId")
+                    },
+                    onDismiss = { showPaywallSheet = false },
+                )
+            }
+        }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            com.zvpn.ui.navigation.ZedNavBar(
-                style = settings.navBarStyle,
-                current = current,
-                onSelect = { current = it },
-            )
+            androidx.compose.foundation.layout.Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+            ) {
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    com.zvpn.ui.navigation.ZedNavBar(
+                        style = settings.navBarStyle,
+                        current = current,
+                        onSelect = { current = it },
+                    )
+                }
+
+                androidx.compose.material3.Surface(
+                    shape = androidx.compose.foundation.shape.CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    tonalElevation = 4.dp,
+                    modifier = Modifier
+                        .padding(bottom = 10.dp)
+                        .clickable { showPaywallSheet = true },
+                ) {
+                    androidx.compose.foundation.layout.Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp),
+                    ) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_bolt),
+                            contentDescription = "Go Premium",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        androidx.compose.material3.Text(
+                            text = "Premium ⚡",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                    }
+                }
+            }
         },
     ) { innerPadding ->
       androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
