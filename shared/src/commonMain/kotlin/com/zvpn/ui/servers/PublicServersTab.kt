@@ -49,8 +49,8 @@ import org.jetbrains.compose.resources.painterResource
 
 private fun tierLabel(tier: ServerTier): String = when (tier) {
     ServerTier.Free -> "Free"
-    ServerTier.Premium -> "Pro"
-    ServerTier.PremiumPlus -> "VIP"
+    ServerTier.Premium -> "Premium"
+    ServerTier.PremiumPlus -> "Premium+"
 }
 
 private fun continentEmoji(cont: String): String = when (cont.lowercase().trim()) {
@@ -608,11 +608,7 @@ private fun TierTabs(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(tierLabel(tier), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = content)
-                    if (locked) {
-                        Icon(painterResource(Res.drawable.ic_lock), null, tint = content, modifier = Modifier.size(13.dp))
-                    } else {
-                        Text("${counts[tier] ?: 0}", style = MaterialTheme.typography.labelSmall, color = content.copy(alpha = 0.8f))
-                    }
+                    Text("${counts[tier] ?: 0}", style = MaterialTheme.typography.labelSmall, color = content.copy(alpha = 0.8f))
                 }
             }
         }
@@ -848,8 +844,6 @@ private fun ServerRow(
             }
             if (selected) {
                 Icon(painterResource(Res.drawable.ic_check_circle), "Selected", tint = scheme.primary, modifier = Modifier.size(18.dp))
-            } else if (locked) {
-                Icon(painterResource(Res.drawable.ic_lock), "Locked", tint = scheme.outline, modifier = Modifier.size(16.dp))
             }
         }
     }
