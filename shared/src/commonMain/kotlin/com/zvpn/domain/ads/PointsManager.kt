@@ -1,5 +1,6 @@
 package com.zvpn.domain.ads
 
+import com.zvpn.domain.auth.UserAuthManager
 import com.zvpn.platform.KeyValueStore
 import com.zvpn.platform.currentTimeMillis
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,6 +46,8 @@ object PointsManager {
 
     private val _referralCode = MutableStateFlow("")
     val referralCode: StateFlow<String> = _referralCode.asStateFlow()
+
+    fun isGoogleSignedIn(): Boolean = UserAuthManager.session.value.isSignedIn
 
     fun init(keyValueStore: KeyValueStore) {
         store = keyValueStore
@@ -116,6 +119,8 @@ object PointsManager {
     }
 
     fun addPoints(points: Int) {
+        if (!isGoogleSignedIn()) return // Google Sign-In Enforced for Points!
+
         val newTotal = _totalPoints.value + points
         val newToday = _todayPoints.value + points
         _totalPoints.value = newTotal
@@ -126,7 +131,7 @@ object PointsManager {
     }
 
     fun consumePoints(points: Int): Boolean {
-        if (_totalPoints.value < points) return false
+        if (!isGoogleSignedIn() || _totalPoints.value < points) return false
         val newTotal = max(0, _totalPoints.value - points)
         _totalPoints.value = newTotal
         store?.putInt(KEY_TOTAL_POINTS, newTotal)
@@ -143,7 +148,7 @@ object PointsManager {
     }
 
     fun claimDailyStreak(): Int {
-        if (!_canClaimDailyStreak.value) return 0
+        if (!isGoogleSignedIn() || !_canClaimDailyStreak.value) return 0
         val currentStreak = _streakDays.value
         val reward = when (currentStreak) {
             1 -> 10
@@ -169,6 +174,7 @@ object PointsManager {
     }
 
     fun redeemReferralCode(code: String): Boolean {
+        if (!isGoogleSignedIn()) return false
         val clean = code.trim().uppercase()
         if (clean.isBlank() || clean == _referralCode.value) return false
 

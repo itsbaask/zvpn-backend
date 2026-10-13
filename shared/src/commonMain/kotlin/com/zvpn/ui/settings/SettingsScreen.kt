@@ -5,6 +5,7 @@ package com.zvpn.ui.settings
 import com.zvpn.ui.platform.BackHandler
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -285,6 +286,33 @@ private fun RootPage(
         contentPadding = contentPadding,
         modifier = modifier,
     ) {
+        SettingsGroup("Google Account & Anti-Fraud Protection") {
+            val session by com.zvpn.domain.auth.UserAuthManager.session.collectAsState()
+            val totalPts by com.zvpn.domain.ads.PointsManager.totalPoints.collectAsState()
+
+            if (session.email.isNotBlank() || session.userId.isNotBlank()) {
+                SettingsMenuRow(
+                    title = session.displayName.ifBlank { "Google User" },
+                    subtitle = "${session.email.ifBlank { session.userId }} • $totalPts Points",
+                    leadingIcon = Res.drawable.ic_check_circle,
+                    badgeColor = androidx.compose.ui.graphics.Color(0xFF4CAF50),
+                    trailingText = "Signed In",
+                ) {
+                    com.zvpn.domain.auth.UserAuthManager.signOut()
+                }
+            } else {
+                SettingsMenuRow(
+                    title = "Sign In with Google",
+                    subtitle = "Required to earn points, claim rewards & unlock all features!",
+                    leadingIcon = Res.drawable.ic_bolt,
+                    badgeColor = androidx.compose.ui.graphics.Color(0xFF6C63FF),
+                    trailingText = "Sign In",
+                ) {
+                    platform.toast("Sign in with Google to protect your points & rewards!")
+                }
+            }
+        }
+
         SettingsGroup(
             stringResource(Res.string.title_ui_settings),
             modifier = Modifier.tourTargetInPage(TourTargets.SETTINGS_LOOK),

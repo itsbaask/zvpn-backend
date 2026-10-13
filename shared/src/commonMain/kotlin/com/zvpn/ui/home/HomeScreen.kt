@@ -10,6 +10,8 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.runtime.collectAsState
+import com.zvpn.ui.platform.LocalPlatform
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -198,6 +200,7 @@ fun HomeScreen(
     var statusLastTap by remember { mutableLongStateOf(0L) }
     var showLogs by remember { mutableStateOf(false) }
     val haptics = LocalHapticFeedback.current
+    val platform = LocalPlatform.current
 
     Box(
         modifier = modifier
@@ -235,6 +238,57 @@ fun HomeScreen(
                     onSecretUnlocked = onSecretUnlocked,
                     onShowLogs = { showLogs = true },
                 )
+
+                val userSession by com.zvpn.domain.auth.UserAuthManager.session.collectAsState()
+                if (!userSession.isSignedIn) {
+                    Spacer(Modifier.height(10.dp))
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.fillMaxWidth().clickable {
+                            platform.toast("Sign in with Google to protect your points & rewards!")
+                        },
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_bolt),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(24.dp),
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Sign In with Google",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                )
+                                Text(
+                                    text = "Required to earn points, claim rewards & unlock all features!",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary)
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                            ) {
+                                Text(
+                                    text = "Sign In",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                )
+                            }
+                        }
+                    }
+                }
 
                 val fault = when {
                     ui.state == ConnectionState.Error ->
