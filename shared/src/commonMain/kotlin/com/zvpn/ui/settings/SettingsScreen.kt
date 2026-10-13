@@ -93,7 +93,7 @@ import com.zvpn.data.config.ConfigRepository
 
 enum class SettingsPage {
     Root, Ui, Vpn, Core, Routing, PerApp, Mux, Fragment, Observatory, Advanced, Mode, Assets, SingBox,
-    DnsProtocols, Tor, TorBridges, Ssh, Support, SpeedTest, Map, Privacy, Monitor, Ai, AiChat, MyIp,
+    DnsProtocols, Tor, TorBridges, Ssh, Support, SpeedTest, Map, Privacy, Monitor, Ai, AiChat, MyIp, Gaming,
 }
 
 @Composable
@@ -252,6 +252,7 @@ fun SettingsScreen(
                 },
             )
             SettingsPage.MyIp -> MyIpPage(contentPadding, modifier, settings.ipApiUrl)
+            SettingsPage.Gaming -> GamingScreen(contentPadding, modifier)
         }
     }
     }
@@ -331,16 +332,12 @@ private fun RootPage(
             ) { onOpen(SettingsPage.Mode) }
             val isGamingBoost by com.zvpn.domain.gaming.GamingBoostManager.isGamingBoostEnabled.collectAsState()
             SettingsMenuRow(
-                title = "Gaming Boost 🎮",
-                subtitle = if (isGamingBoost) "Active (Optimal Gaming MTU 1380)" else "Enable low-latency UDP optimization for gaming",
+                title = "Gaming Acceleration & Optimization",
+                subtitle = if (isGamingBoost) "Active — High UDP Direct Fast-Path & 1380 MTU" else "Low-latency UDP fast-path, game app selector & packet tuning",
                 leadingIcon = Res.drawable.ic_speed,
                 badgeColor = androidx.compose.ui.graphics.Color(0xFF00E676),
                 trailingText = if (isGamingBoost) "ON" else "OFF",
-            ) {
-                val next = !isGamingBoost
-                com.zvpn.domain.gaming.GamingBoostManager.setGamingBoostEnabled(next)
-                platform.toast(if (next) "Gaming Boost 🎮 Enabled (MTU 1380)" else "Gaming Boost Disabled")
-            }
+            ) { onOpen(SettingsPage.Gaming) }
             SettingsMenuRow(
                 stringResource(Res.string.monitor_title),
                 stringResource(Res.string.monitor_subtitle),
