@@ -10,6 +10,8 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.collectAsState
 import com.zvpn.ui.platform.LocalPlatform
 import androidx.compose.animation.AnimatedVisibility
@@ -287,6 +289,28 @@ fun HomeScreen(
                                 )
                             }
                         }
+                    }
+                }
+
+                val isGamingBoost by com.zvpn.domain.gaming.GamingBoostManager.isGamingBoostEnabled.collectAsState()
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    FilledTonalButton(
+                        onClick = {
+                            val next = !isGamingBoost
+                            com.zvpn.domain.gaming.GamingBoostManager.setGamingBoostEnabled(next)
+                            platform.toast(if (next) "Gaming Boost 🎮 Enabled (MTU 1380)" else "Gaming Boost Disabled")
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = if (isGamingBoost) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh
+                        ),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(if (isGamingBoost) "Gaming Boost 🎮 Active" else "Enable Gaming Boost 🎮", fontWeight = FontWeight.Bold)
                     }
                 }
 
