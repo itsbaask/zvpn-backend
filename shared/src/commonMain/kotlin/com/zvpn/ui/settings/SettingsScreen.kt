@@ -329,6 +329,18 @@ private fun RootPage(
                 leadingIcon = Res.drawable.ic_tune,
                 badgeColor = androidx.compose.ui.graphics.Color(0xFF00897E),
             ) { onOpen(SettingsPage.Mode) }
+            val isGamingBoost by com.zvpn.domain.gaming.GamingBoostManager.isGamingBoostEnabled.collectAsState()
+            SettingsMenuRow(
+                title = "Gaming Boost 🎮",
+                subtitle = if (isGamingBoost) "Active (Optimal Gaming MTU 1380)" else "Enable low-latency UDP optimization for gaming",
+                leadingIcon = Res.drawable.ic_speed,
+                badgeColor = androidx.compose.ui.graphics.Color(0xFF00E676),
+                trailingText = if (isGamingBoost) "ON" else "OFF",
+            ) {
+                val next = !isGamingBoost
+                com.zvpn.domain.gaming.GamingBoostManager.setGamingBoostEnabled(next)
+                platform.toast(if (next) "Gaming Boost 🎮 Enabled (MTU 1380)" else "Gaming Boost Disabled")
+            }
             SettingsMenuRow(
                 stringResource(Res.string.monitor_title),
                 stringResource(Res.string.monitor_subtitle),
