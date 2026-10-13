@@ -28,17 +28,12 @@ object BillingConfig {
 }
 
 enum class UserTier(val label: String, val canAccessPremium: Boolean, val canAccessPremiumPlus: Boolean, val hasAds: Boolean) {
-    Free("Free", false, false, true),
-    Premium("Premium", true, false, false),
+    Free("Free", true, true, false),
+    Premium("Premium", true, true, false),
     PremiumPlus("Premium+", true, true, false),
-    AdRewarded("Free (Rewarded)", true, false, true);  // temporary premium from ad
+    AdRewarded("Free (Rewarded)", true, true, false);  // temporary premium from ad
 
     companion object {
-        fun canAccess(userTier: UserTier, serverTier: String): Boolean = when (serverTier.lowercase()) {
-            "free" -> true
-            "premium" -> userTier.canAccessPremium
-            "premium_plus" -> userTier.canAccessPremiumPlus
-            else -> false
-        }
+        fun canAccess(userTier: UserTier, serverTier: String): Boolean = true
     }
 }
