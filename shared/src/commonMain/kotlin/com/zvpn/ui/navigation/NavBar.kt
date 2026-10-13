@@ -38,12 +38,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.zvpn.ui.onboarding.TourTargets
-import com.zvpn.ui.onboarding.tourTarget
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.zvpn.domain.model.NavBarStyle
+import com.zvpn.shared.resources.Res
+import com.zvpn.shared.resources.ic_bolt
+import com.zvpn.ui.onboarding.TourTargets
+import com.zvpn.ui.onboarding.tourTarget
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -52,14 +55,15 @@ fun ZedNavBar(
     style: NavBarStyle,
     current: TopDestination,
     onSelect: (TopDestination) -> Unit,
+    onOpenPremium: (() -> Unit)? = null,
 ) {
     when (style) {
-        NavBarStyle.FloatingPill -> FloatingPillBar(current, onSelect, compact = false)
-        NavBarStyle.CompactDock -> FloatingPillBar(current, onSelect, compact = true)
-        NavBarStyle.ExpressivePill -> ExpressivePillBar(current, onSelect)
-        NavBarStyle.FullBar -> MaterialBar(current, onSelect, underline = false)
-        NavBarStyle.Underline -> MaterialBar(current, onSelect, underline = true)
-        NavBarStyle.Minimal -> MinimalBar(current, onSelect)
+        NavBarStyle.FloatingPill -> FloatingPillBar(current, onSelect, compact = false, onOpenPremium = onOpenPremium)
+        NavBarStyle.CompactDock -> FloatingPillBar(current, onSelect, compact = true, onOpenPremium = onOpenPremium)
+        NavBarStyle.ExpressivePill -> ExpressivePillBar(current, onSelect, onOpenPremium = onOpenPremium)
+        NavBarStyle.FullBar -> MaterialBar(current, onSelect, underline = false, onOpenPremium = onOpenPremium)
+        NavBarStyle.Underline -> MaterialBar(current, onSelect, underline = true, onOpenPremium = onOpenPremium)
+        NavBarStyle.Minimal -> MinimalBar(current, onSelect, onOpenPremium = onOpenPremium)
     }
 }
 
@@ -68,6 +72,7 @@ private fun FloatingPillBar(
     current: TopDestination,
     onSelect: (TopDestination) -> Unit,
     compact: Boolean,
+    onOpenPremium: (() -> Unit)? = null,
 ) {
     Box(
         modifier = Modifier
@@ -89,12 +94,45 @@ private fun FloatingPillBar(
                     modifier = Modifier.tourTarget(TourTargets.nav(dest.name)),
                 )
             }
+
+            if (onOpenPremium != null) {
+                Surface(
+                    onClick = onOpenPremium,
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.padding(start = 2.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_bolt),
+                            contentDescription = "Go Premium",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Text(
+                            text = "Premium ⚡",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun ExpressivePillBar(current: TopDestination, onSelect: (TopDestination) -> Unit) {
+private fun ExpressivePillBar(
+    current: TopDestination,
+    onSelect: (TopDestination) -> Unit,
+    onOpenPremium: (() -> Unit)? = null,
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -158,6 +196,34 @@ private fun ExpressivePillBar(current: TopDestination, onSelect: (TopDestination
                         }
                     }
                 }
+
+                if (onOpenPremium != null) {
+                    Surface(
+                        onClick = onOpenPremium,
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Icon(
+                                painterResource(Res.drawable.ic_bolt),
+                                contentDescription = "Go Premium",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Text(
+                                text = "Premium ⚡",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -168,6 +234,7 @@ private fun MaterialBar(
     current: TopDestination,
     onSelect: (TopDestination) -> Unit,
     underline: Boolean,
+    onOpenPremium: (() -> Unit)? = null,
 ) {
     NavigationBar {
         TopDestination.entries.forEach { dest ->
@@ -206,11 +273,39 @@ private fun MaterialBar(
                 },
             )
         }
+
+        if (onOpenPremium != null) {
+            NavigationBarItem(
+                selected = false,
+                onClick = onOpenPremium,
+                icon = {
+                    Icon(
+                        painterResource(Res.drawable.ic_bolt),
+                        contentDescription = "Premium",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp),
+                    )
+                },
+                label = {
+                    Text(
+                        "Premium ⚡",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                    )
+                },
+            )
+        }
     }
 }
 
 @Composable
-private fun MinimalBar(current: TopDestination, onSelect: (TopDestination) -> Unit) {
+private fun MinimalBar(
+    current: TopDestination,
+    onSelect: (TopDestination) -> Unit,
+    onOpenPremium: (() -> Unit)? = null,
+) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -248,6 +343,20 @@ private fun MinimalBar(current: TopDestination, onSelect: (TopDestination) -> Un
                             else androidx.compose.ui.graphics.Color.Transparent,
                         ),
                 )
+            }
+        }
+
+        if (onOpenPremium != null) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                IconButton(onClick = onOpenPremium) {
+                    Icon(
+                        painterResource(Res.drawable.ic_bolt),
+                        contentDescription = "Premium",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+                Box(Modifier.size(5.dp))
             }
         }
     }

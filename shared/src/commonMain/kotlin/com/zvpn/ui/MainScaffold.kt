@@ -189,50 +189,12 @@ fun MainScaffold(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            androidx.compose.foundation.layout.Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
-            ) {
-                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    com.zvpn.ui.navigation.ZedNavBar(
-                        style = settings.navBarStyle,
-                        current = current,
-                        onSelect = { current = it },
-                    )
-                }
-
-                androidx.compose.material3.Surface(
-                    shape = androidx.compose.foundation.shape.CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    tonalElevation = 4.dp,
-                    modifier = Modifier
-                        .padding(bottom = 10.dp)
-                        .clickable { showPaywallSheet = true },
-                ) {
-                    androidx.compose.foundation.layout.Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp),
-                    ) {
-                        Icon(
-                            painter = painterResource(Res.drawable.ic_bolt),
-                            contentDescription = "Go Premium",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(20.dp),
-                        )
-                        androidx.compose.material3.Text(
-                            text = "Premium ⚡",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
-                    }
-                }
-            }
+            com.zvpn.ui.navigation.ZedNavBar(
+                style = settings.navBarStyle,
+                current = current,
+                onSelect = { current = it },
+                onOpenPremium = { showPaywallSheet = true },
+            )
         },
     ) { innerPadding ->
       androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
