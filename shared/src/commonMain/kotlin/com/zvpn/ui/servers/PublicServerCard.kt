@@ -139,8 +139,8 @@ fun PublicServerCard(
                             ) {
                                 Text(
                                     text = when(server.tier) {
-                                        ServerTier.PremiumPlus -> "VIP+"
-                                        ServerTier.Premium -> "PRO"
+                                        ServerTier.PremiumPlus -> "PREMIUM+"
+                                        ServerTier.Premium -> "PREMIUM"
                                         else -> "FREE"
                                     },
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),

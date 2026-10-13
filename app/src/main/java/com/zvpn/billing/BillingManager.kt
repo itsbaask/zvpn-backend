@@ -53,6 +53,7 @@ class BillingManager(private val context: Context) : PurchasesUpdatedListener {
             BillingConfig.PRODUCT_PREMIUM_WEEKLY,
             BillingConfig.PRODUCT_PREMIUM_MONTHLY,
             BillingConfig.PRODUCT_PREMIUM_YEARLY,
+            BillingConfig.PRODUCT_PREMIUM_PLUS_YEARLY,
         ).map { QueryProductDetailsParams.Product.newBuilder().setProductId(it).setProductType(BillingClient.ProductType.SUBS).build() }
 
         val params = QueryProductDetailsParams.newBuilder().setProductList(productIds).build()

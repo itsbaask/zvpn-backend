@@ -42,13 +42,13 @@ fun PaywallScreen(
     val plans = listOf(
         PlanOption(
             productId = BillingConfig.PRODUCT_PREMIUM_WEEKLY,
-            title = "Weekly",
+            title = "ZVPN Premium Weekly",
             price = BillingConfig.PRICE_WEEKLY_DISPLAY,
             perDay = BillingConfig.PRICE_WEEKLY_PER_DAY,
         ),
         PlanOption(
             productId = BillingConfig.PRODUCT_PREMIUM_MONTHLY,
-            title = "Monthly",
+            title = "ZVPN Premium Monthly",
             price = BillingConfig.PRICE_MONTHLY_DISPLAY,
             perDay = BillingConfig.PRICE_MONTHLY_PER_DAY,
             badge = "Most Popular",
@@ -56,10 +56,17 @@ fun PaywallScreen(
         ),
         PlanOption(
             productId = BillingConfig.PRODUCT_PREMIUM_YEARLY,
-            title = "Yearly",
+            title = "ZVPN Premium Yearly",
             price = BillingConfig.PRICE_YEARLY_DISPLAY,
             perDay = BillingConfig.PRICE_YEARLY_PER_DAY,
             badge = "Best Value",
+        ),
+        PlanOption(
+            productId = BillingConfig.PRODUCT_PREMIUM_PLUS_YEARLY,
+            title = "ZVPN Premium+ Ultra Yearly",
+            price = BillingConfig.PRICE_PLUS_YEARLY_DISPLAY,
+            perDay = BillingConfig.PRICE_PLUS_YEARLY_PER_DAY,
+            badge = "Ultimate All-Access",
         ),
     )
 
@@ -83,7 +90,7 @@ fun PaywallScreen(
     ) {
         // ── Header ───────────────────────────────────────────────────────────
         Spacer(Modifier.height(32.dp))
-        Text("⭐", fontSize = 48.sp)
+        Text("⚡", fontSize = 48.sp)
         Spacer(Modifier.height(12.dp))
         Text(
             text = "Go Premium",
@@ -93,7 +100,7 @@ fun PaywallScreen(
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Unlock all servers, zero ads, unlimited speed",
+            text = "Unlock all servers, zero ads, unlimited speed & multi-hop chains",
             style = MaterialTheme.typography.bodyLarge,
             color = Color.White.copy(alpha = 0.7f),
             textAlign = TextAlign.Center,
@@ -103,12 +110,13 @@ fun PaywallScreen(
 
         // ── Features ─────────────────────────────────────────────────────────
         val features = listOf(
-            "✅  1,000+ servers in 50+ countries",
-            "✅  All protocols: VLESS, Trojan, OpenVPN…",
-            "✅  No ads, no interruptions",
-            "✅  Unlimited bandwidth",
-            "✅  Auto-select fastest server",
-            "✅  Priority support",
+            "⚡  7,500+ servers across 50+ countries",
+            "🛡️  All protocols: VLESS, Hysteria 2, WireGuard, OpenVPN…",
+            "🚫  100% zero ads & no interruptions",
+            "🚀  Unlimited high-speed bandwidth",
+            "⛓️  Multi-Hop Proxy Chains & Cross-Chain Tunnels",
+            "🌐  Custom DNS & Ad Blocker Integration",
+            "💬  24/7 Dedicated Priority Customer Support",
         )
         features.forEach { feature ->
             Text(
@@ -242,9 +250,9 @@ private fun PlanCard(
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White,
                     )
-                    if (plan.title == "Yearly") {
+                    if (plan.title.contains("Yearly")) {
                         Text(
-                            text = "Save 50%",
+                            text = "Save 58%",
                             style = MaterialTheme.typography.labelSmall,
                             color = Color(0xFF4CAF50),
                             fontWeight = FontWeight.Bold,
@@ -253,7 +261,7 @@ private fun PlanCard(
                 }
             }
         }
-        // Badge (Most Popular / Best Value)
+        // Badge (Most Popular / Best Value / Ultimate)
         if (plan.badge.isNotEmpty()) {
             Surface(
                 modifier = Modifier
@@ -261,7 +269,11 @@ private fun PlanCard(
                     .padding(end = 12.dp)
                     .offset(y = (-10).dp),
                 shape = RoundedCornerShape(8.dp),
-                color = if (plan.isPopular) Color(0xFF6C63FF) else Color(0xFFFF9800),
+                color = when {
+                    plan.badge.contains("Popular") -> Color(0xFF6C63FF)
+                    plan.badge.contains("Ultimate") -> Color(0xFFE91E63)
+                    else -> Color(0xFFFF9800)
+                },
             ) {
                 Text(
                     text = plan.badge,
