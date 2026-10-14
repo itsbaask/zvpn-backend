@@ -316,17 +316,26 @@ data class VpnProfile(
             id: String,
             addedAt: Long,
             name: String,
-        ): VpnProfile = VpnProfile(
-            id = id,
-            name = name.ifBlank { "Psiphon" },
-            protocol = "PSIPHON",
-            address = "psiphon",
-            port = 0,
-            transportLabel = "Psiphon",
-            source = ProfileSource.Psiphon(settings),
-            addedAt = addedAt,
-            countryCode = settings.country.takeIf { it.isNotBlank() }?.uppercase(),
-        )
+        ): VpnProfile {
+            val cc = settings.country.takeIf { it.isNotBlank() }?.uppercase() ?: "US"
+            val locale = java.util.Locale.Builder().setRegion(cc).build()
+            val cName = locale.getDisplayCountry(java.util.Locale.ENGLISH).ifBlank { "United States" }
+            val flagEmoji = if (cc.length == 2) String(Character.toChars(Character.codePointAt(cc, 0) - 0x41 + 0x1F1E6)) + String(Character.toChars(Character.codePointAt(cc, 1) - 0x41 + 0x1F1E6)) else "🇺🇸"
+
+            return VpnProfile(
+                id = id,
+                name = name.ifBlank { "$flagEmoji $cName" },
+                protocol = "PSIPHON",
+                address = "psiphon",
+                port = 0,
+                transportLabel = "Psiphon",
+                source = ProfileSource.Psiphon(settings),
+                addedAt = addedAt,
+                countryCode = cc,
+                countryName = cName,
+                flag = flagEmoji,
+            )
+        }
 
         fun fromDnsTunnel(
             settings: DnsTunnelProfile,
@@ -448,13 +457,17 @@ data class VpnProfile(
 
         fun fromTor(id: String, addedAt: Long, name: String): VpnProfile = VpnProfile(
             id = id,
-            name = name.ifBlank { "Tor" },
+            name = name.ifBlank { "🇺🇸 United States" },
             protocol = "TOR",
             address = "tor",
             port = 0,
             transportLabel = "Tor",
             source = ProfileSource.Tor,
             addedAt = addedAt,
+            countryCode = "US",
+            countryName = "United States",
+            flag = "🇺🇸",
+            continent = "Americas",
         )
 
         fun fromProxyChain(

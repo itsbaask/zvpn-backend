@@ -715,6 +715,8 @@ class EnterpriseSmartGeoSyncEngine:
             ("ipspeed.info", "sstp", 50),
             ("ipspeed.info", "http", 50),
             ("vpngate", "openvpn", 100),
+            ("psiphon", "psiphon", 500),
+            ("tor", "tor", 500),
         ]
 
         by_src_proto = {}

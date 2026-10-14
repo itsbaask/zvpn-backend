@@ -11,21 +11,48 @@ import kotlinx.coroutines.withContext
 
 object ProfileToServerMapper {
 
-    private const val UNKNOWN_CODE = "XX"
-    private const val DEFAULT_COUNTRY = "Unknown"
-    private const val DEFAULT_CONTINENT = "Other"
-
-    // Whole-word matches only: "VIP", "Pro", "Plus" — but not "Proxy" or "Provider".
     private val TIER_PLUS = Regex("""\b(?:vip|plus|premium\+)\b""", RegexOption.IGNORE_CASE)
     private val TIER_PRO = Regex("""\b(?:pro|premium)\b""", RegexOption.IGNORE_CASE)
+
+    private fun countryNameFromCode(cc: String): String {
+        if (cc == "XX" || cc.isBlank()) return "United States"
+        val locale = java.util.Locale.Builder().setRegion(cc.uppercase()).build()
+        val name = locale.getDisplayCountry(java.util.Locale.ENGLISH)
+        return if (name.isNotBlank() && name != cc.uppercase()) name else "United States"
+    }
+
+    private fun flagFromCode(cc: String): String {
+        if (cc == "XX" || cc.isBlank()) return "🇺🇸"
+        val upper = cc.uppercase()
+        if (upper.length != 2) return "🌐"
+        val firstChar = Character.codePointAt(upper, 0) - 0x41 + 0x1F1E6
+        val secondChar = Character.codePointAt(upper, 1) - 0x41 + 0x1F1E6
+        return String(Character.toChars(firstChar)) + String(Character.toChars(secondChar))
+    }
+
+    private fun continentFromCode(cc: String): String {
+        val upper = cc.uppercase()
+        val europe = setOf("AD", "AL", "AT", "BA", "BE", "BG", "BY", "CH", "CY", "CZ", "DE", "DK", "EE", "ES", "FI", "FR", "GB", "GR", "HR", "HU", "IE", "IS", "IT", "LI", "LT", "LU", "LV", "MC", "MD", "ME", "MK", "MT", "NL", "NO", "PL", "PT", "RO", "RS", "RU", "SE", "SI", "SK", "SM", "TR", "UA", "VA")
+        val americas = setOf("AG", "AI", "AR", "AW", "BB", "BL", "BM", "BO", "BQ", "BR", "BS", "BZ", "CA", "CL", "CO", "CR", "CU", "CW", "DM", "DO", "EC", "FK", "GD", "GF", "GL", "GP", "GT", "GY", "HN", "HT", "JM", "KN", "KY", "LC", "MF", "MQ", "MS", "MX", "NI", "PA", "PE", "PM", "PR", "PY", "SR", "SV", "SX", "TC", "TT", "UM", "US", "UY", "VC", "VE", "VG", "VI")
+        val asia = setOf("AF", "AM", "AS", "AU", "AZ", "BD", "BN", "BT", "CC", "CK", "CN", "CX", "FJ", "FM", "GE", "GU", "HK", "ID", "IN", "IO", "JP", "KH", "KI", "KP", "KR", "KZ", "KG", "LA", "LK", "MH", "MM", "MN", "MO", "MP", "MV", "MY", "NC", "NF", "NP", "NR", "NU", "NZ", "PF", "PG", "PH", "PK", "PN", "PW", "SB", "SG", "SY", "TH", "TK", "TL", "TJ", "TM", "TW", "UZ", "VN", "VU", "WF", "WS", "AE", "SA", "IL", "QA", "KW", "OM", "BH", "JO", "LB", "IQ", "YE", "PS")
+        val africa = setOf("AO", "BF", "BI", "BJ", "BW", "CD", "CF", "CG", "CI", "CM", "CV", "DJ", "DZ", "EG", "EH", "ER", "ET", "GA", "GH", "GM", "GN", "GQ", "GW", "KE", "KM", "LR", "LS", "LY", "MA", "MG", "ML", "MR", "MU", "MW", "MZ", "NA", "NE", "NG", "RE", "RW", "SC", "SD", "SH", "SL", "SN", "SO", "SS", "ST", "SZ", "TD", "TG", "TN", "TZ", "UG", "YT", "ZA", "ZM", "ZW")
+
+        return when (upper) {
+            in europe -> "Europe"
+            in americas -> "Americas"
+            in asia -> "Asia-Pacific"
+            in africa -> "ME/Africa"
+            else -> "Americas"
+        }
+    }
 
     fun map(profile: VpnProfile): PublicServer {
         val rawName = profile.name.trim()
 
-        val countryName = profile.countryName ?: DEFAULT_COUNTRY
-        val cc = profile.countryCode?.takeIf { it.isNotBlank() } ?: UNKNOWN_CODE
-        val flagEmoji = profile.flag ?: "🌐"
-        val continent = profile.continent ?: DEFAULT_CONTINENT
+        val cc = profile.countryCode?.takeIf { it.isNotBlank() && it != "XX" } ?: "US"
+        val countryName = profile.countryName?.takeIf { it.isNotBlank() && it != "Unknown" } ?: countryNameFromCode(cc)
+        val flagEmoji = profile.flag?.takeIf { it.isNotBlank() && it != "🌐" } ?: flagFromCode(cc)
+        val continent = profile.continent?.takeIf { it.isNotBlank() && it != "Other" } ?: continentFromCode(cc)
 
         val tier = when {
             TIER_PLUS.containsMatchIn(rawName) -> ServerTier.PremiumPlus

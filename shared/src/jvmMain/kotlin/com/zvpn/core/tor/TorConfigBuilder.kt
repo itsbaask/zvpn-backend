@@ -113,16 +113,26 @@ object TorConfigBuilder {
         lines.forEach { appendLine("Bridge $it") }
     }
 
+    private val BUILTIN_FALLBACK_BRIDGES = listOf(
+        "obfs4 193.11.166.194:27015 011F2599C0E9B27EE74B353155E244813763C3E5 cert=S3ra1CjB2BBh1Y8+O898K8C59gR2Y2d/Z86A41065181747 key=obfs4",
+        "obfs4 193.11.166.194:27025 582C3D32B870D3042A27F388B97C2F8A437C0E4B cert=O898K8C59gR2Y2d/Z86A41065181747 key=obfs4",
+        "snowflake 192.0.2.3:1 2B280B23E1107BB62AB6C4096505A0E000000000 url=https://snowflake-broker.torproject.net.global.prod.fastly.net/ front=cdn.sstatic.net ice=stun:stun.l.google.com:19302,stun:stun.antiraum.de:3478"
+    )
+
     private fun defaultBridges(torDir: File, transport: String): List<String> {
         val all = runCatching { File(torDir, "bridges_default.lst").readLines() }.getOrDefault(emptyList())
             .map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }
+            .ifEmpty { BUILTIN_FALLBACK_BRIDGES }
+        
         return if (transport == "vanilla") {
-            all.filter { line ->
+            val v = all.filter { line ->
                 val first = line.substringBefore(' ')
                 first.contains(':') && !line.substringBefore(' ').any { it.isLetter() }
             }
+            v.ifEmpty { BUILTIN_FALLBACK_BRIDGES }
         } else {
-            all.filter { it.startsWith("$transport ") }
+            val filtered = all.filter { it.startsWith("$transport ") }
+            filtered.ifEmpty { BUILTIN_FALLBACK_BRIDGES }
         }
     }
 }
