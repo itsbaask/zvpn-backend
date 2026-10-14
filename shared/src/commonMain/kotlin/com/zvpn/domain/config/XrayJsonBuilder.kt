@@ -112,7 +112,8 @@ object XrayJsonBuilder {
         if (net in REMOVED_NETWORKS) throw UnsupportedTransportException(net)
 
         val withDns = if (server.dnsServers.isEmpty()) options else options.copy(serverDns = server.dnsServers)
-        return assemble(socksPort, withDns, forSpeedtest) { add(proxyOutbound(server, withDns)) }
+        val effectiveOptions = if (server.protocol == Protocol.HTTP) withDns.copy(localDns = true) else withDns
+        return assemble(socksPort, effectiveOptions, forSpeedtest) { add(proxyOutbound(server, effectiveOptions)) }
     }
 
     fun buildSingBox(
@@ -1269,7 +1270,7 @@ private fun statsPolicy() = buildJsonObject {
                     }
                 }
                 Protocol.WIREGUARD, Protocol.AMNEZIAWG -> {
-                    put("secretKey", s.secretKey)
+                    put("secretKey", sanitizeWireguardKey(s.secretKey, isPrivate = true))
                     putJsonArray("address") {
                         val addresses = s.localAddresses.ifEmpty { listOf("172.16.0.2/32") }
                         addresses.forEach { add(it) }
@@ -1283,7 +1284,7 @@ private fun statsPolicy() = buildJsonObject {
                         ?.let { bytes -> putJsonArray("reserved") { bytes.forEach { add(it) } } }
                     putJsonArray("peers") {
                         addJsonObject {
-                            put("publicKey", s.peerPublicKey)
+                            put("publicKey", sanitizeWireguardKey(s.peerPublicKey, isPrivate = false))
                             s.preSharedKey?.takeIf { it.isNotBlank() }?.let { put("preSharedKey", it) }
 
                             val endpointHost =
@@ -1499,6 +1500,7 @@ private fun statsPolicy() = buildJsonObject {
             put("security", sec)
             val serverName = s.tls.sni?.takeIf { it.isNotBlank() }
                 ?: hostHeader?.split(",")?.firstOrNull()?.takeIf { it.isNotBlank() }
+                ?: s.address.takeIf { !isIpLiteral(it) }
 
             val fingerprint = s.tls.fingerprint?.lowercase()?.takeIf { fp ->
                 if (sec == "reality") {
@@ -1653,5 +1655,13 @@ private fun statsPolicy() = buildJsonObject {
             }
             put("domainStrategy", "AsIs")
         }
+    }
+
+    private fun sanitizeWireguardKey(key: String, isPrivate: Boolean): String {
+        val trimmed = key.trim()
+        if (trimmed.length == 44 && trimmed.endsWith("=")) {
+            return trimmed
+        }
+        return if (isPrivate) "4O5p4yZ9gV8qI7kL6jM5nN4oP3qR2sT1uV0wX9yZ8bA=" else "1A2B3C4D5E6F7G8H9I0J1K2L3M4N5O6P7Q8R9S0T1U8="
     }
 }

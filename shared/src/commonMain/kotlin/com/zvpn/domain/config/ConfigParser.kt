@@ -370,9 +370,9 @@ object ConfigParser {
             remark = p.fragment.ifBlank { p.host },
             address = p.host,
             port = p.port ?: 1701,
-            username = p.userInfo.substringBefore(':'),
-            userId = p.userInfo.substringAfter(':', ""),
-            preSharedKey = q["psk"] ?: q["presharedkey"],
+            username = p.userInfo.substringBefore(':').ifBlank { "vpn" },
+            userId = p.userInfo.substringAfter(':', "").ifBlank { "vpn" },
+            preSharedKey = (q["psk"] ?: q["presharedkey"])?.takeIf { it.isNotBlank() } ?: "vpn",
         )
     }
 
@@ -385,8 +385,8 @@ object ConfigParser {
             remark = p.fragment.ifBlank { p.host },
             address = p.host,
             port = p.port ?: 443,
-            username = p.userInfo.substringBefore(':'),
-            userId = p.userInfo.substringAfter(':', ""),
+            username = p.userInfo.substringBefore(':').ifBlank { "vpn" },
+            userId = p.userInfo.substringAfter(':', "").ifBlank { "vpn" },
             tls = SecurityConfig(
                 allowInsecure = q["insecure"] == "1" || q["verify"]?.lowercase() == "false",
             ),

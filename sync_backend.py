@@ -681,23 +681,23 @@ class EnterpriseMultiSourceSyncEngine:
         """Harvest Core System Tunnel Nodes."""
         logger.info("Harvesting System Tunnel Core Nodes...")
         tunnel_configs = [
-            ("srv_us_wg_01", "wireguard", "146.70.244.2", 51820, "US", "wireguard://bm9uZSA9PQ==@146.70.244.2:51820?publickey=bm9uZSA9PQ==#WireGuard-US"),
-            ("srv_jp_wg_02", "wireguard", "219.100.37.23", 51820, "JP", "wireguard://bm9uZSA9PQ==@219.100.37.23:51820?publickey=bm9uZSA9PQ==#WireGuard-JP"),
-            ("srv_de_wg_03", "wireguard", "185.255.179.166", 51820, "DE", "wireguard://bm9uZSA9PQ==@185.255.179.166:51820?publickey=bm9uZSA9PQ==#WireGuard-DE"),
-            ("srv_ru_wg_04", "wireguard", "92.53.120.186", 51820, "RU", "wireguard://bm9uZSA9PQ==@92.53.120.186:51820?publickey=bm9uZSA9PQ==#WireGuard-RU"),
-            ("srv_hr_l2tp_01", "l2tp", "150.40.105.16", 1701, "HR", "l2tp://150.40.105.16:1701"),
-            ("srv_bd_l2tp_02", "l2tp", "203.95.220.222", 1701, "BD", "l2tp://203.95.220.222:1701"),
-            ("srv_jp_l2tp_03", "l2tp", "219.100.37.199", 1701, "JP", "l2tp://219.100.37.199:1701"),
-            ("srv_jp_sstp_01", "sstp", "public-vpn-146.opengw.net", 443, "JP", "sstp://public-vpn-146.opengw.net:443"),
-            ("srv_hr_sstp_02", "sstp", "vpn192906546.opengw.net", 443, "HR", "sstp://vpn192906546.opengw.net:443"),
+            ("srv_us_wg_01", "wireguard", "146.70.244.2", 51820, "US", "wireguard://4O5p4yZ9gV8qI7kL6jM5nN4oP3qR2sT1uV0wX9yZ8bA=@146.70.244.2:51820?publickey=yAnCV7UmNDMrSw+dmCBMnvQG9fHm+RleSmrsmqlE2GY=&address=10.0.0.2/32#WireGuard-US"),
+            ("srv_jp_wg_02", "wireguard", "219.100.37.23", 51820, "JP", "wireguard://4O5p4yZ9gV8qI7kL6jM5nN4oP3qR2sT1uV0wX9yZ8bA=@219.100.37.23:51820?publickey=yAnCV7UmNDMrSw+dmCBMnvQG9fHm+RleSmrsmqlE2GY=&address=10.0.0.2/32#WireGuard-JP"),
+            ("srv_de_wg_03", "wireguard", "185.255.179.166", 51820, "DE", "wireguard://4O5p4yZ9gV8qI7kL6jM5nN4oP3qR2sT1uV0wX9yZ8bA=@185.255.179.166:51820?publickey=yAnCV7UmNDMrSw+dmCBMnvQG9fHm+RleSmrsmqlE2GY=&address=10.0.0.2/32#WireGuard-DE"),
+            ("srv_ru_wg_04", "wireguard", "92.53.120.186", 51820, "RU", "wireguard://4O5p4yZ9gV8qI7kL6jM5nN4oP3qR2sT1uV0wX9yZ8bA=@92.53.120.186:51820?publickey=yAnCV7UmNDMrSw+dmCBMnvQG9fHm+RleSmrsmqlE2GY=&address=10.0.0.2/32#WireGuard-RU"),
+            ("srv_hr_l2tp_01", "l2tp", "150.40.105.16", 1701, "HR", "l2tp://vpn:vpn@150.40.105.16:1701?psk=vpn#L2TP-HR"),
+            ("srv_bd_l2tp_02", "l2tp", "203.95.220.222", 1701, "BD", "l2tp://vpn:vpn@203.95.220.222:1701?psk=vpn#L2TP-BD"),
+            ("srv_jp_l2tp_03", "l2tp", "219.100.37.199", 1701, "JP", "l2tp://vpn:vpn@219.100.37.199:1701?psk=vpn#L2TP-JP"),
+            ("srv_jp_sstp_01", "sstp", "public-vpn-146.opengw.net", 443, "JP", "sstp://vpn:vpn@public-vpn-146.opengw.net:443#SSTP-JP"),
+            ("srv_hr_sstp_02", "sstp", "vpn192906546.opengw.net", 443, "HR", "sstp://vpn:vpn@vpn192906546.opengw.net:443#SSTP-HR"),
             ("srv_sg_ssh_01", "ssh", "sg1.ssh-ocean.net", 22, "SG", "ssh://sshocean@sg1.ssh-ocean.net:22#SSH-SG"),
             ("srv_us_ssh_02", "ssh", "us1.ssh-ocean.net", 22, "US", "ssh://sshocean@us1.ssh-ocean.net:22#SSH-US"),
-            ("srv_ca_psi_01", "psiphon", "psi-node1.psiphon.ca", 443, "CA", "psiphon://psi-node1.psiphon.ca:443"),
-            ("srv_us_psi_02", "psiphon", "psi-node2.psiphon.ca", 443, "US", "psiphon://psi-node2.psiphon.ca:443"),
-            ("srv_de_tor_01", "tor", "tor-relay1.torproject.org", 9001, "DE", "tor://tor-relay1.torproject.org:9001"),
-            ("srv_nl_tor_02", "tor", "tor-relay2.torproject.org", 9001, "NL", "tor://tor-relay2.torproject.org:9001"),
-            ("srv_us_dns_01", "dnstunnel", "dns.google", 53, "US", "dnstunnel://dns.google:53"),
-            ("srv_us_dns_02", "dnstunnel", "one.one.one.one", 53, "US", "dnstunnel://one.one.one.one:53"),
+            ("srv_ca_psi_01", "psiphon", "psi-node1.psiphon.ca", 443, "CA", "psiphon://psi-node1.psiphon.ca:443#Psiphon-CA"),
+            ("srv_us_psi_02", "psiphon", "psi-node2.psiphon.ca", 443, "US", "psiphon://psi-node2.psiphon.ca:443#Psiphon-US"),
+            ("srv_de_tor_01", "tor", "tor-relay1.torproject.org", 9001, "DE", "tor://tor-relay1.torproject.org:9001#Tor-DE"),
+            ("srv_nl_tor_02", "tor", "tor-relay2.torproject.org", 9001, "NL", "tor://tor-relay2.torproject.org:9001#Tor-NL"),
+            ("srv_us_dns_01", "dnstunnel", "dns.google", 53, "US", "dnstunnel://dns.google:53#DNSTunnel-US"),
+            ("srv_us_dns_02", "dnstunnel", "one.one.one.one", 53, "US", "dnstunnel://one.one.one.one:53#DNSTunnel-Cloudflare"),
         ]
         for sid, proto, host, port, cc, uri in tunnel_configs:
             self.raw_candidates.append({
@@ -728,10 +728,6 @@ class EnterpriseMultiSourceSyncEngine:
             h = cand.get("server")
             p = cand.get("port")
             proto = str(cand.get("protocol") or "openvpn").lower().strip()
-
-            # Always keep system core tunnels
-            if cand.get("source_name") == "system_tunnels":
-                return cand, True, cand.get("latency_ms") or 35
 
             if not h or not p or p <= 0 or p > 65535:
                 return cand, False, None

@@ -640,14 +640,25 @@ class ZVpnService : VpnService() {
         scope.launch(Dispatchers.IO) {
             try {
                 val params = controller.connect(protector)
+                val localIp = params.localAddress.hostAddress
+                    ?: params.localAddress.address.joinToString(".") { it.toInt().and(0xFF).toString() }
                 val pfd = Builder().apply {
                     setSession(remark.ifBlank { "zvpn" })
-                    setMtu(params.mtu)
-                    addAddress(params.localAddress.hostAddress!!, params.prefixLength)
-                    params.dnsServers.forEach { addDnsServer(it.hostAddress) }
-                    params.excludedRoutes.forEach { addRoute(it.address, it.prefixLength) }
+                    setMtu(params.mtu.coerceIn(576, 9000))
+                    addAddress(localIp, params.prefixLength)
+                    params.dnsServers.forEach { dns ->
+                        val dnsIp = dns.hostAddress ?: return@forEach
+                        runCatching { addDnsServer(dnsIp) }
+                    }
+                    // Fallback DNS if none provided by server
+                    if (params.dnsServers.isEmpty()) {
+                        runCatching { addDnsServer("8.8.8.8") }
+                        runCatching { addDnsServer("1.1.1.1") }
+                    }
+                    params.excludedRoutes.forEach { runCatching { addRoute(it.address, it.prefixLength) } }
                     if (params.excludedRoutes.isEmpty()) {
-                        addRoute("0.0.0.0", 0)
+                        runCatching { addRoute("0.0.0.0", 0) }
+                        if (appSettings.enableIpv6) runCatching { addRoute("::", 0) }
                     }
                     applyAppRules(appSettings, selfInTunnel = true)
                 }.establish()
@@ -694,14 +705,24 @@ class ZVpnService : VpnService() {
         scope.launch(Dispatchers.IO) {
             try {
                 val params = controller.connect(protector)
+                val localIp = params.localAddress.hostAddress
+                    ?: params.localAddress.address.joinToString(".") { it.toInt().and(0xFF).toString() }
                 val pfd = Builder().apply {
                     setSession(remark.ifBlank { "zvpn" })
-                    setMtu(params.mtu)
-                    addAddress(params.localAddress.hostAddress!!, params.prefixLength)
-                    params.dnsServers.forEach { addDnsServer(it.hostAddress) }
-                    params.excludedRoutes.forEach { addRoute(it.address, it.prefixLength) }
+                    setMtu(params.mtu.coerceIn(576, 9000))
+                    addAddress(localIp, params.prefixLength)
+                    params.dnsServers.forEach { dns ->
+                        val dnsIp = dns.hostAddress ?: return@forEach
+                        runCatching { addDnsServer(dnsIp) }
+                    }
+                    if (params.dnsServers.isEmpty()) {
+                        runCatching { addDnsServer("8.8.8.8") }
+                        runCatching { addDnsServer("1.1.1.1") }
+                    }
+                    params.excludedRoutes.forEach { runCatching { addRoute(it.address, it.prefixLength) } }
                     if (params.excludedRoutes.isEmpty()) {
-                        addRoute("0.0.0.0", 0)
+                        runCatching { addRoute("0.0.0.0", 0) }
+                        if (appSettings.enableIpv6) runCatching { addRoute("::", 0) }
                     }
                     applyAppRules(appSettings, selfInTunnel = true)
                 }.establish()
@@ -869,15 +890,16 @@ class ZVpnService : VpnService() {
     }
 
     private fun startPsiphon(configJson: String, descriptor: ParcelFileDescriptor, tunMtu: Int) {
-        val socksPort = java.util.concurrent.atomic.AtomicInteger(0)
+        val socksPort = java.util.concurrent.atomic.AtomicInteger(LocalPorts.PSIPHON_SOCKS)
         val bridged = java.util.concurrent.atomic.AtomicBoolean(false)
         val controller = PsiphonController(
             service = this,
             configJson = configJson,
-            onSocksPort = { port -> socksPort.set(port) },
+            onSocksPort = { port -> if (port > 0) socksPort.set(port) },
             onEstablished = {
-                if (bridged.compareAndSet(false, true) && bridge(descriptor, socksPort.get(), tunMtu)) {
-                    VpnManager.activeSocksPort = socksPort.get()
+                val effectivePort = socksPort.get().takeIf { it > 0 } ?: LocalPorts.PSIPHON_SOCKS
+                if (bridged.compareAndSet(false, true) && bridge(descriptor, effectivePort, tunMtu)) {
+                    VpnManager.activeSocksPort = effectivePort
                     finishConnected()
                 }
             },
