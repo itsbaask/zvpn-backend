@@ -8,7 +8,15 @@ import com.zvpn.platform.KeyValueStore
 import com.zvpn.platform.currentTimeMillis
 import com.zvpn.platform.HttpTextResponse
 import com.zvpn.platform.httpGetResponse
+import com.zvpn.platform.httpJson
+import com.zvpn.platform.tcpConnectMillis
 import com.zvpn.platform.newId
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import com.zvpn.crypto.ZvxCrypto
 import com.zvpn.crypto.ZvxExpiredException
 import com.zvpn.crypto.ZvxMetadata
@@ -1316,45 +1324,93 @@ class ConfigRepository(private val store: KeyValueStore) {
 
     suspend fun runServerAutoCorrection(onProgress: (done: Int, total: Int) -> Unit): Result<Int> = withContext(Dispatchers.IO) {
         runCatching {
-            val list = _profiles.value.filterNot { it.isLocked }
-            if (list.isEmpty()) return@runCatching 0
+            val targets = _profiles.value.filterNot { it.isLocked }
+            if (targets.isEmpty()) return@runCatching 0
 
+            val total = targets.size
+            var completed = 0
             var correctedCount = 0
-            val verifiedPayloads = mutableListOf<String>()
-            val countryCounters = HashMap<String, Int>()
+            val progressMutex = Mutex()
+            val concurrency = Semaphore(15)
+            val verifiedNodes = mutableListOf<String>()
 
-            _profiles.update { current ->
-                current.mapIndexed { idx, p ->
-                    if (!p.isLocked) {
-                        val cc = p.countryCode?.takeIf { it.isNotBlank() && it != "XX" } ?: "US"
-                        val cName = p.countryName?.takeIf { it.isNotBlank() && it != "Unknown" } ?: "United States"
-                        val flag = p.flag?.takeIf { it.isNotBlank() && it != "🌐" } ?: "🇺🇸"
-                        val cont = p.continent?.takeIf { it.isNotBlank() && it != "Other" } ?: "Americas"
+            // Concurrently probe each target profile with TCP handshake & GeoIP resolution
+            val probedProfiles = targets.map { profile ->
+                async {
+                    concurrency.withPermit {
+                        val port = if (profile.port in 1..65535) profile.port else 443
+                        val pingMs = if (profile.address.isNotBlank()) {
+                            tcpConnectMillis(profile.address, port, 3000)
+                        } else -1L
 
-                        countryCounters[cName] = (countryCounters[cName] ?: 0) + 1
-                        val cNum = countryCounters[cName] ?: 1
+                        val detectedCc = ProfileToServerMapper.resolveCountryCode(profile.address, profile.countryCode)
+                        val cName = ProfileToServerMapper.countryNameFromCode(detectedCc)
+                        val flag = ProfileToServerMapper.flagFromCode(detectedCc)
+                        val continent = ProfileToServerMapper.continentFromCode(detectedCc)
 
-                        val cleanName = "$flag $cName #$cNum"
-                        val updated = p.copy(
-                            countryCode = cc,
+                        progressMutex.withLock {
+                            completed++
+                            onProgress(completed, total)
+                        }
+
+                        ProfileCorrectionResult(
+                            original = profile,
+                            pingMs = if (pingMs > 0) pingMs.toInt() else -1,
+                            countryCode = detectedCc,
                             countryName = cName,
                             flag = flag,
-                            continent = cont,
-                            name = cleanName
+                            continent = continent,
+                            isAlive = pingMs > 0,
                         )
-                        if (updated != p) correctedCount++
-                        verifiedPayloads.add(p.id)
-                        onProgress(idx + 1, list.size)
-                        updated
-                    } else p
+                    }
                 }
+            }.awaitAll()
+
+            // Country numbering counter for clean naming: "$flag $cName #$num"
+            val countryCounters = HashMap<String, Int>()
+            val updatedMap = probedProfiles.associate { result ->
+                val p = result.original
+                val cName = result.countryName
+                val num = (countryCounters[cName] ?: 0) + 1
+                countryCounters[cName] = num
+
+                val cleanName = "${result.flag} $cName #$num"
+                val updated = p.copy(
+                    countryCode = result.countryCode,
+                    countryName = cName,
+                    flag = result.flag,
+                    continent = result.continent,
+                    lastPingMs = result.pingMs,
+                    name = cleanName,
+                )
+                if (updated != p) {
+                    correctedCount++
+                }
+                if (result.isAlive) {
+                    verifiedNodes.add(p.id)
+                }
+                p.id to updated
+            }
+
+            // Apply updates to _profiles state
+            _profiles.update { current ->
+                current.map { p -> updatedMap[p.id] ?: p }
             }
             persistProfiles()
 
-            // Report verified server corrections to backend API
+            // Report verified server corrections to backend API at Cloudflare Edge
             runCatching {
                 val reportUrl = "https://zvpn-backend.xocqoc.workers.dev/api/v1/report-verified-servers"
-                fetch(reportUrl, userAgent = SING_BOX_UA)
+                val payload = """{"verified_servers":[${verifiedNodes.take(500).joinToString(",") { "\"$it\"" }}]}"""
+                httpJson(
+                    method = "POST",
+                    url = reportUrl,
+                    headers = mapOf(
+                        "Content-Type" to "application/json",
+                        "User-Agent" to SING_BOX_UA,
+                    ),
+                    body = payload,
+                )
             }
 
             correctedCount
@@ -1833,4 +1889,14 @@ class ConfigRepository(private val store: KeyValueStore) {
         private val URL_TRAILING_PUNCTUATION = charArrayOf('.', ',', ';', ':', '!', '?', ')', ']', '}', '،', '؛')
     }
 }
+
+private data class ProfileCorrectionResult(
+    val original: VpnProfile,
+    val pingMs: Int,
+    val countryCode: String,
+    val countryName: String,
+    val flag: String,
+    val continent: String,
+    val isAlive: Boolean,
+)
 

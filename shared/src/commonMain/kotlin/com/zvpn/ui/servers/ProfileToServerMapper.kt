@@ -14,14 +14,14 @@ object ProfileToServerMapper {
     private val TIER_PLUS = Regex("""\b(?:vip|plus|premium\+)\b""", RegexOption.IGNORE_CASE)
     private val TIER_PRO = Regex("""\b(?:pro|premium)\b""", RegexOption.IGNORE_CASE)
 
-    private fun countryNameFromCode(cc: String): String {
+    fun countryNameFromCode(cc: String): String {
         if (cc == "XX" || cc.isBlank()) return "United States"
         val locale = java.util.Locale.Builder().setRegion(cc.uppercase()).build()
         val name = locale.getDisplayCountry(java.util.Locale.ENGLISH)
         return if (name.isNotBlank() && name != cc.uppercase()) name else "United States"
     }
 
-    private fun flagFromCode(cc: String): String {
+    fun flagFromCode(cc: String): String {
         if (cc == "XX" || cc.isBlank()) return "🇺🇸"
         val upper = cc.uppercase()
         if (upper.length != 2) return "🌐"
@@ -30,7 +30,7 @@ object ProfileToServerMapper {
         return String(Character.toChars(firstChar)) + String(Character.toChars(secondChar))
     }
 
-    private fun continentFromCode(cc: String): String {
+    fun continentFromCode(cc: String): String {
         val upper = cc.uppercase()
         val europe = setOf("AD", "AL", "AT", "BA", "BE", "BG", "BY", "CH", "CY", "CZ", "DE", "DK", "EE", "ES", "FI", "FR", "GB", "GR", "HR", "HU", "IE", "IS", "IT", "LI", "LT", "LU", "LV", "MC", "MD", "ME", "MK", "MT", "NL", "NO", "PL", "PT", "RO", "RS", "RU", "SE", "SI", "SK", "SM", "TR", "UA", "VA")
         val americas = setOf("AG", "AI", "AR", "AW", "BB", "BL", "BM", "BO", "BQ", "BR", "BS", "BZ", "CA", "CL", "CO", "CR", "CU", "CW", "DM", "DO", "EC", "FK", "GD", "GF", "GL", "GP", "GT", "GY", "HN", "HT", "JM", "KN", "KY", "LC", "MF", "MQ", "MS", "MX", "NI", "PA", "PE", "PM", "PR", "PY", "SR", "SV", "SX", "TC", "TT", "UM", "US", "UY", "VC", "VE", "VG", "VI")
@@ -43,6 +43,35 @@ object ProfileToServerMapper {
             in asia -> "Asia-Pacific"
             in africa -> "ME/Africa"
             else -> "Americas"
+        }
+    }
+
+    fun resolveCountryCode(hostOrIp: String, fallbackCode: String? = null): String {
+        if (!fallbackCode.isNullOrBlank() && fallbackCode != "XX" && fallbackCode != "NONE") {
+            return fallbackCode.uppercase()
+        }
+        val clean = hostOrIp.split(":").firstOrNull()?.trim()?.lowercase() ?: return "US"
+        // Domain suffix checks
+        return when {
+            clean.endsWith(".jp") -> "JP"
+            clean.endsWith(".de") -> "DE"
+            clean.endsWith(".nl") -> "NL"
+            clean.endsWith(".fr") -> "FR"
+            clean.endsWith(".uk") -> "GB"
+            clean.endsWith(".ca") -> "CA"
+            clean.endsWith(".kr") -> "KR"
+            clean.endsWith(".hk") -> "HK"
+            clean.endsWith(".sg") -> "SG"
+            clean.endsWith(".ru") -> "RU"
+            clean.endsWith(".pl") -> "PL"
+            clean.endsWith(".tr") -> "TR"
+            clean.endsWith(".in") -> "IN"
+            clean.endsWith(".id") -> "ID"
+            clean.endsWith(".ir") -> "IR"
+            clean.endsWith(".br") -> "BR"
+            clean.endsWith(".se") -> "SE"
+            clean.endsWith(".fi") -> "FI"
+            else -> "US"
         }
     }
 
