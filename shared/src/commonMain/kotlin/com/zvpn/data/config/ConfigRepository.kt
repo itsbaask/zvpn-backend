@@ -1,4 +1,4 @@
-@file:OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
+﻿@file:OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
 
 package com.zvpn.data.config
 
@@ -1398,19 +1398,35 @@ class ConfigRepository(private val store: KeyValueStore) {
             }
             persistProfiles()
 
-            // Report verified server corrections to backend API at Cloudflare Edge
-            runCatching {
-                val reportUrl = "https://zvpn-backend.xocqoc.workers.dev/api/v1/report-verified-servers"
-                val payload = """{"verified_servers":[${verifiedNodes.take(500).joinToString(",") { "\"$it\"" }}]}"""
-                httpJson(
-                    method = "POST",
-                    url = reportUrl,
-                    headers = mapOf(
-                        "Content-Type" to "application/json",
-                        "User-Agent" to SING_BOX_UA,
-                    ),
-                    body = payload,
-                )
+            val corrections = probedProfiles.filter { r ->
+                val p = r.original
+                r.countryCode != p.countryCode || r.countryName != p.countryName ||
+                (r.continent != (p.continent ?: "").ifBlank { "Global" }) || !r.isAlive
+            }.map { r ->
+                buildString {
+                    append("{\"id\":\"${r.original.id}\",")
+                    append("\"country_code\":\"${r.countryCode}\",")
+                    append("\"country_name\":\"${r.countryName}\",")
+                    append("\"continent\":\"${r.continent}\",")
+                    append("\"flag\":\"${r.flag}\",")
+                    append("\"ping_ms\":${r.pingMs},")
+                    append("\"is_alive\":${r.isAlive}}")
+                }
+            }
+
+            if (corrections.isNotEmpty()) {
+                val reportUrl = "https://zvpn-backend.xocqoc.workers.dev/api/v1/report-server-corrections"
+                val deviceId = runCatching { com.zvpn.platform.DeviceIdentity.id.ifBlank { "anonymous" } }.getOrDefault("anonymous")
+                val chunks = corrections.chunked(1000)
+                chunks.forEachIndexed { idx, chunk ->
+                    runCatching {
+                        val body = "{\"corrections\":[${chunk.joinToString(",")}]}"
+                        httpJson(method = "POST", url = reportUrl,
+                            headers = mapOf("Content-Type" to "application/json", "User-Agent" to SING_BOX_UA, "X-Device-ID" to deviceId),
+                            body = body)
+                    }
+                    if (idx < chunks.size - 1) kotlinx.coroutines.delay(300)
+                }
             }
 
             correctedCount

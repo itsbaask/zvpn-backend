@@ -174,17 +174,136 @@ export default {
         return res;
       }
 
-      // 3.5 Verified Server Corrections Reporting Endpoint (/api/v1/report-verified-servers)
-      if (pathname === '/api/v1/report-verified-servers' && request.method === 'POST') {
+      // 3.5 Server Auto-Correction Endpoint (/api/v1/report-server-corrections)
+      // ─────────────────────────────────────────────────────────────────────────
+      // Accepts ONE batch per device per 24 hours.
+      // Payload: { corrections: [{ id, country_code, country_name, continent, flag, ping_ms, is_alive }] }
+      // Merges corrections into R2 servers.json so all users see updated data.
+      if (pathname === '/api/v1/report-server-corrections' && request.method === 'POST') {
+
+        // ── 1. Rate limit: 1 submission per device per 24h ───────────────────
+        const rateLimitKey = `correction_ts_${masterDeviceId}`;
+        let lastSubmitTs = 0;
+        try {
+          if (env.CORRECTIONS_KV) {
+            const stored = await env.CORRECTIONS_KV.get(rateLimitKey);
+            lastSubmitTs = stored ? parseInt(stored) : 0;
+          }
+        } catch (_) {}
+
+        const now = Date.now();
+        const hoursSinceLast = (now - lastSubmitTs) / (1000 * 60 * 60);
+        if (lastSubmitTs > 0 && hoursSinceLast < 24) {
+          const nextAllowedMs = lastSubmitTs + 24 * 60 * 60 * 1000;
+          const waitMinutes = Math.ceil((nextAllowedMs - now) / 60000);
+          return jsonResponse({
+            success: false,
+            error: 'Rate limit: only 1 correction batch accepted per device per 24 hours.',
+            next_allowed_in_minutes: waitMinutes,
+          }, 429, corsHeaders);
+        }
+
+        // ── 2. Parse correction payload ───────────────────────────────────────
         const body = await request.json().catch(() => ({}));
-        const verifiedServers = body.verified_servers || [];
+        const corrections = body.corrections || [];
+
+        if (!Array.isArray(corrections) || corrections.length === 0) {
+          return jsonResponse({ success: false, error: 'No corrections provided.' }, 400, corsHeaders);
+        }
+
+        // Build a lookup map: server_id -> correction
+        const correctionMap = {};
+        for (const c of corrections) {
+          if (c.id) correctionMap[c.id] = c;
+        }
+        const correctionCount = Object.keys(correctionMap).length;
+
+        // ── 3. Load current servers.json from R2 ─────────────────────────────
+        let applied = 0;
+        let skipped = 0;
+        try {
+          const obj = await env.SERVERS_BUCKET.get('servers.json');
+          if (obj) {
+            const payload = await obj.json();
+            const servers = payload.servers || [];
+
+            // Apply corrections where country/continent changed
+            const updated = servers.map(s => {
+              const fix = correctionMap[s.id];
+              if (!fix) { skipped++; return s; }
+
+              // Only apply if something actually changed
+              const changed =
+                (fix.country_code && fix.country_code !== s.country_code) ||
+                (fix.country_name && fix.country_name !== s.country) ||
+                (fix.continent && fix.continent !== s.continent);
+
+              if (!changed && fix.is_alive === false) {
+                // Mark dead servers but keep their data
+                applied++;
+                return { ...s, alive: false, last_checked: new Date().toISOString() };
+              }
+              if (!changed) { skipped++; return s; }
+
+              applied++;
+              return {
+                ...s,
+                country_code: fix.country_code || s.country_code,
+                country: fix.country_name || s.country,
+                continent: fix.continent || s.continent,
+                flag: fix.flag || s.flag,
+                ping_ms: fix.ping_ms > 0 ? fix.ping_ms : s.ping_ms,
+                alive: fix.is_alive !== false,
+                last_corrected: new Date().toISOString(),
+                corrected_by: 'auto_correction_v2',
+              };
+            });
+
+            // Write updated servers.json back to R2
+            const newPayload = {
+              ...payload,
+              servers: updated,
+              version: new Date().toISOString(),
+              last_correction: new Date().toISOString(),
+              total_servers: updated.length,
+            };
+
+            await env.SERVERS_BUCKET.put('servers.json', JSON.stringify(newPayload), {
+              httpMetadata: {
+                contentType: 'application/json',
+                cacheControl: 'public, max-age=300, s-maxage=600',
+              },
+            });
+          }
+        } catch (e) {
+          return jsonResponse({ success: false, error: 'Failed to update server database.', details: e.message }, 500, corsHeaders);
+        }
+
+        // ── 4. Record timestamp for rate limiting ─────────────────────────────
+        try {
+          if (env.CORRECTIONS_KV) {
+            await env.CORRECTIONS_KV.put(rateLimitKey, String(now), { expirationTtl: 86400 }); // 24h TTL
+          }
+        } catch (_) {}
 
         return jsonResponse({
           success: true,
-          received_count: verifiedServers.length,
-          message: 'Successfully processed verified server diagnostic corrections at Cloudflare Edge.',
-          timestamp: new Date().toISOString()
+          received_corrections: correctionCount,
+          applied_corrections: applied,
+          skipped_unchanged: skipped,
+          message: 'Server corrections applied to global database. All users will see updated data.',
+          next_submission_in_hours: 24,
+          timestamp: new Date().toISOString(),
         }, 200, corsHeaders);
+      }
+
+      // Legacy alias kept for backward compatibility
+      if (pathname === '/api/v1/report-verified-servers' && request.method === 'POST') {
+        return jsonResponse({
+          success: false,
+          error: 'Deprecated endpoint. Use /api/v1/report-server-corrections instead.',
+          new_endpoint: '/api/v1/report-server-corrections',
+        }, 410, corsHeaders);
       }
 
       // ─────────────────────────────────────────────────────────────────────────────

@@ -8,5 +8,9 @@ account_id = "42326c36b367947b8ff21f4f1bad14af"
 binding = "SERVERS_BUCKET"
 bucket_name = "publicvpnlist-profiles"
 
+[[kv_namespaces]]
+binding = "CORRECTIONS_KV"
+id = "2fa068f640bb4c369bde5d9923ab8def"
+
 [vars]
 ENVIRONMENT = "production"
