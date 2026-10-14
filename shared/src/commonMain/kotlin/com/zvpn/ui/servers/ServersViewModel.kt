@@ -29,7 +29,7 @@ class ServersViewModel(
     init {
         configRepo?.let { repo ->
             viewModelScope.launch(Dispatchers.IO) {
-                runCatching { repo.syncSystemBackendServers() }
+                runCatching { repo.syncSystemBackendServers(force = true) }
             }
             viewModelScope.launch(dispatcher) {
                 repo.profiles.collect { profiles ->

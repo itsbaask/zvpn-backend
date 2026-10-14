@@ -58,6 +58,8 @@ object ConfigParser {
             Protocol.WIREGUARD, Protocol.AMNEZIAWG -> parseWireguard(trimmed, protocol)
             Protocol.L2TP -> parseL2tp(trimmed)
             Protocol.SSTP -> parseSstp(trimmed)
+            Protocol.PSIPHON -> parsePsiphon(trimmed)
+            Protocol.TOR -> parseTor(trimmed)
             null -> throw ConfigParseException("Unsupported or invalid link scheme")
         }
     }
@@ -385,6 +387,26 @@ object ConfigParser {
             tls = SecurityConfig(
                 allowInsecure = q["insecure"] == "1" || q["verify"]?.lowercase() == "false",
             ),
+        )
+    }
+
+    private fun parsePsiphon(link: String): ServerConfig {
+        val p = parseLink(link.substringAfter("://"))
+        return ServerConfig(
+            protocol = Protocol.PSIPHON,
+            remark = p.fragment.ifBlank { p.host.ifBlank { "Psiphon" } },
+            address = p.host.ifBlank { "psiphon" },
+            port = p.port ?: 443,
+        )
+    }
+
+    private fun parseTor(link: String): ServerConfig {
+        val p = parseLink(link.substringAfter("://"))
+        return ServerConfig(
+            protocol = Protocol.TOR,
+            remark = p.fragment.ifBlank { p.host.ifBlank { "Tor" } },
+            address = p.host.ifBlank { "tor" },
+            port = p.port ?: 9001,
         )
     }
 

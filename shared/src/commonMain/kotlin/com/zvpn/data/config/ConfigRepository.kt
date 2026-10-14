@@ -348,6 +348,23 @@ class ConfigRepository(private val store: KeyValueStore) {
                             name = displayName.ifBlank { null },
                         )
                     }
+                    rawUri.startsWith("psiphon://", ignoreCase = true) || (server["protocol"] as? JsonPrimitive)?.contentOrNull?.equals("psiphon", ignoreCase = true) == true -> {
+                        val cCode = countryCode ?: "US"
+                        val psiphonSettings = com.zvpn.domain.config.PsiphonProfile(country = cCode)
+                        profile = VpnProfile.fromPsiphon(
+                            settings = psiphonSettings,
+                            id = serverId,
+                            addedAt = now,
+                            name = displayName,
+                        )
+                    }
+                    rawUri.startsWith("tor://", ignoreCase = true) || (server["protocol"] as? JsonPrimitive)?.contentOrNull?.equals("tor", ignoreCase = true) == true -> {
+                        profile = VpnProfile.fromTor(
+                            id = serverId,
+                            addedAt = now,
+                            name = displayName,
+                        )
+                    }
                     rawUri.isNotBlank() && ConfigParser.isSupportedLink(rawUri) -> {
                         profile = if (SingBoxLinks.handles(rawUri)) {
                             val parsed = SingBoxLinks.parse(rawUri)
@@ -372,11 +389,16 @@ class ConfigRepository(private val store: KeyValueStore) {
                 }
 
                 if (profile != null) {
-                    val duplicate = fresh.any { it.id == serverId } || (current + fresh).any {
+                    val isSystem = subscriptionId == SystemBackendConfig.SYSTEM_BACKEND_SUB_ID
+                    val duplicate = fresh.any {
+                        it.id == serverId ||
+                        (rawUri.isNotBlank() && it.rawPayload() == rawUri) ||
+                        (singServerObj != null && (it.source as? ProfileSource.SingBox)?.json == singServerObj.fragment)
+                    } || (!isSystem && current.any {
                         it.subscriptionId == subscriptionId &&
                             ((rawUri.isNotBlank() && it.rawPayload() == rawUri) ||
                              (singServerObj != null && (it.source as? ProfileSource.SingBox)?.json == singServerObj.fragment))
-                    }
+                    })
                     if (duplicate) {
                         duplicates++
                     } else {

@@ -20,6 +20,8 @@ object ShareLink {
         Protocol.WIREGUARD, Protocol.AMNEZIAWG -> buildWireguard(s)
         Protocol.L2TP -> buildUri("l2tp", if (s.username.isNotBlank()) "${s.username}:${s.userId}" else "", s)
         Protocol.SSTP -> buildUri("sstp", if (s.username.isNotBlank()) "${s.username}:${s.userId}" else "", s)
+        Protocol.PSIPHON -> "psiphon://${s.address}:${s.port}#${enc(s.remark)}"
+        Protocol.TOR -> "tor://${s.address}:${s.port}#${enc(s.remark)}"
     }
 
     private fun buildUserPass(s: ServerConfig): String {

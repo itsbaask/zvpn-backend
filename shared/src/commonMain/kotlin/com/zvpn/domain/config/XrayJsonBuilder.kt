@@ -1311,7 +1311,7 @@ private fun statsPolicy() = buildJsonObject {
                     put("version", 2)
                 }
 
-                Protocol.L2TP, Protocol.SSTP -> {
+                Protocol.L2TP, Protocol.SSTP, Protocol.PSIPHON, Protocol.TOR -> {
                     throw IllegalStateException("${s.protocol.label} runs on native engine, not Xray")
                 }
             }

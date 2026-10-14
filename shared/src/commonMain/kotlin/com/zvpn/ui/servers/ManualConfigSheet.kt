@@ -299,6 +299,9 @@ fun ManualConfigSheet(
                         Field(wgPsk, { wgPsk = it }, Res.string.manual_preshared_key)
                     }
                 }
+                Protocol.PSIPHON, Protocol.TOR -> {
+                    // No additional fields needed
+                }
             }
 
             if (protocol.supportsTransport) {

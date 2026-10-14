@@ -13,6 +13,8 @@ enum class Protocol(val id: String, val label: String) {
     HYSTERIA("hysteria", "Hysteria"),
     L2TP("l2tp", "L2TP"),
     SSTP("sstp", "SSTP"),
+    PSIPHON("psiphon", "Psiphon"),
+    TOR("tor", "Tor"),
     ;
 
     val usesUserPass: Boolean get() = this == SOCKS || this == HTTP
@@ -39,6 +41,8 @@ enum class Protocol(val id: String, val label: String) {
             "hysteria", "hysteria2", "hy2" -> HYSTERIA
             "l2tp" -> L2TP
             "sstp" -> SSTP
+            "psiphon" -> PSIPHON
+            "tor" -> TOR
             else -> null
         }
     }
