@@ -198,7 +198,12 @@
     <string name="del_duplicates">Delete duplicates</string>
     <string name="del_invalid">Delete invalid</string>
     <string name="del_invalid_confirm">Removes %1$d servers: the ones the last test could not reach, and any config that cannot run. Untested servers are kept.</string>
-    <string name="del_all">Delete all servers</string>
+    <string name="del_all">حذف جميع السيرفرات</string>
+    <string name="servers_auto_correction">تصحيح وتحديث السيرفرات تلقائياً ⚡</string>
+    <string name="servers_auto_correction_dialog_title">تصحيح وتحديث السيرفرات تلقائياً</string>
+    <string name="servers_auto_correction_dialog_msg">جاري الاتصال المباشر وفحص كافه السيرفرات وتصحيح العناوين والمواقع...</string>
+    <string name="servers_auto_correction_progress">جاري الاتصال المباشر وفحص الدولة الحقيقية للسيرفر %1$d من %2$d…</string>
+    <string name="servers_auto_correction_success">تم تصحيح وتفعيل %1$d سيرفر بنجاح!</string>
     <string name="del_all_confirm">This removes every saved server. Locked vault configs are kept.</string>
     <string name="export_all">Export all</string>
     <string name="removed_count">Removed %1$d</string>

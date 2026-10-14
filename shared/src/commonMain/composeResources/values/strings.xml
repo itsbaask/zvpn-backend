@@ -199,6 +199,11 @@
     <string name="del_invalid">Delete invalid</string>
     <string name="del_invalid_confirm">Removes %1$d servers: the ones the last test could not reach, and any config that cannot run. Untested servers are kept.</string>
     <string name="del_all">Delete all servers</string>
+    <string name="servers_auto_correction">Server Auto-Correction &amp; Diagnostics ⚡</string>
+    <string name="servers_auto_correction_dialog_title">Server Auto-Correction &amp; Diagnostics</string>
+    <string name="servers_auto_correction_dialog_msg">Testing connectivity, verifying GeoIP exit nodes, repairing server configs, and reporting verified profiles to backend...</string>
+    <string name="servers_auto_correction_progress">Testing connection and verifying real exit location for server %1$d of %2$d…</string>
+    <string name="servers_auto_correction_success">Successfully auto-corrected and verified %1$d servers!</string>
     <string name="del_all_confirm">This removes every saved server. Locked vault configs are kept.</string>
     <string name="export_all">Export all</string>
     <string name="removed_count">Removed %1$d</string>

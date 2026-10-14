@@ -1321,37 +1321,31 @@ class ConfigRepository(private val store: KeyValueStore) {
 
             var correctedCount = 0
             val verifiedPayloads = mutableListOf<String>()
-
-            list.forEachIndexed { idx, p ->
-                val cc = p.countryCode?.takeIf { it.isNotBlank() && it != "XX" } ?: "US"
-                val name = p.countryName?.takeIf { it.isNotBlank() && it != "Unknown" } ?: "United States"
-                val flag = p.flag?.takeIf { it.isNotBlank() && it != "🌐" } ?: "🇺🇸"
-
-                val updated = p.copy(
-                    countryCode = cc,
-                    countryName = name,
-                    flag = flag,
-                    name = "$flag $name #${idx + 1}"
-                )
-                if (updated != p) {
-                    correctedCount++
-                }
-                verifiedPayloads.add(p.id)
-                onProgress(idx + 1, list.size)
-            }
+            val countryCounters = HashMap<String, Int>()
 
             _profiles.update { current ->
                 current.mapIndexed { idx, p ->
                     if (!p.isLocked) {
                         val cc = p.countryCode?.takeIf { it.isNotBlank() && it != "XX" } ?: "US"
-                        val name = p.countryName?.takeIf { it.isNotBlank() && it != "Unknown" } ?: "United States"
+                        val cName = p.countryName?.takeIf { it.isNotBlank() && it != "Unknown" } ?: "United States"
                         val flag = p.flag?.takeIf { it.isNotBlank() && it != "🌐" } ?: "🇺🇸"
-                        p.copy(
+                        val cont = p.continent?.takeIf { it.isNotBlank() && it != "Other" } ?: "Americas"
+
+                        countryCounters[cName] = (countryCounters[cName] ?: 0) + 1
+                        val cNum = countryCounters[cName] ?: 1
+
+                        val cleanName = "$flag $cName #$cNum"
+                        val updated = p.copy(
                             countryCode = cc,
-                            countryName = name,
+                            countryName = cName,
                             flag = flag,
-                            name = "$flag $name #${idx + 1}"
+                            continent = cont,
+                            name = cleanName
                         )
+                        if (updated != p) correctedCount++
+                        verifiedPayloads.add(p.id)
+                        onProgress(idx + 1, list.size)
+                        updated
                     } else p
                 }
             }

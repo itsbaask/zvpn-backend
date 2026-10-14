@@ -300,6 +300,7 @@ fun ServersScreen(
     var autoCorrectionDone by remember { mutableIntStateOf(0) }
     var autoCorrectionTotal by remember { mutableIntStateOf(0) }
 
+    val successTemplate = stringResource(Res.string.servers_auto_correction_success)
     val runCorrection: () -> Unit = {
         autoCorrectionRunning = true
         autoCorrectionDone = 0
@@ -310,10 +311,10 @@ fun ServersScreen(
                 autoCorrectionTotal = total
             }.onSuccess { count ->
                 autoCorrectionRunning = false
-                platform.toast("تم تصحيح وتفعيل جميع السيرفرات بنجاح!")
+                platform.toast(successTemplate.replace("%1\$d", count.toString()))
             }.onFailure {
                 autoCorrectionRunning = false
-                platform.toast("اكتمل التحديث المباشر للسيرفرات!")
+                platform.toast(successTemplate.replace("%1\$d", "0"))
             }
         }
     }
@@ -512,10 +513,14 @@ fun ServersScreen(
     }
 
     if (autoCorrectionRunning) {
+        val progressMsg = stringResource(Res.string.servers_auto_correction_progress)
+            .replace("%1\$d", autoCorrectionDone.toString())
+            .replace("%2\$d", autoCorrectionTotal.toString())
+
         AlertDialog(
             onDismissRequest = { },
             icon = { Icon(painterResource(Res.drawable.ic_bolt), contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-            title = { Text("تصحيح وتحديث السيرفرات تلقائياً") },
+            title = { Text(stringResource(Res.string.servers_auto_correction_dialog_title)) },
             text = {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -527,7 +532,7 @@ fun ServersScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Text(
-                        text = "جاري الفحص المباشر وتصحيح عناوين ومواقع $autoCorrectionDone من $autoCorrectionTotal سيرفر...",
+                        text = progressMsg,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -586,7 +591,7 @@ fun ServersScreen(
                     onSubscriptions = { showSubs = true },
                 ) { dismiss ->
                     DropdownMenuItem(
-                        text = { Text("تصحيح وتحديث السيرفرات ⚡") },
+                        text = { Text(stringResource(Res.string.servers_auto_correction)) },
                         leadingIcon = { Icon(painterResource(Res.drawable.ic_speed), null, tint = MaterialTheme.colorScheme.primary) },
                         onClick = {
                             dismiss()
@@ -2224,7 +2229,7 @@ internal fun AddServerSheetPro(
             SheetSection(
                 Res.string.add_group_import,
                 listOf(
-                    SheetItem(Res.drawable.ic_speed, Res.string.subs_update, onAutoCorrection, free = true),
+                    SheetItem(Res.drawable.ic_speed, Res.string.servers_auto_correction, onAutoCorrection, free = true),
                     SheetItem(Res.drawable.ic_add_link, Res.string.servers_add_scan_image, onScanQrImage),
                     SheetItem(Res.drawable.ic_description, Res.string.servers_add_custom, onCustom),
                 ),
