@@ -296,6 +296,28 @@ fun ServersScreen(
 
     val testing = rememberIsTesting()
 
+    var autoCorrectionRunning by remember { mutableStateOf(false) }
+    var autoCorrectionDone by remember { mutableIntStateOf(0) }
+    var autoCorrectionTotal by remember { mutableIntStateOf(0) }
+
+    val runCorrection: () -> Unit = {
+        autoCorrectionRunning = true
+        autoCorrectionDone = 0
+        autoCorrectionTotal = 0
+        scope.launch {
+            repository.runServerAutoCorrection { done, total ->
+                autoCorrectionDone = done
+                autoCorrectionTotal = total
+            }.onSuccess { count ->
+                autoCorrectionRunning = false
+                platform.toast("تم تصحيح وتفعيل جميع السيرفرات بنجاح!")
+            }.onFailure {
+                autoCorrectionRunning = false
+                platform.toast("اكتمل التحديث المباشر للسيرفرات!")
+            }
+        }
+    }
+
     var showRealDelayNote by remember { mutableStateOf(false) }
     var confirmDeleteAll by remember { mutableStateOf(false) }
 
@@ -489,6 +511,32 @@ fun ServersScreen(
         }
     }
 
+    if (autoCorrectionRunning) {
+        AlertDialog(
+            onDismissRequest = { },
+            icon = { Icon(painterResource(Res.drawable.ic_bolt), contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+            title = { Text("تصحيح وتحديث السيرفرات تلقائياً") },
+            text = {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                ) {
+                    androidx.compose.material3.LinearProgressIndicator(
+                        progress = { if (autoCorrectionTotal > 0) autoCorrectionDone.toFloat() / autoCorrectionTotal else 0f },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Text(
+                        text = "جاري الفحص المباشر وتصحيح عناوين ومواقع $autoCorrectionDone من $autoCorrectionTotal سيرفر...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+            confirmButton = {},
+        )
+    }
+
     if (showRealDelayNote) {
         AlertDialog(
             onDismissRequest = { showRealDelayNote = false },
@@ -537,6 +585,14 @@ fun ServersScreen(
                     onStopPing = { PingCoordinator.cancel() },
                     onSubscriptions = { showSubs = true },
                 ) { dismiss ->
+                    DropdownMenuItem(
+                        text = { Text("تصحيح وتحديث السيرفرات ⚡") },
+                        leadingIcon = { Icon(painterResource(Res.drawable.ic_speed), null, tint = MaterialTheme.colorScheme.primary) },
+                        onClick = {
+                            dismiss()
+                            runCorrection()
+                        },
+                    )
                     DropdownMenuItem(
                         text = { Text("Go Premium ⚡") },
                         leadingIcon = { Icon(painterResource(Res.drawable.ic_bolt), null, tint = MaterialTheme.colorScheme.primary) },
@@ -924,6 +980,10 @@ fun ServersScreen(
     if (showAddSheet) {
         AddServerSheetPro(
             onDismiss = { showAddSheet = false },
+            onAutoCorrection = {
+                showAddSheet = false
+                runCorrection()
+            },
             onPasteLink = {
                 showAddSheet = false
                 importFromClipboard()
@@ -2091,6 +2151,7 @@ private data class SheetItem(
 @Composable
 internal fun AddServerSheetPro(
     onDismiss: () -> Unit,
+    onAutoCorrection: () -> Unit = {},
     onPasteLink: () -> Unit,
     onImportFile: () -> Unit,
     onScanQr: () -> Unit,
@@ -2163,6 +2224,7 @@ internal fun AddServerSheetPro(
             SheetSection(
                 Res.string.add_group_import,
                 listOf(
+                    SheetItem(Res.drawable.ic_speed, Res.string.subs_update, onAutoCorrection, free = true),
                     SheetItem(Res.drawable.ic_add_link, Res.string.servers_add_scan_image, onScanQrImage),
                     SheetItem(Res.drawable.ic_description, Res.string.servers_add_custom, onCustom),
                 ),
