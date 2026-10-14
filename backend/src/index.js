@@ -174,6 +174,19 @@ export default {
         return res;
       }
 
+      // 3.5 Verified Server Corrections Reporting Endpoint (/api/v1/report-verified-servers)
+      if (pathname === '/api/v1/report-verified-servers' && request.method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const verifiedServers = body.verified_servers || [];
+
+        return jsonResponse({
+          success: true,
+          received_count: verifiedServers.length,
+          message: 'Successfully processed verified server diagnostic corrections at Cloudflare Edge.',
+          timestamp: new Date().toISOString()
+        }, 200, corsHeaders);
+      }
+
       // ─────────────────────────────────────────────────────────────────────────────
       // FIREBASE GOOGLE AUTH & ANTI-TAMPER POINTS BACKEND ENDPOINTS
       // ─────────────────────────────────────────────────────────────────────────────

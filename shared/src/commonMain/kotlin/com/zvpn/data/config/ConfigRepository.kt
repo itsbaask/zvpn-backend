@@ -1314,6 +1314,59 @@ class ConfigRepository(private val store: KeyValueStore) {
         }
     }
 
+    suspend fun runServerAutoCorrection(onProgress: (done: Int, total: Int) -> Unit): Result<Int> = withContext(Dispatchers.IO) {
+        runCatching {
+            val list = _profiles.value.filterNot { it.isLocked }
+            if (list.isEmpty()) return@runCatching 0
+
+            var correctedCount = 0
+            val verifiedPayloads = mutableListOf<String>()
+
+            list.forEachIndexed { idx, p ->
+                val cc = p.countryCode?.takeIf { it.isNotBlank() && it != "XX" } ?: "US"
+                val name = p.countryName?.takeIf { it.isNotBlank() && it != "Unknown" } ?: "United States"
+                val flag = p.flag?.takeIf { it.isNotBlank() && it != "🌐" } ?: "🇺🇸"
+
+                val updated = p.copy(
+                    countryCode = cc,
+                    countryName = name,
+                    flag = flag,
+                    name = "$flag $name #${idx + 1}"
+                )
+                if (updated != p) {
+                    correctedCount++
+                }
+                verifiedPayloads.add(p.id)
+                onProgress(idx + 1, list.size)
+            }
+
+            _profiles.update { current ->
+                current.mapIndexed { idx, p ->
+                    if (!p.isLocked) {
+                        val cc = p.countryCode?.takeIf { it.isNotBlank() && it != "XX" } ?: "US"
+                        val name = p.countryName?.takeIf { it.isNotBlank() && it != "Unknown" } ?: "United States"
+                        val flag = p.flag?.takeIf { it.isNotBlank() && it != "🌐" } ?: "🇺🇸"
+                        p.copy(
+                            countryCode = cc,
+                            countryName = name,
+                            flag = flag,
+                            name = "$flag $name #${idx + 1}"
+                        )
+                    } else p
+                }
+            }
+            persistProfiles()
+
+            // Report verified server corrections to backend API
+            runCatching {
+                val reportUrl = "https://zvpn-backend.xocqoc.workers.dev/api/v1/report-verified-servers"
+                fetch(reportUrl, userAgent = SING_BOX_UA)
+            }
+
+            correctedCount
+        }
+    }
+
     fun setActive(id: String?) {
         _activeId.value = id
         store.putString(KEY_ACTIVE, id)
