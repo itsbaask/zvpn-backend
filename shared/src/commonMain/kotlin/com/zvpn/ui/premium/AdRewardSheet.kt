@@ -1,4 +1,7 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@file:OptIn(
+    androidx.compose.material3.ExperimentalMaterial3Api::class,
+    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class,
+)
 
 package com.zvpn.ui.premium
 
@@ -7,7 +10,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,26 +25,24 @@ import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.resources.painterResource
 import com.zvpn.shared.resources.*
 import com.zvpn.domain.ads.PointsManager
+import com.zvpn.ui.theme.ZHotPink
+import com.zvpn.ui.theme.ZLime
+import com.zvpn.ui.theme.ZViolet
 
 /**
- * Ad Reward & Points Monetization Sheet.
+ * AdRewardSheet — compact bottom-sheet CTA for locked content.
  *
- * Compact bottom-sheet CTA shown when user tries to access locked content.
- * Revenue touchpoints:
- *  - Watch Rewarded Ad → +100 Points + 30 min premium access
- *  - Daily Streak Claim
- *  - Referral share
- *  - Upgrade to Premium CTA
- *
- * Full wallet available via PointsWalletScreen.
+ * Uses MaterialTheme tokens only → correct in Dark AND Light mode.
+ * Brand gradient (ZViolet→ZHotPink) used only for the primary CTA button,
+ * consistent with connect button and hero elements throughout the app.
  */
 @Composable
 fun AdRewardSheet(
     todayPoints: Int,
     totalPoints: Int,
-    remainingToday: Int,          // remaining rewarded ads today
+    remainingToday: Int,
     maxPerDay: Int = 8,
-    rewardMinutesRemaining: Long, // 0 if no active reward
+    rewardMinutesRemaining: Long,
     isAdReady: Boolean,
     isLoading: Boolean = false,
     onWatchAd: () -> Unit,
@@ -52,201 +52,206 @@ fun AdRewardSheet(
     onUpgrade: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val cs = MaterialTheme.colorScheme
+    val typo = MaterialTheme.typography
+
     val totalPts by PointsManager.totalPoints.collectAsState()
     val canClaimStreak by PointsManager.canClaimDailyStreak.collectAsState()
     val streakDays by PointsManager.streakDays.collectAsState()
     val myRefCode by PointsManager.referralCode.collectAsState()
 
+    val adEnabled = isAdReady && remainingToday > 0 && !isLoading
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFF1A1A2E), Color(0xFF16213E))
-                )
-            )
+            .background(cs.background)
             .verticalScroll(rememberScrollState())
-            .padding(24.dp),
+            .padding(horizontal = 20.dp, vertical = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         // ── Handle ─────────────────────────────────────────────────────────────
         Box(
-            modifier = Modifier
+            Modifier
                 .width(40.dp).height(4.dp)
                 .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.3f))
+                .background(cs.outlineVariant)
         )
         Spacer(Modifier.height(20.dp))
 
-        // ── Active reward countdown ────────────────────────────────────────────
+        // ── Active reward banner ───────────────────────────────────────────────
         if (rewardMinutesRemaining > 0) {
             Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = Color(0xFF4CAF50).copy(alpha = 0.15f),
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.medium,
+                color = cs.secondaryContainer,
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Icon(
-                        painter = painterResource(Res.drawable.ic_bolt),
+                        painterResource(Res.drawable.ic_bolt),
                         contentDescription = null,
-                        tint = Color(0xFF4CAF50),
-                        modifier = Modifier.size(20.dp),
+                        tint = cs.secondary,
+                        modifier = Modifier.size(18.dp),
                     )
                     Text(
-                        text = "✅ Premium Active — ${rewardMinutesRemaining} min remaining",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = Color(0xFF4CAF50),
+                        "Premium Active — $rewardMinutesRemaining min remaining",
+                        style = typo.labelLarge,
                         fontWeight = FontWeight.SemiBold,
+                        color = cs.onSecondaryContainer,
                     )
                 }
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(14.dp))
         }
 
-        // ── Title ──────────────────────────────────────────────────────────────
-        Text("⚡", fontSize = 40.sp)
-        Spacer(Modifier.height(8.dp))
+        // ── Icon ──────────────────────────────────────────────────────────────
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .clip(CircleShape)
+                .background(Brush.linearGradient(listOf(ZViolet, ZHotPink))),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painterResource(Res.drawable.ic_bolt),
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(32.dp),
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
         Text(
-            text = "Ad Rewards & Points",
-            style = MaterialTheme.typography.headlineSmall,
+            "Earn Points & Rewards",
+            style = typo.headlineSmall,
             fontWeight = FontWeight.Bold,
-            color = Color.White,
+            color = cs.onBackground,
         )
-        Spacer(Modifier.height(4.dp))
+        // Gradient accent line
+        Box(
+            Modifier
+                .width(100.dp).height(2.dp).clip(CircleShape)
+                .background(Brush.linearGradient(listOf(ZViolet, ZHotPink, ZLime)))
+        )
+
+        Spacer(Modifier.height(6.dp))
         Text(
-            text = "Watch ads to earn points & unlock premium servers!",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.White.copy(alpha = 0.65f),
+            "Watch ads to unlock premium servers!",
+            style = typo.bodyMedium,
+            color = cs.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(18.dp))
 
-        // ── Points Balance ─────────────────────────────────────────────────────
+        // ── Balance card ───────────────────────────────────────────────────────
         Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = Color.White.copy(alpha = 0.08f),
             modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.large,
+            color = cs.surfaceContainer,
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    text = "$totalPts Points",
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color(0xFFFFD700),
-                )
-                Text(
-                    text = "Your Balance",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Color.White.copy(alpha = 0.6f),
-                )
-
-                Spacer(Modifier.height(12.dp))
-                HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
-                Spacer(Modifier.height(12.dp))
-
-                Text(
-                    text = "Points are consumed while connected:",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White.copy(alpha = 0.8f),
-                )
-                Spacer(Modifier.height(6.dp))
+            Column(Modifier.padding(16.dp)) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceAround,
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("🟢 Free: 1/min", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(0.7f))
-                    Text("⚡ Premium: 5/min", style = MaterialTheme.typography.bodySmall, color = Color(0xFF6C63FF))
-                    Text("👑 Plus: 10/min", style = MaterialTheme.typography.bodySmall, color = Color(0xFFFFD700))
+                    Column {
+                        Text(
+                            "$totalPts pts",
+                            style = typo.headlineMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = cs.primary,
+                        )
+                        Text("Your balance", style = typo.labelSmall, color = cs.onSurfaceVariant)
+                    }
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = cs.primaryContainer,
+                    ) {
+                        Text(
+                            "Day $streakDays 🔥",
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            style = typo.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = cs.onPrimaryContainer,
+                        )
+                    }
                 }
-            }
-        }
 
-        Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(10.dp))
+                HorizontalDivider(color = cs.outlineVariant.copy(0.5f))
+                Spacer(Modifier.height(10.dp))
 
-        // ── Daily Streak ───────────────────────────────────────────────────────
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = Color(0xFF6C63FF).copy(alpha = 0.15f),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "📅 Day Streak: $streakDays/7 🔥",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                    )
-                    Text(
-                        text = if (canClaimStreak) "Claim your daily bonus!" else "Come back tomorrow!",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.7f),
-                    )
-                }
-                Button(
-                    onClick = {
-                        val reward = PointsManager.claimDailyStreak()
-                        if (reward > 0) onClaimStreak()
-                    },
-                    enabled = canClaimStreak,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6C63FF)),
-                ) {
-                    Text(
-                        if (canClaimStreak) "Claim" else "✓ Done",
-                        fontWeight = FontWeight.Bold,
-                    )
+                Text("Consumption rates while connected:", style = typo.labelMedium, color = cs.onSurfaceVariant)
+                Spacer(Modifier.height(6.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
+                    Text("🟢 Free: 1/min", style = typo.bodySmall, color = cs.onSurface)
+                    Text("⚡ Premium: 5/min", style = typo.bodySmall, color = cs.primary)
+                    Text("👑 Plus: 10/min", style = typo.bodySmall, color = cs.onSurface)
                 }
             }
         }
 
         Spacer(Modifier.height(12.dp))
 
-        // ── Referral Card ──────────────────────────────────────────────────────
+        // ── Streak card ────────────────────────────────────────────────────────
         Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = Color(0xFFFF9800).copy(alpha = 0.12f),
             modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.large,
+            color = cs.surfaceContainerHigh,
         ) {
             Row(
-                modifier = Modifier.padding(16.dp),
+                Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Column(Modifier.weight(1f)) {
                     Text(
-                        text = "🎁 Referral — +50 pts each",
-                        style = MaterialTheme.typography.titleMedium,
+                        "📅 Daily Streak — Day $streakDays",
+                        style = typo.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                        color = cs.onSurface,
                     )
                     Text(
-                        text = "Code: $myRefCode",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFFFCC80),
-                        fontWeight = FontWeight.SemiBold,
+                        if (canClaimStreak) "Claim your daily bonus!" else "Come back tomorrow!",
+                        style = typo.bodySmall,
+                        color = cs.onSurfaceVariant,
                     )
                 }
-                FilledTonalButton(
-                    onClick = onShareReferral,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = Color(0xFFFF9800),
-                        contentColor = Color.White,
-                    ),
+                Button(
+                    onClick = { val r = PointsManager.claimDailyStreak(); if (r > 0) onClaimStreak() },
+                    enabled = canClaimStreak,
+                    shape = MaterialTheme.shapes.medium,
                 ) {
+                    Text(if (canClaimStreak) "Claim" else "✓", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        // ── Referral card ──────────────────────────────────────────────────────
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.large,
+            color = cs.surfaceContainerHigh,
+        ) {
+            Row(
+                Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("🎁 Refer Friends — +50 pts each", style = typo.titleSmall, fontWeight = FontWeight.Bold, color = cs.onSurface)
+                    Text("Code: $myRefCode", style = typo.bodySmall, color = cs.primary, fontWeight = FontWeight.SemiBold)
+                }
+                FilledTonalButton(onClick = onShareReferral, shape = MaterialTheme.shapes.medium) {
                     Text("Share 🚀", fontWeight = FontWeight.Bold)
                 }
             }
@@ -254,37 +259,50 @@ fun AdRewardSheet(
 
         Spacer(Modifier.height(20.dp))
 
-        // ── Primary: Watch Rewarded Ad ─────────────────────────────────────────
+        // ── Primary CTA — Watch Ad ─────────────────────────────────────────────
         Button(
             onClick = onWatchAd,
-            enabled = isAdReady && remainingToday > 0 && !isLoading,
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = RoundedCornerShape(16.dp),
+            enabled = adEnabled,
+            modifier = Modifier.fillMaxWidth().height(54.dp),
+            shape = MaterialTheme.shapes.large,
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF6C63FF),
-                disabledContainerColor = Color.White.copy(alpha = 0.08f),
+                containerColor = Color.Transparent,
+                disabledContainerColor = cs.onSurface.copy(0.08f),
             ),
+            contentPadding = PaddingValues(0.dp),
         ) {
-            AnimatedContent(isLoading, label = "ad-btn") { loading ->
-                if (loading) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
-                } else {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = if (remainingToday > 0)
-                                "🎬  Watch Ad — +100 pts + 30 min"
-                            else
-                                "📵 Daily limit ($maxPerDay/$maxPerDay)",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                        )
-                        if (remainingToday > 0) {
-                            Text(
-                                "$remainingToday ads remaining today",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(0.65f),
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(
+                        if (adEnabled)
+                            Modifier.background(
+                                Brush.linearGradient(listOf(ZViolet, ZHotPink)),
+                                shape = MaterialTheme.shapes.large,
                             )
+                        else Modifier
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                AnimatedContent(isLoading, label = "ad-btn") { loading ->
+                    if (loading) {
+                        CircularProgressIndicator(Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
+                    } else {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                if (remainingToday > 0) "🎬  Watch Ad — +100 pts + 30 min"
+                                else "Daily limit ($maxPerDay/$maxPerDay)",
+                                style = typo.titleSmall,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = if (adEnabled) Color.White else cs.onSurface.copy(0.38f),
+                            )
+                            if (remainingToday > 0) {
+                                Text(
+                                    "$remainingToday of $maxPerDay remaining today",
+                                    style = typo.labelSmall,
+                                    color = Color.White.copy(0.7f),
+                                )
+                            }
                         }
                     }
                 }
@@ -293,35 +311,29 @@ fun AdRewardSheet(
 
         Spacer(Modifier.height(8.dp))
 
-        // ── Open Full Wallet ───────────────────────────────────────────────────
+        // ── Open full wallet ───────────────────────────────────────────────────
         OutlinedButton(
             onClick = onOpenWallet,
             modifier = Modifier.fillMaxWidth().height(46.dp),
-            shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF82B1FF)),
+            shape = MaterialTheme.shapes.medium,
         ) {
-            Text("💎 Open Points Wallet", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+            Text("💎 Open Points Wallet", style = typo.labelLarge, fontWeight = FontWeight.SemiBold)
         }
 
         Spacer(Modifier.height(8.dp))
 
         // ── Upgrade CTA ────────────────────────────────────────────────────────
-        OutlinedButton(
+        FilledTonalButton(
             onClick = onUpgrade,
             modifier = Modifier.fillMaxWidth().height(46.dp),
-            shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFFFD700)),
+            shape = MaterialTheme.shapes.medium,
         ) {
-            Text(
-                "👑 Go Premium — No Ads, Unlimited",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-            )
+            Text("👑 Go Premium — No Ads", style = typo.labelLarge, fontWeight = FontWeight.SemiBold)
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(4.dp))
         TextButton(onClick = onDismiss) {
-            Text("Close", color = Color.White.copy(alpha = 0.4f))
+            Text("Maybe later", color = cs.onSurfaceVariant, style = typo.labelLarge)
         }
         Spacer(Modifier.height(8.dp))
     }
