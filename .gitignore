@@ -51,7 +51,9 @@ ref*.png
 
 __pycache__/
 *.pyc
-output/
+output/*
+!output/servers.json
+!output/servers_structured.json
 GeoLite2-Country.mmdb
 audit_report.csv
 .wrangler/

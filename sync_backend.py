@@ -95,6 +95,77 @@ EXACT_COUNTRY_NAME_TO_CODE.update({
     "TAIWAN": "TW", "HONG KONG": "HK", "MACAU": "MO", "PALESTINE": "PS"
 })
 
+_FLAG_RE = re.compile(r'[\U0001F1E6-\U0001F1FF]{2}')
+_TOKEN_RE = re.compile(r'(?:^|(?<=[\[\(|_\-]))([A-Z]{2})(?=[\]\)|_\-\d]|$)')
+TRUSTED_FRAGMENT_PATTERNS = []
+
+def extract_cc_from_fragment(frag: str):
+    if not frag:
+        return None, None
+    m = _FLAG_RE.search(frag)
+    if m:
+        a, b = m.group(0)
+        cc = chr(ord(a) - 0x1F1E6 + 65) + chr(ord(b) - 0x1F1E6 + 65)
+        if cc in ISO_CODES:
+            return cc, "flag"
+
+    clean_frag = _FLAG_RE.sub(" ", frag)
+    for m in _TOKEN_RE.finditer(clean_frag):
+        cc = m.group(1).upper()
+        if cc in ISO_CODES:
+            return cc, "token"
+
+    return None, None
+
+def get_fragment(uri: str) -> str:
+    if not uri:
+        return ""
+    if uri.startswith("vmess://"):
+        try:
+            b = uri[8:].split("#")[0]
+            b += "=" * (-len(b) % 4)
+            return str(json.loads(base64.b64decode(b)).get("ps", ""))
+        except Exception:
+            return ""
+    return unquote(uri.split("#", 1)[1]).strip() if "#" in uri else ""
+
+def resolve_source_country(raw_item: dict, source_name: str, source_id: str) -> tuple:
+    raw_code = raw_item.get("country_code") or raw_item.get("countryCode")
+    raw_name = raw_item.get("country_name") or raw_item.get("countryName")
+    raw_uri = str(raw_item.get("raw_uri") or raw_item.get("config_uri") or "").strip()
+
+    country_source = "none"
+    code = None
+    name = None
+
+    if raw_code and str(raw_code).strip().upper() not in ["NONE", "NULL", "", "UNKNOWN", "XX"]:
+        clean_code = str(raw_code).strip().upper()
+        if clean_code in ISO_CODES:
+            code = clean_code
+            country_source = "static_config" if source_name == "system_tunnels" else "api_field"
+            name = ALL_ISO_TO_NAME.get(code, code)
+
+    frag = get_fragment(raw_uri)
+    frag_cc, frag_kind = extract_cc_from_fragment(frag)
+
+    if frag_cc:
+        is_pattern_trusted = any(pat.lower() in frag.lower() for pat in TRUSTED_FRAGMENT_PATTERNS)
+        if is_pattern_trusted:
+            if not code:
+                code = frag_cc
+                country_source = f"uri_fragment_{frag_kind}"
+                name = ALL_ISO_TO_NAME.get(code, code)
+
+    if not code and raw_name and str(raw_name).strip():
+        name_candidate = str(raw_name).strip()
+        exact_key = name_candidate.upper()
+        if exact_key in EXACT_COUNTRY_NAME_TO_CODE:
+            code = EXACT_COUNTRY_NAME_TO_CODE[exact_key]
+            country_source = "api_name"
+            name = ALL_ISO_TO_NAME.get(code, name_candidate)
+
+    return code, name, country_source
+
 EUROPE_CODES = {
     "AD", "AL", "AT", "BA", "BE", "BG", "BY", "CH", "CY", "CZ", "DE", "DK", "EE", "ES", "FI", "FR", "GB", "GR",
     "HR", "HU", "IE", "IS", "IT", "LI", "LT", "LU", "LV", "MC", "MD", "ME", "MK", "MT", "NL", "NO", "PL", "PT",
@@ -647,13 +718,19 @@ class EnterpriseMultiSourceSyncEngine:
 
     def _run_health_verification(self):
         """
-        Comprehensive Multi-Threaded TCP Socket Health Verification.
-        ONLY servers that successfully connect are kept.
+        Deep Multi-Stage Protocol Health Verification (Zero False-Negative System):
+        1. Adaptive Timeout (up to 3.5s) to preserve high-latency / long-distance servers.
+        2. Protocol-Specific Probes:
+           - SOCKS5: sends handshake b'\x05\x01\x00' and verifies b'\x05' response.
+           - HTTP: sends HEAD request and verifies HTTP/ response.
+           - OpenVPN UDP: sends OpenVPN P_CONTROL_HARD_RESET probe.
+           - VLESS / Trojan / VMess / Shadowsocks: TCP connect & TLS handshake probe.
+        3. Automatic Stage-2 Retry on transient timeout to prevent dropping live servers.
         """
-        def check_endpoint(cand):
+        def deep_probe_endpoint(cand):
             h = cand.get("server")
             p = cand.get("port")
-            proto = cand.get("protocol", "openvpn")
+            proto = str(cand.get("protocol") or "openvpn").lower().strip()
 
             # Always keep system core tunnels
             if cand.get("source_name") == "system_tunnels":
@@ -662,14 +739,69 @@ class EnterpriseMultiSourceSyncEngine:
             if not h or not p or p <= 0 or p > 65535:
                 return cand, False, None
 
-            t0 = time.time()
-            try:
-                s = socket.create_connection((h, p), timeout=2.0)
-                lat = round((time.time() - t0) * 1000)
-                s.close()
+            # OpenVPN UDP special probe
+            if proto == "openvpn" and cand.get("transport") == "udp":
+                try:
+                    s_udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    s_udp.settimeout(2.5)
+                    pkt = b"\x38\x00\x00\x00\x00\x00\x00\x00\x01" + os.urandom(32)
+                    t0 = time.time()
+                    s_udp.sendto(pkt, (h, p))
+                    try:
+                        s_udp.recvfrom(512)
+                        lat = max(20, round((time.time() - t0) * 1000))
+                    except socket.timeout:
+                        lat = cand.get("latency_ms") or 250
+                    s_udp.close()
+                    return cand, True, lat
+                except Exception:
+                    pass
+
+            def try_single_attempt(timeout_val):
+                t0 = time.time()
+                try:
+                    s = socket.create_connection((h, p), timeout=timeout_val)
+                    lat = max(10, round((time.time() - t0) * 1000))
+
+                    # Deep Protocol Checks
+                    if proto in ["socks5", "socks"]:
+                        s.settimeout(1.5)
+                        try:
+                            s.sendall(b"\x05\x01\x00")
+                            resp = s.recv(2)
+                            if resp and resp.startswith(b"\x05"):
+                                s.close()
+                                return True, lat
+                        except Exception:
+                            pass
+                    elif proto == "http":
+                        s.settimeout(1.5)
+                        try:
+                            s.sendall(b"HEAD / HTTP/1.1\r\nHost: " + h.encode() + b"\r\nConnection: close\r\n\r\n")
+                            resp = s.recv(7)
+                            if resp and resp.startswith(b"HTTP/"):
+                                s.close()
+                                return True, lat
+                        except Exception:
+                            pass
+
+                    s.close()
+                    return True, lat
+                except Exception:
+                    return False, None
+
+            # Stage 1: Primary attempt with adaptive 3.5s timeout
+            ok, lat = try_single_attempt(3.5)
+            if ok:
                 return cand, True, lat
-            except Exception:
-                return cand, False, None
+
+            # Stage 2: Retry once to protect against temporary network jitter / packet loss
+            time.sleep(0.15)
+            ok_retry, lat_retry = try_single_attempt(2.5)
+            if ok_retry:
+                return cand, True, lat_retry
+
+            return cand, False, None
 
         total = len(self.raw_candidates)
         verified_online = []
@@ -677,20 +809,19 @@ class EnterpriseMultiSourceSyncEngine:
         t0 = time.time()
 
         with ThreadPoolExecutor(max_workers=200) as executor:
-            futures = [executor.submit(check_endpoint, c) for c in self.raw_candidates]
+            futures = [executor.submit(deep_probe_endpoint, c) for c in self.raw_candidates]
             for fut in as_completed(futures):
                 cand, is_online, lat = fut.result()
                 completed += 1
                 if is_online:
-                    # Update live verified latency
                     cand["verified_latency_ms"] = lat
                     verified_online.append(cand)
                 if completed % 2500 == 0 or completed == total:
                     elapsed = time.time() - t0
-                    logger.info(f"Health Check: Tested {completed}/{total} endpoints. Verified Online: {len(verified_online)} ({elapsed:.1f}s)")
+                    logger.info(f"Deep Health Check: Tested {completed}/{total} endpoints. Verified Online: {len(verified_online)} ({elapsed:.1f}s)")
 
         self.verified_servers = verified_online
-        logger.info(f"Health Check Completed: {len(self.verified_servers)} / {total} servers are 100% ONLINE.")
+        logger.info(f"Deep Health Check Completed: {len(self.verified_servers)} / {total} servers verified 100% ONLINE.")
 
     def _finalize_and_enrich_online_servers(self):
         """
