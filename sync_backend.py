@@ -369,9 +369,6 @@ class EnterpriseMultiSourceSyncEngine:
         # 5. Harvest from 10+ New Free High-Performance Feeds (Barry-Far, Matin, ProxyScrape, TheSpeedX, Freefq)
         self._harvest_new_external_feeds()
 
-        # 6. Harvest System Tunnel Core Nodes
-        self._harvest_system_tunnels()
-
         total_harvested = len(self.raw_candidates)
         logger.info(f"Total Raw Harvested Servers: {total_harvested}")
 
@@ -797,6 +794,33 @@ class EnterpriseMultiSourceSyncEngine:
                                 if resp and (b"200 OK" in resp or b"HTTP/1." in resp) and b"407" not in resp:
                                     return True, lat
                                 return False, None
+                        except Exception:
+                            return False, None
+                    elif proto == "trojan":
+                        s.settimeout(2.5)
+                        raw = cand.get("raw_uri", "")
+                        try:
+                            parsed_u = urllib.parse.urlparse(raw)
+                            q_u = urllib.parse.parse_qs(parsed_u.query)
+                            sni_u = q_u.get("sni", [parsed_u.hostname or h])[0]
+                            tr_u = q_u.get("type", ["tcp"])[0]
+                            ctx = ssl.create_default_context()
+                            ctx.check_hostname = False
+                            ctx.verify_mode = ssl.CERT_NONE
+                            ss = ctx.wrap_socket(s, server_hostname=sni_u)
+                            if tr_u == "ws":
+                                path_u = q_u.get("path", ["/"])[0]
+                                host_u = q_u.get("host", [sni_u])[0]
+                                req_u = f"GET {path_u} HTTP/1.1\r\nHost: {host_u}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n"
+                                ss.sendall(req_u.encode())
+                                resp = ss.recv(256)
+                                ss.close()
+                                if resp and b"101" in resp and b"520" not in resp:
+                                    return True, lat
+                                return False, None
+                            else:
+                                ss.close()
+                                return True, lat
                         except Exception:
                             return False, None
                 except Exception:

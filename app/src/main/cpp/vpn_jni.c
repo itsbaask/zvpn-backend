@@ -399,45 +399,23 @@ static void native_stop_tunnel(JNIEnv *env, jclass clazz) {
 
 static int register_vpn_bridge(JNIEnv *env) {
   static const JNINativeMethod methods[] = {
-      {"nativeRunTunnel", "(ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)I",
-       (void *)native_run_tunnel},
       {"nativeNegotiate", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I[I[I[I)I",
        (void *)native_negotiate},
       {"nativeSetSocketProtectionEnabled", "(Z)V", (void *)native_set_socket_protection_enabled},
       {"nativeStartLoop", "(I)I", (void *)native_start_loop},
-      {"nativeStartProxyLoop", "()I", (void *)native_start_proxy_loop},
-      {"nativeGvisorStart", "([II)I", (void *)native_gvisor_start},
-      {"nativeGvisorStop", "()V", (void *)native_gvisor_stop},
-      {"nativeGvisorInjectInbound", "([B)I", (void *)native_gvisor_inject_inbound},
-      {"nativeGvisorReadOutbound", "(II)[B", (void *)native_gvisor_read_outbound},
-      {"nativeGvisorTcpOpen", "([III)I", (void *)native_gvisor_tcp_open},
-      {"nativeGvisorTcpOpenCancelable", "(I[III)I", (void *)native_gvisor_tcp_open_cancelable},
-      {"nativeGvisorTcpCancelOpen", "(I)I", (void *)native_gvisor_tcp_cancel_open},
-      {"nativeGvisorTcpRead", "(III)[B", (void *)native_gvisor_tcp_read},
-      {"nativeGvisorTcpWrite", "(I[BI)I", (void *)native_gvisor_tcp_write},
-      {"nativeGvisorTcpClose", "(I)V", (void *)native_gvisor_tcp_close},
-      {"nativeGvisorStats", "()[I", (void *)native_gvisor_stats},
-      {"nativeGvisorLastOpenDiagnostics", "()Ljava/lang/String;", (void *)native_gvisor_last_open_diagnostics},
-      {"nativeGvisorOpenDiagnostics", "(I)Ljava/lang/String;", (void *)native_gvisor_open_diagnostics},
-      {"nativeIsProxyPacketBridgeActive", "()Z", (void *)native_is_proxy_packet_bridge_active},
-      {"nativeQueueProxyOutboundPacket", "([B)I", (void *)native_queue_proxy_outbound_packet},
-      {"nativeReadProxyInboundPacket", "(I)[B", (void *)native_read_proxy_inbound_packet},
-      {"nativeSetVpnDnsInterceptIpv4", "(Ljava/lang/String;)I", (void *)native_set_vpn_dns_intercept_ipv4},
-      {"nativeReadVpnDnsQuery", "(I)[B", (void *)native_read_vpn_dns_query},
-      {"nativeQueueVpnDnsResponse", "([B)I", (void *)native_queue_vpn_dns_response},
       {"nativeStopTunnel", "()V", (void *)native_stop_tunnel},
   };
   jclass bridge_class = (*env)->FindClass(env, VPN_BRIDGE_CLASS);
   if (bridge_class == NULL) {
     (*env)->ExceptionClear(env);
     __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "JNI_OnLoad: could not find %s", VPN_BRIDGE_CLASS);
-    return -1;
+    return 0;
   }
   if ((*env)->RegisterNatives(env, bridge_class, methods, (jint)(sizeof(methods) / sizeof(methods[0]))) != JNI_OK) {
     (*env)->ExceptionClear(env);
     (*env)->DeleteLocalRef(env, bridge_class);
     __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "JNI_OnLoad: RegisterNatives failed for %s", VPN_BRIDGE_CLASS);
-    return -1;
+    return 0;
   }
   (*env)->DeleteLocalRef(env, bridge_class);
   return 0;

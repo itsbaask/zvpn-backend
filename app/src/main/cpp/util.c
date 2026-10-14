@@ -415,74 +415,47 @@ void engine_set_java_vm(JavaVM *vm) { g_vm = vm; }
 JavaVM *engine_get_java_vm(void) { return g_vm; }
 
 int engine_jni_init(JNIEnv *env) {
-  jclass tunnel_events_local = NULL;
-  jclass vpn_service_local = NULL;
-
   g_vpn_tunnel_events_class = NULL;
   g_tunnel_vpn_service_class = NULL;
   g_emit_engine_log_from_native_mid = NULL;
   g_on_native_tunnel_ready_mid = NULL;
   g_protect_socket_fd_mid = NULL;
 
-  tunnel_events_local = (*env)->FindClass(env, VPN_TUNNEL_EVENTS_CLASS);
-  if (tunnel_events_local == NULL) {
+  jclass tunnel_events_local = (*env)->FindClass(env, VPN_TUNNEL_EVENTS_CLASS);
+  if (tunnel_events_local != NULL) {
+    g_vpn_tunnel_events_class = (jclass)(*env)->NewGlobalRef(env, tunnel_events_local);
+    (*env)->DeleteLocalRef(env, tunnel_events_local);
+    if (g_vpn_tunnel_events_class != NULL) {
+      g_emit_engine_log_from_native_mid = (*env)->GetStaticMethodID(
+          env, g_vpn_tunnel_events_class, "emitEngineLogFromNative", "(ILjava/lang/String;Ljava/lang/String;)V");
+      if (g_emit_engine_log_from_native_mid == NULL) {
+        (*env)->ExceptionClear(env);
+      }
+    }
+  } else {
     (*env)->ExceptionClear(env);
-    engine_log_direct(ANDROID_LOG_ERROR, "engine_jni_init: could not find VpnTunnelEvents");
-    goto fail;
-  }
-  g_vpn_tunnel_events_class = (jclass)(*env)->NewGlobalRef(env, tunnel_events_local);
-  (*env)->DeleteLocalRef(env, tunnel_events_local);
-  tunnel_events_local = NULL;
-  if (g_vpn_tunnel_events_class == NULL) {
-    engine_log_direct(ANDROID_LOG_ERROR, "engine_jni_init: could not cache VpnTunnelEvents");
-    goto fail;
-  }
-  g_emit_engine_log_from_native_mid = (*env)->GetStaticMethodID(
-      env, g_vpn_tunnel_events_class, "emitEngineLogFromNative", "(ILjava/lang/String;Ljava/lang/String;)V");
-  if (g_emit_engine_log_from_native_mid == NULL) {
-    (*env)->ExceptionClear(env);
-    engine_log_direct(ANDROID_LOG_ERROR, "engine_jni_init: could not find emitEngineLogFromNative");
-    goto fail;
   }
 
-  vpn_service_local = (*env)->FindClass(env, TUNNEL_VPN_SERVICE_CLASS);
-  if (vpn_service_local == NULL) {
+  jclass vpn_service_local = (*env)->FindClass(env, TUNNEL_VPN_SERVICE_CLASS);
+  if (vpn_service_local != NULL) {
+    g_tunnel_vpn_service_class = (jclass)(*env)->NewGlobalRef(env, vpn_service_local);
+    (*env)->DeleteLocalRef(env, vpn_service_local);
+    if (g_tunnel_vpn_service_class != NULL) {
+      g_protect_socket_fd_mid = (*env)->GetStaticMethodID(env, g_tunnel_vpn_service_class, "protectSocketFd", "(I)Z");
+      if (g_protect_socket_fd_mid == NULL) {
+        (*env)->ExceptionClear(env);
+      }
+      g_on_native_tunnel_ready_mid =
+          (*env)->GetStaticMethodID(env, g_tunnel_vpn_service_class, "onNativeTunnelReady", "(Ljava/lang/String;)V");
+      if (g_on_native_tunnel_ready_mid == NULL) {
+        (*env)->ExceptionClear(env);
+      }
+    }
+  } else {
     (*env)->ExceptionClear(env);
-    engine_log_direct(ANDROID_LOG_ERROR, "engine_jni_init: could not find TunnelVpnService");
-    goto fail;
-  }
-  g_tunnel_vpn_service_class = (jclass)(*env)->NewGlobalRef(env, vpn_service_local);
-  (*env)->DeleteLocalRef(env, vpn_service_local);
-  vpn_service_local = NULL;
-  if (g_tunnel_vpn_service_class == NULL) {
-    engine_log_direct(ANDROID_LOG_ERROR, "engine_jni_init: could not cache TunnelVpnService");
-    goto fail;
-  }
-  g_protect_socket_fd_mid = (*env)->GetStaticMethodID(env, g_tunnel_vpn_service_class, "protectSocketFd", "(I)Z");
-  if (g_protect_socket_fd_mid == NULL) {
-    (*env)->ExceptionClear(env);
-    engine_log_direct(ANDROID_LOG_ERROR, "engine_jni_init: could not find protectSocketFd");
-    goto fail;
-  }
-  g_on_native_tunnel_ready_mid =
-      (*env)->GetStaticMethodID(env, g_tunnel_vpn_service_class, "onNativeTunnelReady", "(Ljava/lang/String;)V");
-  if (g_on_native_tunnel_ready_mid == NULL) {
-    (*env)->ExceptionClear(env);
-    engine_log_direct(ANDROID_LOG_ERROR, "engine_jni_init: could not find onNativeTunnelReady");
-    goto fail;
   }
 
   return 0;
-
-fail:
-  if (tunnel_events_local != NULL) {
-    (*env)->DeleteLocalRef(env, tunnel_events_local);
-  }
-  if (vpn_service_local != NULL) {
-    (*env)->DeleteLocalRef(env, vpn_service_local);
-  }
-  engine_jni_cleanup(env);
-  return -1;
 }
 
 void engine_jni_cleanup(JNIEnv *env) {
