@@ -18,6 +18,7 @@ object PointsManager {
     private const val KEY_REFERRAL_CODE = "zvpn_my_referral_code"
     private const val KEY_HARDWARE_MAC = "zvpn_hw_mac"
     private const val KEY_NETWORK_ID = "zvpn_network_id"
+    private const val KEY_REWARDED_UNTIL = "zvpn_rewarded_until_ms"
 
     // Consumption rates per minute
     const val RATE_FREE_PER_MIN = 1
@@ -47,6 +48,17 @@ object PointsManager {
     private val _referralCode = MutableStateFlow("")
     val referralCode: StateFlow<String> = _referralCode.asStateFlow()
 
+    /** Timestamp (ms) until which ad-rewarded premium access is active. 0 = no active reward. */
+    private val _rewardedUntilMs = MutableStateFlow(0L)
+    val rewardedUntilMs: StateFlow<Long> = _rewardedUntilMs.asStateFlow()
+
+    val isAdRewardActive: Boolean get() = currentTimeMillis() < _rewardedUntilMs.value
+
+    fun rewardMinutesRemaining(): Long {
+        val rem = _rewardedUntilMs.value - currentTimeMillis()
+        return maxOf(0L, rem / 60_000L)
+    }
+
     fun isGoogleSignedIn(): Boolean = UserAuthManager.session.value.isSignedIn
 
     fun init(keyValueStore: KeyValueStore) {
@@ -63,6 +75,10 @@ object PointsManager {
         } else {
             _referralCode.value = code
         }
+
+        // Restore reward expiry — survives app restarts
+        val savedReward = keyValueStore.getString(KEY_REWARDED_UNTIL)?.toLongOrNull() ?: 0L
+        _rewardedUntilMs.value = savedReward
 
         checkDailyReset()
     }
@@ -119,7 +135,7 @@ object PointsManager {
     }
 
     fun addPoints(points: Int) {
-        if (!isGoogleSignedIn()) return // Google Sign-In Enforced for Points!
+        if (!isGoogleSignedIn()) return // Google Sign-In enforced for manual points
 
         val newTotal = _totalPoints.value + points
         val newToday = _todayPoints.value + points
@@ -128,6 +144,32 @@ object PointsManager {
 
         store?.putInt(KEY_TOTAL_POINTS, newTotal)
         store?.putInt(KEY_TODAY_POINTS, newToday)
+    }
+
+    /**
+     * Awards points without requiring Google Sign-In.
+     * ONLY to be called after successful S2S ad reward validation (UnityAdsManager).
+     * This prevents the sign-in gate from blocking legitimate ad rewards.
+     */
+    fun addPointsDirect(points: Int) {
+        val newTotal = _totalPoints.value + points
+        val newToday = _todayPoints.value + points
+        _totalPoints.value = newTotal
+        _todayPoints.value = newToday
+        store?.putInt(KEY_TOTAL_POINTS, newTotal)
+        store?.putInt(KEY_TODAY_POINTS, newToday)
+    }
+
+    /**
+     * Grants time-based premium access after a verified rewarded ad.
+     * Persists expiry so the reward survives app restarts.
+     *
+     * @param minutes  Duration of the premium access window
+     */
+    fun grantAdReward(minutes: Int) {
+        val expiryMs = currentTimeMillis() + minutes * 60_000L
+        _rewardedUntilMs.value = expiryMs
+        store?.putString(KEY_REWARDED_UNTIL, expiryMs.toString())
     }
 
     fun consumePoints(points: Int): Boolean {

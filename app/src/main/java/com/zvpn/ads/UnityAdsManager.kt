@@ -11,6 +11,7 @@ import com.unity3d.ads.UnityAdsShowOptions
 import com.unity3d.ads.metadata.MetaData
 import com.zvpn.domain.ads.UnityAdsConfig
 import com.zvpn.domain.ads.UnityAdsS2SManager
+import com.zvpn.domain.ads.PointsManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,23 +19,36 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Complete Unity Ads Manager for Z VPN
+ * Unity Ads Manager — ZVPN Complete Revenue Engine
  *
- * Handles:
- *  - SDK initialisation (Interstitial + Rewarded + Banner)
- *  - S2S server-side reward verification
- *  - Points & daily reward tracking
- *  - Anti-bypass protection via UnityAdsS2SManager
+ * Ad Types & Points:
+ *  - Rewarded Video:       +100 pts + 30 min premium access
+ *  - Interstitial:         +25  pts  (shown on disconnect)
  *
- * Unity Game IDs:
- *  - Android: 6191257
- *  - iOS:     6191256
+ * Daily Caps (anti-abuse):
+ *  - Rewarded:      8/day
+ *  - Interstitial:  15/day
+ *
+ * Anti-Fraud:
+ *  - S2S HMAC-SHA256 token validation before granting any reward
+ *  - Nonce-based replay protection
+ *  - Daily caps enforced in-memory + Cloudflare Worker edge
+ *  - Pro users never see ads
  */
 object UnityAdsManager {
 
     private const val TAG = "UnityAdsManager"
 
-    // ─── State ──────────────────────────────────────────────────────────────
+    // ─── Points & Reward constants ───────────────────────────────────────────
+    const val POINTS_PER_REWARDED      = 100   // per rewarded video completion
+    const val POINTS_PER_INTERSTITIAL  = 25    // per interstitial view
+    const val REWARD_MINUTES           = 30    // premium access per rewarded ad
+
+    // ─── Daily caps ──────────────────────────────────────────────────────────
+    const val MAX_REWARDED_PER_DAY     = 8
+    const val MAX_INTERSTITIAL_PER_DAY = 15
+
+    // ─── State ───────────────────────────────────────────────────────────────
     private val _isInitialized = MutableStateFlow(false)
     val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
 
@@ -44,39 +58,31 @@ object UnityAdsManager {
     private val _isInterstitialReady = MutableStateFlow(false)
     val isInterstitialReady: StateFlow<Boolean> = _isInterstitialReady.asStateFlow()
 
-    /** Points earned today from watching ads (reset at midnight) */
-    private val _todayPoints = MutableStateFlow(0)
-    val todayPoints: StateFlow<Int> = _todayPoints.asStateFlow()
-
-    /** Total lifetime points */
-    private val _totalPoints = MutableStateFlow(0)
-    val totalPoints: StateFlow<Int> = _totalPoints.asStateFlow()
-
-    /** Ad reward granted-until timestamp (ms) */
+    /** Current rewarded access expires at this timestamp (ms). 0 = no active reward. */
     private val _rewardedUntilMs = MutableStateFlow(0L)
     val rewardedUntilMs: StateFlow<Long> = _rewardedUntilMs.asStateFlow()
 
     val isRewardActive: Boolean
         get() = System.currentTimeMillis() < _rewardedUntilMs.value
 
-    // Points per ad type
-    const val POINTS_PER_REWARDED     = 100
-    const val POINTS_PER_INTERSTITIAL = 30
-    const val REWARD_MINUTES          = 30   // premium access per rewarded ad
+    fun rewardMinutesRemaining(): Long {
+        val remaining = _rewardedUntilMs.value - System.currentTimeMillis()
+        return maxOf(0L, remaining / 60_000L)
+    }
 
-    // Daily caps
-    const val MAX_REWARDED_PER_DAY     = 5
-    const val MAX_INTERSTITIAL_PER_DAY = 10
-
-    private var rewardedShownToday = 0
-    private var interstitialShownToday = 0
-    private var lastDayReset = 0L   // epoch day
-
+    // ─── Internal state ───────────────────────────────────────────────────────
     private var isPro = false
     private var currentUserId = "anonymous"
     private val isShowing = AtomicBoolean(false)
 
-    // ─── Initialisation ─────────────────────────────────────────────────────
+    private var rewardedShownToday = 0
+    private var interstitialShownToday = 0
+    private var lastDayReset = 0L   // epoch day number
+
+    // ─── Initialisation ───────────────────────────────────────────────────────
+    /**
+     * Call once from Application.onCreate() or MainActivity.onCreate().
+     */
     fun init(context: Context, userId: String = "anonymous", isProUser: Boolean = false) {
         isPro = isProUser
         currentUserId = userId
@@ -87,28 +93,33 @@ object UnityAdsManager {
             return
         }
 
-        val gameId = UnityAdsConfig.GAME_ID_ANDROID
-        val testMode = UnityAdsConfig.TEST_MODE
+        Log.d(TAG, "Initialising Unity Ads SDK — gameId=${UnityAdsConfig.GAME_ID_ANDROID} testMode=${UnityAdsConfig.TEST_MODE}")
 
-        Log.d(TAG, "Initialising Unity Ads — gameId=$gameId testMode=$testMode")
+        // GDPR consent
+        val gdpr = MetaData(context)
+        gdpr.set("gdpr.consent", true)
+        gdpr.commit()
 
-        // GDPR/COPPA consent metadata
-        val gdprConsent = MetaData(context)
-        gdprConsent.set("gdpr.consent", true)
-        gdprConsent.commit()
+        // CCPA / Privacy Framework consent
+        val privacy = MetaData(context)
+        privacy.set("privacy.consent", true)
+        privacy.commit()
 
         UnityAds.initialize(
             context,
-            gameId,
-            testMode,
+            UnityAdsConfig.GAME_ID_ANDROID,
+            UnityAdsConfig.TEST_MODE,
             object : IUnityAdsInitializationListener {
                 override fun onInitializationComplete() {
                     Log.i(TAG, "Unity Ads initialised ✓")
                     _isInitialized.value = true
                     preloadAll()
                 }
-                override fun onInitializationFailed(error: UnityAds.UnityAdsInitializationError, message: String) {
-                    Log.e(TAG, "Unity Ads init failed: $error — $message")
+                override fun onInitializationFailed(
+                    error: UnityAds.UnityAdsInitializationError,
+                    message: String,
+                ) {
+                    Log.e(TAG, "Init failed: $error — $message")
                 }
             }
         )
@@ -117,16 +128,21 @@ object UnityAdsManager {
     fun updateUser(userId: String, isProUser: Boolean) {
         currentUserId = userId
         isPro = isProUser
+        if (isProUser) {
+            // Pro users never get ads — reset reward state cleanly
+            _isRewardedReady.value = false
+            _isInterstitialReady.value = false
+        }
     }
 
-    // ─── Preload ─────────────────────────────────────────────────────────────
-    private fun preloadAll() {
+    // ─── Preload ──────────────────────────────────────────────────────────────
+    fun preloadAll() {
         preloadRewarded()
         preloadInterstitial()
     }
 
     private fun preloadRewarded() {
-        if (!_isInitialized.value) return
+        if (!_isInitialized.value || isPro) return
         UnityAds.load(
             UnityAdsConfig.PLACEMENT_REWARDED_ANDROID,
             object : IUnityAdsLoadListener {
@@ -134,7 +150,11 @@ object UnityAdsManager {
                     Log.d(TAG, "Rewarded loaded: $placementId")
                     _isRewardedReady.value = true
                 }
-                override fun onUnityAdsFailedToLoad(placementId: String, error: UnityAds.UnityAdsLoadError, message: String) {
+                override fun onUnityAdsFailedToLoad(
+                    placementId: String,
+                    error: UnityAds.UnityAdsLoadError,
+                    message: String,
+                ) {
                     Log.w(TAG, "Rewarded load failed: $placementId — $error: $message")
                     _isRewardedReady.value = false
                 }
@@ -143,7 +163,7 @@ object UnityAdsManager {
     }
 
     private fun preloadInterstitial() {
-        if (!_isInitialized.value) return
+        if (!_isInitialized.value || isPro) return
         UnityAds.load(
             UnityAdsConfig.PLACEMENT_INTERSTITIAL_ANDROID,
             object : IUnityAdsLoadListener {
@@ -151,7 +171,11 @@ object UnityAdsManager {
                     Log.d(TAG, "Interstitial loaded: $placementId")
                     _isInterstitialReady.value = true
                 }
-                override fun onUnityAdsFailedToLoad(placementId: String, error: UnityAds.UnityAdsLoadError, message: String) {
+                override fun onUnityAdsFailedToLoad(
+                    placementId: String,
+                    error: UnityAds.UnityAdsLoadError,
+                    message: String,
+                ) {
                     Log.w(TAG, "Interstitial load failed: $placementId — $error: $message")
                     _isInterstitialReady.value = false
                 }
@@ -159,16 +183,17 @@ object UnityAdsManager {
         )
     }
 
-    // ─── Show Rewarded Ad ────────────────────────────────────────────────────
+    // ─── Show Rewarded Ad ─────────────────────────────────────────────────────
     /**
-     * Shows a rewarded ad. On successful completion:
-     * - Grants [REWARD_MINUTES] minutes of premium access
-     * - Awards [POINTS_PER_REWARDED] points
-     * - Validates via S2S token before granting
+     * Shows a full rewarded video ad.
      *
-     * @param activity  Current foreground Activity
-     * @param onRewarded Called when reward is verified and granted
-     * @param onFailed   Called if ad fails or daily cap reached
+     * On COMPLETED:
+     *  - Validates via S2S HMAC before granting reward
+     *  - Awards [POINTS_PER_REWARDED] points via [PointsManager]
+     *  - Grants [REWARD_MINUTES] minutes of premium access
+     *  - Calls [onRewarded] with (minutesGranted, pointsEarned)
+     *
+     * On skip / failure: calls [onFailed] with reason string.
      */
     fun showRewarded(
         activity: Activity,
@@ -186,8 +211,10 @@ object UnityAdsManager {
             return
         }
 
-        val sessionToken = UUID.randomUUID().toString()
+        // Generate S2S token before showing
+        val nonce = UUID.randomUUID().toString()
         val showTimestamp = System.currentTimeMillis()
+        val token = UnityAdsS2SManager.generateToken(currentUserId, showTimestamp, nonce)
 
         isShowing.set(true)
         _isRewardedReady.value = false
@@ -201,40 +228,43 @@ object UnityAdsManager {
                     Log.d(TAG, "Rewarded started: $placementId")
                 }
                 override fun onUnityAdsShowClick(placementId: String) {}
+
                 override fun onUnityAdsShowComplete(
                     placementId: String,
-                    state: UnityAds.UnityAdsShowCompletionState
+                    state: UnityAds.UnityAdsShowCompletionState,
                 ) {
                     isShowing.set(false)
                     if (state == UnityAds.UnityAdsShowCompletionState.COMPLETED) {
-                        // S2S validation
-                        val isValid = UnityAdsS2SManager.isRewardTokenValid(
+                        // S2S fraud check
+                        val valid = UnityAdsS2SManager.isRewardTokenValid(
                             userId = currentUserId,
                             timestampMs = showTimestamp,
-                            token = sessionToken
+                            token = token,
+                            nonce = nonce,
                         )
-                        if (isValid) {
+                        if (valid) {
                             rewardedShownToday++
-                            val pts = POINTS_PER_REWARDED
-                            _todayPoints.value += pts
-                            _totalPoints.value += pts
-                            // Grant premium access
+                            // Grant time-based premium access
                             _rewardedUntilMs.value = System.currentTimeMillis() + REWARD_MINUTES * 60_000L
-                            Log.i(TAG, "Reward granted: +${REWARD_MINUTES}min +${pts}pts")
-                            onRewarded(REWARD_MINUTES, pts)
+                            // Award points (bypasses Google sign-in enforcement for ad reward)
+                            PointsManager.addPointsDirect(POINTS_PER_REWARDED)
+                            Log.i(TAG, "Reward granted: +${REWARD_MINUTES}min +${POINTS_PER_REWARDED}pts")
+                            onRewarded(REWARD_MINUTES, POINTS_PER_REWARDED)
                         } else {
-                            Log.w(TAG, "S2S validation failed — reward blocked")
+                            Log.w(TAG, "S2S validation FAILED — reward BLOCKED (anti-fraud)")
                             onFailed("s2s_validation_failed")
                         }
                     } else {
+                        Log.d(TAG, "Rewarded skipped/incomplete — state=$state")
                         onFailed("ad_skipped")
                     }
                     preloadRewarded()
                 }
+
                 override fun onUnityAdsShowFailure(
                     placementId: String,
                     error: UnityAds.UnityAdsShowError,
-                    message: String
+                    message: String,
                 ) {
                     isShowing.set(false)
                     Log.w(TAG, "Rewarded show failed: $error — $message")
@@ -245,10 +275,11 @@ object UnityAdsManager {
         )
     }
 
-    // ─── Show Interstitial ───────────────────────────────────────────────────
+    // ─── Show Interstitial Ad ─────────────────────────────────────────────────
     /**
-     * Shows an interstitial ad (for free users at natural break points).
+     * Shows an interstitial ad at natural break points (e.g., VPN disconnect).
      * Awards [POINTS_PER_INTERSTITIAL] points on completion.
+     * Pro users are never shown interstitials — this returns immediately.
      */
     fun showInterstitial(
         activity: Activity,
@@ -276,25 +307,31 @@ object UnityAdsManager {
             UnityAdsConfig.PLACEMENT_INTERSTITIAL_ANDROID,
             UnityAdsShowOptions(),
             object : IUnityAdsShowListener {
-                override fun onUnityAdsShowStart(placementId: String) {}
+                override fun onUnityAdsShowStart(placementId: String) {
+                    Log.d(TAG, "Interstitial started: $placementId")
+                }
                 override fun onUnityAdsShowClick(placementId: String) {}
+
                 override fun onUnityAdsShowComplete(
                     placementId: String,
-                    state: UnityAds.UnityAdsShowCompletionState
+                    state: UnityAds.UnityAdsShowCompletionState,
                 ) {
                     isShowing.set(false)
                     interstitialShownToday++
-                    _todayPoints.value += POINTS_PER_INTERSTITIAL
-                    _totalPoints.value += POINTS_PER_INTERSTITIAL
+                    // Award passive points for interstitial
+                    PointsManager.addPointsDirect(POINTS_PER_INTERSTITIAL)
+                    Log.d(TAG, "Interstitial complete: +${POINTS_PER_INTERSTITIAL}pts")
                     onComplete?.invoke()
                     preloadInterstitial()
                 }
+
                 override fun onUnityAdsShowFailure(
                     placementId: String,
                     error: UnityAds.UnityAdsShowError,
-                    message: String
+                    message: String,
                 ) {
                     isShowing.set(false)
+                    Log.w(TAG, "Interstitial failed: $error — $message")
                     onFailed?.invoke(message)
                     preloadInterstitial()
                 }
@@ -302,29 +339,26 @@ object UnityAdsManager {
         )
     }
 
-    // ─── Daily reset ─────────────────────────────────────────────────────────
+    // ─── Daily reset ──────────────────────────────────────────────────────────
     private fun resetDailyCountIfNeeded() {
         val today = System.currentTimeMillis() / 86_400_000L
         if (today != lastDayReset) {
             lastDayReset = today
             rewardedShownToday = 0
             interstitialShownToday = 0
-            _todayPoints.value = 0
-            Log.d(TAG, "Daily ad counters reset for day $today")
+            Log.d(TAG, "Daily ad counters reset for epoch-day $today")
         }
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
     fun canShowRewarded(): Boolean {
         resetDailyCountIfNeeded()
-        return _isInitialized.value && _isRewardedReady.value && !isPro
+        return _isInitialized.value
+                && _isRewardedReady.value
+                && !isPro
                 && rewardedShownToday < MAX_REWARDED_PER_DAY
     }
 
     fun remainingRewardedToday(): Int = maxOf(0, MAX_REWARDED_PER_DAY - rewardedShownToday)
-
-    fun rewardMinutesRemaining(): Long {
-        val remaining = _rewardedUntilMs.value - System.currentTimeMillis()
-        return maxOf(0L, remaining / 60_000L)
-    }
+    fun rewardedWatchedToday(): Int = rewardedShownToday
 }

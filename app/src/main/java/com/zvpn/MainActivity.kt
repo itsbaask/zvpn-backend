@@ -1,4 +1,4 @@
-﻿package com.zvpn
+package com.zvpn
 
 import android.content.Context
 import android.content.Intent
@@ -24,6 +24,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.zvpn.ads.UnityAdsManager
+import com.zvpn.billing.BillingManager
 import com.zvpn.core.AndroidVpn
 import com.zvpn.core.StartPlanner
 import com.zvpn.core.VaultImportBus
@@ -31,13 +33,18 @@ import com.zvpn.core.VpnManager
 import com.zvpn.core.platform.LocaleManager
 import com.zvpn.data.config.ConfigRepository
 import com.zvpn.data.settings.SettingsRepository
+import com.zvpn.domain.ads.PointsManager
+import com.zvpn.domain.billing.UserTier
+import com.zvpn.domain.model.ConnectionState
 import com.zvpn.domain.model.ThemeMode
+import com.zvpn.platform.AndroidKeyValueStore
 import com.zvpn.platform.AndroidPlatform
 import com.zvpn.ui.MainScaffold
 import com.zvpn.ui.platform.FilePick
 import com.zvpn.ui.platform.LocalPlatform
 import com.zvpn.ui.theme.ZVpnTheme
 import kotlinx.coroutines.CompletableDeferred
+
 
 class MainActivity : ComponentActivity() {
     private val configRepository: ConfigRepository
@@ -51,6 +58,12 @@ class MainActivity : ComponentActivity() {
     private val planner by lazy { StartPlanner(this) }
 
     private var planning = false
+
+    /** BillingManager handles Google Play subscriptions + ad-reward tier escalation */
+    private val billingManager by lazy { BillingManager(this) }
+
+    /** Count how many VPN sessions have ended — used to pace interstitial ads */
+    private var vpnDisconnectCount = 0
 
     private val vpnPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -278,11 +291,57 @@ class MainActivity : ComponentActivity() {
         com.zvpn.core.CertImportAndroid.install()
         maybeRequestNotificationPermission()
 
+        // ── Monetization init ────────────────────────────────────────────────
+        // 1. Points system (persisted via KeyValueStore)
+        PointsManager.init(AndroidKeyValueStore(this, "zvpn_points"))
+
+        // 2. Google Play Billing (subscriptions)
+        billingManager.init()
+
+        // 3. Unity Ads (ads run only if not subscribed)
+        lifecycleScope.launch {
+            billingManager.userTier.collect { tier ->
+                val isPro = tier == UserTier.Premium || tier == UserTier.PremiumPlus
+                UnityAdsManager.init(
+                    context = applicationContext,
+                    userId = com.zvpn.platform.DeviceIdentity.id.ifBlank { "anonymous" },
+                    isProUser = isPro,
+                )
+                UnityAdsManager.updateUser(
+                    userId = com.zvpn.platform.DeviceIdentity.id.ifBlank { "anonymous" },
+                    isProUser = isPro,
+                )
+            }
+        }
+
+        // 4. Show interstitial ad on every 2nd VPN disconnect (free users only)
+        lifecycleScope.launch {
+            VpnManager.status.collect { status ->
+                if (status.state == ConnectionState.Idle || status.state == ConnectionState.Error) {
+                    val tier = billingManager.userTier.value
+                    val isPro = tier == UserTier.Premium || tier == UserTier.PremiumPlus
+                    if (!isPro && !PointsManager.isAdRewardActive) {
+                        vpnDisconnectCount++
+                        // Show interstitial every 2nd disconnect (not on first — UX balance)
+                        if (vpnDisconnectCount % 2 == 0) {
+                            UnityAdsManager.showInterstitial(
+                                activity = this@MainActivity,
+                                onComplete = { /* points already awarded inside UnityAdsManager */ },
+                                onFailed = { /* silent fail */ },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         if (savedInstanceState == null) {
             if (!handleDeepLink(intent)) handleIncomingZvx(intent)
         }
         handleConnectRequest(intent)
         val repo = (application as ZVpnApp).container.settingsRepository
+
         enableEdgeToEdge(
             statusBarStyle = androidx.activity.SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = androidx.activity.SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
@@ -476,5 +535,10 @@ class MainActivity : ComponentActivity() {
 
     private fun toast(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        runCatching { billingManager.destroy() }
     }
 }

@@ -121,6 +121,8 @@ class BillingManager(private val context: Context) : PurchasesUpdatedListener {
         if (_userTier.value == UserTier.Free) {
             _userTier.value = UserTier.AdRewarded
         }
+        // Also persist in PointsManager so it survives app restart
+        runCatching { com.zvpn.domain.ads.PointsManager.grantAdReward(minutes) }
     }
 
     /** Called every minute to check if rewarded access expired */
