@@ -129,6 +129,13 @@ fun ServersScreen(
     autoSortAfterTest: Boolean = false,
 
     personalization: Personalization = Personalization.Default,
+
+    /** Current subscription tier — drives server lock icons and tier tabs. */
+    userTier: com.zvpn.domain.billing.UserTier = com.zvpn.domain.billing.UserTier.Free,
+    /** Called when user taps a locked server or the "Go Premium" button. */
+    onUpgrade: (() -> Unit)? = null,
+    /** Optional banner composable (Unity Banner Ad) shown for free users. */
+    adBanner: @Composable (() -> Unit)? = null,
 ) {
     val platform = LocalPlatform.current
     val scope = rememberCoroutineScope()
@@ -459,9 +466,14 @@ fun ServersScreen(
             com.zvpn.ui.premium.PaywallScreen(
                 onPlanSelected = { productId ->
                     showPaywallSheet = false
-                    platform.toast("Selected plan: $productId")
+                    onUpgrade?.invoke()
                 },
                 onDismiss = { showPaywallSheet = false },
+                onWatchAd = {
+                    showPaywallSheet = false
+                    // Caller (MainActivity via AdRewardHost) handles actual ad
+                    onUpgrade?.invoke()
+                },
             )
         }
     }
@@ -603,7 +615,7 @@ fun ServersScreen(
                         leadingIcon = { Icon(painterResource(Res.drawable.ic_bolt), null, tint = MaterialTheme.colorScheme.primary) },
                         onClick = {
                             dismiss()
-                            showPaywallSheet = true
+                            if (onUpgrade != null) onUpgrade.invoke() else showPaywallSheet = true
                         },
                     )
                     DropdownMenuItem(
@@ -853,16 +865,17 @@ fun ServersScreen(
                 PublicServersTab(
                     servers = publicServers,
                     selectedId = activeId,
-                    userTier = com.zvpn.domain.billing.UserTier.Free,
+                    userTier = userTier,
                     onSelect = { server ->
                         repository.setActive(server.id)
                         onServerActivated()
                     },
-                    onLockedClick = { server ->
+                    onLockedClick = { _ ->
                         showPaywallSheet = true
                     },
                     modifier = Modifier.fillMaxSize().then(groupSwipe)
                         .padding(bottom = contentPadding.calculateBottomPadding()),
+                    adFooter = adBanner,
                 )
             }
         }

@@ -1,4 +1,4 @@
-﻿package com.zvpn.ui
+package com.zvpn.ui
 
 import com.zvpn.ui.platform.BackHandler
 import com.zvpn.ui.home.HomeFabCluster
@@ -73,6 +73,13 @@ fun MainScaffold(
 
     aiBridge: com.zvpn.domain.ai.AiAppBridge? = null,
     appVersion: String = "",
+
+    /** Current billing tier — flows into ServersScreen to control lock icons. */
+    userTier: com.zvpn.domain.billing.UserTier = com.zvpn.domain.billing.UserTier.Free,
+    /** Triggered when user wants to upgrade (taps locked server / "Go Premium"). */
+    onUpgrade: (() -> Unit)? = null,
+    /** Optional Unity Banner ad — shown for free users at bottom of server list. */
+    adBanner: @Composable (() -> Unit)? = null,
 ) {
     val platform = com.zvpn.ui.platform.LocalPlatform.current
     var current by rememberSaveable { mutableStateOf(TopDestination.Home) }
@@ -177,11 +184,15 @@ fun MainScaffold(
                 sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true),
             ) {
                 com.zvpn.ui.premium.PaywallScreen(
-                    onPlanSelected = { productId ->
+                    onPlanSelected = { _ ->
                         showPaywallSheet = false
-                        platform.toast("Selected plan: $productId")
+                        onUpgrade?.invoke()
                     },
                     onDismiss = { showPaywallSheet = false },
+                    onWatchAd = if (userTier == com.zvpn.domain.billing.UserTier.Free) ({
+                        showPaywallSheet = false
+                        onUpgrade?.invoke()
+                    }) else null,
                 )
             }
         }
@@ -282,12 +293,15 @@ fun MainScaffold(
                     autoRemoveInvalidAfterTest = settings.autoRemoveInvalidAfterTest,
                     autoSortAfterTest = settings.autoSortAfterTest,
                     personalization = settings.toPersonalization(),
+                    userTier = userTier,
+                    onUpgrade = onUpgrade ?: { showPaywallSheet = true },
+                    adBanner = adBanner,
                     onServerActivated = {
                         if (settings.homeAfterSelect) current = TopDestination.Home
-
                         onActiveServerChanged()
                     },
                 )
+
                 TopDestination.Browser -> {
                     val connState = connectionVm.ui.collectAsStateWithLifecycle().value.state
                     val isConn = connState == com.zvpn.domain.model.ConnectionState.Connected

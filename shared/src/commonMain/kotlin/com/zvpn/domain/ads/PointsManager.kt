@@ -181,9 +181,10 @@ object PointsManager {
     }
 
     fun consumePerMinute(tierId: String): Boolean {
-        val rate = when (tierId.lowercase()) {
-            "premium", "pro" -> RATE_PREMIUM_PER_MIN
-            "premium_plus", "vip" -> RATE_PREMIUM_PLUS_PER_MIN
+        val t = tierId.lowercase()
+        val rate = when {
+            t.contains("plus") || t == "premiumplus" || t == "premium_plus" || t == "vip" -> RATE_PREMIUM_PLUS_PER_MIN
+            t.contains("premium") || t == "pro" || t == "adrewarded" || t.contains("rewarded") -> RATE_PREMIUM_PER_MIN
             else -> RATE_FREE_PER_MIN
         }
         return consumePoints(rate)

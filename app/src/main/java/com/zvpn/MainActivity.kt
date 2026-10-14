@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.zvpn
 
 import android.content.Context
@@ -13,9 +15,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
@@ -298,23 +302,44 @@ class MainActivity : ComponentActivity() {
         // 2. Google Play Billing (subscriptions)
         billingManager.init()
 
-        // 3. Unity Ads (ads run only if not subscribed)
+        // 3. Unity Ads — init once, then update on tier changes
+        val deviceId = com.zvpn.platform.DeviceIdentity.id.ifBlank { "anonymous" }
+        val initialTier = billingManager.userTier.value
+        val initiallyPro = initialTier == UserTier.Premium || initialTier == UserTier.PremiumPlus
+        UnityAdsManager.init(
+            context = applicationContext,
+            userId = deviceId,
+            isProUser = initiallyPro,
+        )
+        // Track tier changes → update ads + reward expiry
         lifecycleScope.launch {
             billingManager.userTier.collect { tier ->
                 val isPro = tier == UserTier.Premium || tier == UserTier.PremiumPlus
-                UnityAdsManager.init(
-                    context = applicationContext,
-                    userId = com.zvpn.platform.DeviceIdentity.id.ifBlank { "anonymous" },
-                    isProUser = isPro,
-                )
-                UnityAdsManager.updateUser(
-                    userId = com.zvpn.platform.DeviceIdentity.id.ifBlank { "anonymous" },
-                    isProUser = isPro,
-                )
+                UnityAdsManager.updateUser(userId = deviceId, isProUser = isPro)
             }
         }
 
-        // 4. Show interstitial ad on every 2nd VPN disconnect (free users only)
+        // 4. Check reward expiry every 60 seconds
+        lifecycleScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(60_000L)
+                billingManager.checkRewardExpiry()
+            }
+        }
+
+        // 5. Consume points every 60 s while VPN is connected
+        lifecycleScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(60_000L)
+                val status = VpnManager.status.value
+                if (status.state == ConnectionState.Connected) {
+                    val tier = billingManager.userTier.value
+                    PointsManager.consumePerMinute(tier.label)
+                }
+            }
+        }
+
+        // 6. Show interstitial on every 2nd VPN disconnect (free users only)
         lifecycleScope.launch {
             VpnManager.status.collect { status ->
                 if (status.state == ConnectionState.Idle || status.state == ConnectionState.Error) {
@@ -322,12 +347,11 @@ class MainActivity : ComponentActivity() {
                     val isPro = tier == UserTier.Premium || tier == UserTier.PremiumPlus
                     if (!isPro && !PointsManager.isAdRewardActive) {
                         vpnDisconnectCount++
-                        // Show interstitial every 2nd disconnect (not on first — UX balance)
                         if (vpnDisconnectCount % 2 == 0) {
                             UnityAdsManager.showInterstitial(
                                 activity = this@MainActivity,
-                                onComplete = { /* points already awarded inside UnityAdsManager */ },
-                                onFailed = { /* silent fail */ },
+                                onComplete = { },
+                                onFailed = { },
                             )
                         }
                     }
@@ -335,6 +359,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         // ─────────────────────────────────────────────────────────────────────
+
 
         if (savedInstanceState == null) {
             if (!handleDeepLink(intent)) handleIncomingZvx(intent)
@@ -389,6 +414,8 @@ class MainActivity : ComponentActivity() {
                             },
                         )
                     }
+                    val currentTier by billingManager.userTier.collectAsStateWithLifecycle()
+                    val isPremiumUser = currentTier == UserTier.Premium || currentTier == UserTier.PremiumPlus
                     MainScaffold(
                         settings = settings,
                         configRepository = configRepository,
@@ -402,7 +429,45 @@ class MainActivity : ComponentActivity() {
                         },
                         aiBridge = aiBridge,
                         appVersion = com.zvpn.BuildConfig.VERSION_NAME,
+                        userTier = currentTier,
+                        onUpgrade = { /* AdRewardHost handles billing flow */ },
+                        adBanner = if (!isPremiumUser) ({
+                            com.zvpn.ads.UnityBannerAdView(
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }) else null,
                     )
+
+                    // ── Ad / Paywall global overlay ──────────────────────────
+                    val adHostState = com.zvpn.ui.ads.rememberAdRewardHostState()
+                    com.zvpn.ui.ads.AdRewardHost(
+                        state = adHostState,
+                        billingManager = billingManager,
+                        onShareReferral = {
+                            val code = com.zvpn.domain.ads.PointsManager.referralCode.value
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_SUBJECT, "Join ZVPN — Get 50 Free Points!")
+                                putExtra(
+                                    Intent.EXTRA_TEXT,
+                                    "🚀 Join ZVPN and get 50 FREE points instantly!\n" +
+                                    "Use my code: $code\n" +
+                                    "Download: https://play.google.com/store/apps/details?id=com.zvpn"
+                                )
+                            }
+                            startActivity(Intent.createChooser(shareIntent, "Share ZVPN"))
+                        },
+                        onRedeemCode = { code ->
+                            val success = com.zvpn.domain.ads.PointsManager.redeemReferralCode(code)
+                            if (success) {
+                                Toast.makeText(this@MainActivity, "✅ +50 points added!", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(this@MainActivity, "❌ Invalid or already used code", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                    )
+                    // ────────────────────────────────────────────────────────
+
 
                     com.zvpn.ui.OpenConnectAuthDialog()
                     com.zvpn.ui.OpenConnectCertTrustDialog(
@@ -417,6 +482,7 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
 
     private val switchStopTimeoutMs = 8_000L
 

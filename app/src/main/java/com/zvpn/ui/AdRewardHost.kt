@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.zvpn.ui.ads
 
 import android.app.Activity
@@ -154,7 +156,7 @@ fun AdRewardHost(
                 },
                 onDismiss = { state.dismiss() },
                 onWatchAd = if (userTier == UserTier.Free) ({
-                    state.destination = AdSheetDestination.Reward
+                    state.showAdSheet()
                 }) else null,
             )
         }

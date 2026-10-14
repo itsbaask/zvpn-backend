@@ -326,6 +326,8 @@ fun PublicServersTab(
     onSelect: (PublicServer) -> Unit,
     onLockedClick: (PublicServer) -> Unit,
     modifier: Modifier = Modifier,
+    /** Optional ad banner shown at the bottom for free users. Pass null for premium. */
+    adFooter: @Composable (() -> Unit)? = null,
 ) {
     var activeTierTab by remember { mutableStateOf(ServerTier.Free) }
     var selectedProtocol by remember { mutableStateOf(ProtocolFilter.All) }
@@ -514,6 +516,11 @@ fun PublicServersTab(
                     )
                 }
             }
+        }
+
+        // ── Banner ad footer (free users only) ────────────────────────────────
+        if (adFooter != null) {
+            adFooter()
         }
     }
 }
