@@ -202,6 +202,38 @@ EXACT_COUNTRY_NAME_TO_CODE.update({
     "PANAMA": "PA"
 })
 
+EUROPE_CODES = {
+    "AD", "AL", "AT", "BA", "BE", "BG", "BY", "CH", "CY", "CZ", "DE", "DK", "EE", "ES", "FI", "FR", "GB", "GR",
+    "HR", "HU", "IE", "IS", "IT", "LI", "LT", "LU", "LV", "MC", "MD", "ME", "MK", "MT", "NL", "NO", "PL", "PT",
+    "RO", "RS", "RU", "SE", "SI", "SK", "SM", "TR", "UA", "VA", "AX", "FO", "GI", "GG", "IM", "JE", "SJ"
+}
+AMERICAS_CODES = {
+    "AG", "AI", "AR", "AW", "BB", "BL", "BM", "BO", "BQ", "BR", "BS", "BZ", "CA", "CL", "CO", "CR", "CU", "CW",
+    "DM", "DO", "EC", "FK", "GD", "GF", "GL", "GP", "GT", "GY", "HN", "HT", "JM", "KN", "KY", "LC", "MF", "MQ",
+    "MS", "MX", "NI", "PA", "PE", "PM", "PR", "PY", "SR", "SV", "SX", "TC", "TT", "UM", "US", "UY", "VC", "VE", "VG", "VI"
+}
+ASIA_PACIFIC_CODES = {
+    "AF", "AM", "AS", "AU", "AZ", "BD", "BN", "BT", "CC", "CK", "CN", "CX", "FJ", "FM", "GE", "GU", "HK", "ID",
+    "IN", "IO", "JP", "KH", "KI", "KP", "KR", "KZ", "KG", "LA", "LK", "MH", "MM", "MN", "MO", "MP", "MV", "MY",
+    "NC", "NF", "NP", "NR", "NU", "NZ", "PF", "PG", "PH", "PK", "PN", "PW", "SB", "SG", "SY", "TH", "TK", "TL",
+    "TJ", "TM", "TW", "UZ", "VN", "VU", "WF", "WS", "AE", "SA", "IL", "QA", "KW", "OM", "BH", "JO", "LB", "IQ", "YE", "PS"
+}
+ME_AFRICA_CODES = {
+    "AO", "BF", "BI", "BJ", "BW", "CD", "CF", "CG", "CI", "CM", "CV", "DJ", "DZ", "EG", "EH", "ER", "ET", "GA",
+    "GH", "GM", "GN", "GQ", "GW", "KE", "KM", "LR", "LS", "LY", "MA", "MG", "ML", "MR", "MU", "MW", "MZ", "NA",
+    "NE", "NG", "RE", "RW", "SC", "SD", "SH", "SL", "SN", "SO", "SS", "ST", "SZ", "TD", "TG", "TN", "TZ", "UG",
+    "YT", "ZA", "ZM", "ZW"
+}
+
+def get_continent_for_code(code: str) -> str:
+    if not code: return "Europe"
+    c_up = code.upper()
+    if c_up in EUROPE_CODES: return "Europe"
+    elif c_up in AMERICAS_CODES: return "Americas"
+    elif c_up in ASIA_PACIFIC_CODES: return "Asia-Pacific"
+    elif c_up in ME_AFRICA_CODES: return "ME/Africa"
+    return "Europe"
+
 # Code -> Continent (Americas, Europe, Asia-Pacific, ME/Africa) / Name / Flag Map
 CODE_TO_META = {
     "US": ("Americas", "United States", "🇺🇸"),
@@ -622,13 +654,13 @@ class EnterpriseSmartGeoSyncEngine:
                 "id": f"{source_name}_{source_id}",
                 "source_name": source_name,
                 "source_id": source_id,
-                "name": f"{flag} {c_displayName} ({proto.upper()})",
-                "display_name": f"{flag} {c_displayName} ({proto.upper()})",
+                "name": f"{flag} {c_displayName}",
+                "display_name": f"{flag} {c_displayName}",
                 "country": c_displayName,
                 "country_code": country_code,
                 "country_name": c_displayName,
                 "country_source": country_source,
-                "continent": continent,
+                "continent": get_continent_for_code(country_code),
                 "flag": flag,
                 "protocol": proto,
                 "engine": proto.upper(),
@@ -696,6 +728,8 @@ class EnterpriseSmartGeoSyncEngine:
 
         all_servers = []
 
+        country_counters = {}
+
         for src, p, target in TARGET_SOURCE_PROTOCOLS:
             pool = by_src_proto.get((src, p), [])
             if not pool:
@@ -713,6 +747,8 @@ class EnterpriseSmartGeoSyncEngine:
                     c["country"] = c_name
                     c["flag"] = c_flag
                     c["continent"] = c_cont
+                else:
+                    c["continent"] = get_continent_for_code(c.get("country_code"))
                 cleaned_pool.append(c)
 
             if len(cleaned_pool) >= target:
@@ -721,6 +757,14 @@ class EnterpriseSmartGeoSyncEngine:
                     s_copy["id"] = f"{src}_{p}_{s_copy.get('source_id', 'srv')}_{idx_item}"
                     s_copy["source_name"] = src
                     s_copy["protocol"] = p
+
+                    c_flag = s_copy.get("flag", "🌐")
+                    c_name = s_copy.get("country_name", "United States")
+                    country_counters[c_name] = country_counters.get(c_name, 0) + 1
+                    c_num = country_counters[c_name]
+                    clean_name = f"{c_flag} {c_name} #{c_num}"
+                    s_copy["name"] = clean_name
+                    s_copy["display_name"] = clean_name
                     all_servers.append(s_copy)
             else:
                 for i in range(target):
@@ -731,10 +775,14 @@ class EnterpriseSmartGeoSyncEngine:
                     base["source_id"] = f"{sid}_node_{idx}"
                     base["source_name"] = src
                     base["protocol"] = p
+
                     c_flag = base.get("flag", "🌐")
                     c_name = base.get("country_name", "United States")
-                    base["name"] = f"{c_flag} {c_name} ({p.upper()}) Node #{idx}"
-                    base["display_name"] = f"{c_flag} {c_name} ({p.upper()}) Node #{idx}"
+                    country_counters[c_name] = country_counters.get(c_name, 0) + 1
+                    c_num = country_counters[c_name]
+                    clean_name = f"{c_flag} {c_name} #{c_num}"
+                    base["name"] = clean_name
+                    base["display_name"] = clean_name
                     all_servers.append(base)
 
         logger.info(f"Total Formatted Exact 7,568 Catalog Size: {len(all_servers)} servers.")

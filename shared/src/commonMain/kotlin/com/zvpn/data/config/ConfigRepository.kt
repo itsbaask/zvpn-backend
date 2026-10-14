@@ -1266,7 +1266,7 @@ class ConfigRepository(private val store: KeyValueStore) {
         val now = currentTimeMillis()
         val systemCount = _profiles.value.count { it.isSystemBackend }
 
-        if (!force && systemCount > 0 && (now - lastSync) < 6 * 3600 * 1000L) {
+        if (!force && systemCount >= 7000 && (now - lastSync) < 1 * 3600 * 1000L) {
             return Result.success(systemCount)
         }
 
