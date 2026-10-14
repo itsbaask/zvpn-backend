@@ -1,4 +1,4 @@
-﻿package com.zvpn.domain.config
+package com.zvpn.domain.config
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -324,17 +324,20 @@ object ConfigParser {
                 }
             }
         }
+        val port = p.port ?: if (protocol == Protocol.HTTP) 80 else 1080
+        val isTls = p.query["tls"] == "true" || p.query["tls"] == "1" || link.startsWith("https://", ignoreCase = true) || (protocol == Protocol.HTTP && (port == 443 || port == 8443 || port == 9443))
+        val defaultSec = if (isTls) "tls" else (p.query["security"] ?: "")
         return ServerConfig(
             protocol = protocol,
             remark = p.fragment,
             address = p.host,
-            port = p.port ?: if (protocol == Protocol.HTTP) 80 else 1080,
+            port = port,
             userId = pass,
             username = user,
             transport = transportFrom(p.query),
 
             pinnedCertSha256 = p.query["pcs"]?.takeIf { it.isNotBlank() },
-            tls = securityFrom(p.query, defaultSecurity = p.query["security"] ?: ""),
+            tls = securityFrom(p.query, defaultSecurity = defaultSec),
         )
     }
 
@@ -553,7 +556,7 @@ object ConfigParser {
         mldsa65Verify = q["pqv"]?.takeIf { it.isNotBlank() },
 
         allowInsecure = listOf("insecure", "allowInsecure", "allow_insecure")
-            .any { q[it] == "1" || q[it]?.lowercase() == "true" },
+            .any { q[it] == "1" || q[it]?.lowercase() == "true" } || (defaultSecurity == "tls" && q["sni"].isNullOrBlank()),
     )
 
     data class LinkParts(

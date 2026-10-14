@@ -1,4 +1,4 @@
-﻿package com.zvpn.domain.config
+package com.zvpn.domain.config
 
 import com.zvpn.domain.model.RulesetPresets
 import kotlinx.serialization.json.Json
@@ -1519,6 +1519,10 @@ private fun statsPolicy() = buildJsonObject {
                     if (vcn != null) put("verifyPeerCertByName", vcn)
                     else if (pinned == null && s.tls.allowInsecure && serverName != null) {
                         put("verifyPeerCertByName", serverName)
+                    }
+
+                    if (s.tls.allowInsecure) {
+                        put("allowInsecure", true)
                     }
 
                     s.tls.cipherSuites?.takeIf { it.isNotBlank() }?.let { put("cipherSuites", it) }

@@ -775,18 +775,30 @@ class EnterpriseMultiSourceSyncEngine:
                         except Exception:
                             pass
                     elif proto == "http":
-                        s.settimeout(1.5)
+                        s.settimeout(2.0)
+                        raw = cand.get("raw_uri", "")
+                        is_tls = ("tls=true" in raw.lower()) or ("security=tls" in raw.lower()) or (p in [443, 8443, 9443])
                         try:
-                            s.sendall(b"HEAD / HTTP/1.1\r\nHost: " + h.encode() + b"\r\nConnection: close\r\n\r\n")
-                            resp = s.recv(7)
-                            if resp and resp.startswith(b"HTTP/"):
+                            if is_tls:
+                                ctx = ssl.create_default_context()
+                                ctx.check_hostname = False
+                                ctx.verify_mode = ssl.CERT_NONE
+                                ss = ctx.wrap_socket(s)
+                                ss.sendall(b"CONNECT www.google.com:443 HTTP/1.1\r\nHost: www.google.com:443\r\n\r\n")
+                                resp = ss.recv(256)
+                                ss.close()
+                                if resp and (b"200 OK" in resp or b"HTTP/1." in resp) and b"407" not in resp:
+                                    return True, lat
+                                return False, None
+                            else:
+                                s.sendall(b"CONNECT www.google.com:443 HTTP/1.1\r\nHost: www.google.com:443\r\n\r\n")
+                                resp = s.recv(256)
                                 s.close()
-                                return True, lat
+                                if resp and (b"200 OK" in resp or b"HTTP/1." in resp) and b"407" not in resp:
+                                    return True, lat
+                                return False, None
                         except Exception:
-                            pass
-
-                    s.close()
-                    return True, lat
+                            return False, None
                 except Exception:
                     return False, None
 
@@ -884,6 +896,19 @@ class EnterpriseMultiSourceSyncEngine:
 
             raw_uri = raw_item.get("raw_uri")
             config_data = raw_item.get("config_data")
+
+            # Auto-tag HTTPS proxies with explicit security=tls&allowInsecure=1
+            if proto == "http" and raw_uri:
+                raw_low = raw_uri.lower()
+                is_tls = ("tls=true" in raw_low) or ("security=tls" in raw_low) or (port in [443, 8443, 9443])
+                if is_tls and "security=tls" not in raw_low:
+                    frag = ""
+                    base_uri = raw_uri
+                    if "#" in raw_uri:
+                        base_uri = raw_uri.split("#")[0]
+                        frag = "#" + raw_uri.split("#", 1)[1]
+                    sep = "&" if "?" in base_uri else "?"
+                    raw_uri = f"{base_uri}{sep}security=tls&allowInsecure=1{frag}"
 
             # Fallback profile construction if raw config is not populated
             if not raw_uri and not config_data:
