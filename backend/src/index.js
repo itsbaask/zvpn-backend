@@ -131,44 +131,69 @@ export default {
         let payload = await object.json();
         let servers = payload.servers || [];
 
-        // ── Authoritative Backend Tier Classifier (Monetization Engine) ────
-        // Business Rule: Free tier is limited and exclusive (lowest count).
-        // The vast majority of servers are Premium (highest count) or Premium+ (top tier).
-        const PREMIUM_PLUS_PROTOS = new Set(['hysteria2', 'hy2', 'tuic', 'juicity']);
-        const PREMIUM_CORE_PROTOS = new Set([
-          'vless', 'vmess', 'trojan', 'shadowsocks', 'ss', 'ssr', 'wireguard', 'amneziawg',
-          'wg', 'awg', 'ikev2', 'sstp', 'openconnect'
+        // ── Authoritative Proportional Tier Distribution Engine ───────────
+        // Mathematical Proportions (Scales dynamically with ANY total server count):
+        //   - Premium+ (⚡ Top Tier):   25% (highest speed, lowest latency, next-gen protocols)
+        //   - Premium  (🔷 Main Tier):  65% (solid speed & mainstream secure protocols)
+        //   - Free     (🆓 Limited):    10% (entry-level / slowest servers to encourage upgrade)
+        const RATIO_PREMIUM_PLUS = 0.25;
+        const RATIO_FREE = 0.10;
+        // The remaining ~65% goes to Premium
+
+        const NEXT_GEN_PROTOS = new Set(['hysteria2', 'hy2', 'tuic', 'juicity']);
+        const SECURE_PROTOS = new Set([
+          'vless', 'vmess', 'trojan', 'wireguard', 'amneziawg', 'wg', 'awg',
+          'ikev2', 'sstp', 'openconnect', 'shadowsocks', 'ss', 'ssr'
         ]);
 
-        servers = servers.map((s, idx) => {
+        // Compute a unified Server Performance & Quality Score (Higher is better)
+        const scoredServers = servers.map(s => {
           const proto = (s.protocol || '').toLowerCase().trim();
           const speed = parseFloat(s.speed_mbps || 0);
           const latency = parseInt(s.latency_ms || 150);
           const rawUri = (s.raw_uri || '').toLowerCase();
           const isReality = rawUri.includes('reality') || rawUri.includes('xtls');
 
-          let assignedTier = 'premium'; // Default is Premium to maximize conversion
+          // Score base = Speed in Mbps
+          let score = speed * 10;
 
-          if (PREMIUM_PLUS_PROTOS.has(proto) || isReality || speed > 50 || (proto === 'vless' && speed > 20)) {
-            // Top performance & next-gen protocols -> Premium+
+          // Latency penalty (lower latency = higher score)
+          if (latency > 0) {
+            score += Math.max(0, 300 - latency);
+          }
+
+          // Protocol tier weight bonus
+          if (NEXT_GEN_PROTOS.has(proto) || isReality) {
+            score += 500;
+          } else if (SECURE_PROTOS.has(proto)) {
+            score += 200;
+          }
+
+          return { server: s, score };
+        });
+
+        // Sort descending: Best servers first
+        scoredServers.sort((a, b) => b.score - a.score);
+
+        const total = scoredServers.length;
+        const plusCount = Math.floor(total * RATIO_PREMIUM_PLUS);
+        const freeCount = Math.max(1, Math.floor(total * RATIO_FREE));
+        const freeStartIndex = total - freeCount;
+
+        servers = scoredServers.map((item, idx) => {
+          let assignedTier = 'premium';
+          if (idx < plusCount) {
             assignedTier = 'premium_plus';
-          } else if (PREMIUM_CORE_PROTOS.has(proto) || speed > 15) {
-            // Mainstream secure protocols -> Premium
-            assignedTier = 'premium';
+          } else if (idx >= freeStartIndex) {
+            assignedTier = 'free';
           } else {
-            // Legacy slow servers (HTTP proxies, plain SOCKS5, low-speed OpenVPN) -> Free
-            // Even within legacy, allocate only a limited subset as free (e.g. 1 out of 3)
-            if (idx % 3 === 0 && speed < 10) {
-              assignedTier = 'free';
-            } else {
-              assignedTier = 'premium';
-            }
+            assignedTier = 'premium';
           }
 
           const pointsCost = assignedTier === 'premium_plus' ? 10 : (assignedTier === 'premium' ? 4 : 1);
 
           return {
-            ...s,
+            ...item.server,
             tier: assignedTier,
             points_cost_per_min: pointsCost,
           };
