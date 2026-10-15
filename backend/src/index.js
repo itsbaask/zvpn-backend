@@ -29,11 +29,11 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
-    // Cache Key handling
+    // Edge cache only for static assets; do NOT cache /servers so dynamic tier classifications are immediate
     const cache = caches.default;
     const cacheKey = new Request(url.toString(), request);
 
-    if (request.method === 'GET' && !pathname.startsWith('/api/v1/user') && !pathname.startsWith('/api/v1/auth')) {
+    if (request.method === 'GET' && pathname !== '/' && pathname !== '/servers' && pathname !== '/api/v1/servers' && !pathname.startsWith('/api/v1/user') && !pathname.startsWith('/api/v1/auth')) {
       const cachedResponse = await cache.match(cacheKey);
       if (cachedResponse) {
         return cachedResponse;
@@ -131,6 +131,41 @@ export default {
         let payload = await object.json();
         let servers = payload.servers || [];
 
+        // ── Authoritative Backend Tier Classifier ──────────────────────────
+        // Evaluates protocol, speed, and latency on the backend to guarantee
+        // servers are accurately tagged as free, premium, or premium_plus
+        // even if the raw R2 file was generated with a legacy "free" flag.
+        const PREMIUM_PLUS_PROTOS = new Set(['hysteria2', 'hy2', 'tuic', 'juicity']);
+        const PREMIUM_PROTOS = new Set([
+          'vless', 'trojan', 'wireguard', 'amneziawg', 'wg', 'awg',
+          'ikev2', 'sstp', 'openconnect', 'hysteria2', 'hy2', 'tuic', 'juicity'
+        ]);
+
+        servers = servers.map(s => {
+          const proto = (s.protocol || '').toLowerCase().trim();
+          const speed = parseFloat(s.speed_mbps || 0);
+          const latency = parseInt(s.latency_ms || 150);
+          const rawUri = (s.raw_uri || '').toLowerCase();
+          const isReality = rawUri.includes('reality') || rawUri.includes('xtls');
+
+          let assignedTier = 'free';
+          if (PREMIUM_PLUS_PROTOS.has(proto) || isReality || (speed > 100 && latency < 80)) {
+            assignedTier = 'premium_plus';
+          } else if (speed > 60 && PREMIUM_PROTOS.has(proto)) {
+            assignedTier = 'premium_plus';
+          } else if (speed > 30 || PREMIUM_PROTOS.has(proto)) {
+            assignedTier = 'premium';
+          }
+
+          const pointsCost = assignedTier === 'premium_plus' ? 10 : (assignedTier === 'premium' ? 4 : 1);
+
+          return {
+            ...s,
+            tier: assignedTier,
+            points_cost_per_min: pointsCost,
+          };
+        });
+
         const continent = url.searchParams.get('continent');
         const country = url.searchParams.get('country');
         const protocol = url.searchParams.get('protocol');
@@ -169,8 +204,7 @@ export default {
         };
 
         const res = jsonResponse(responsePayload, 200, corsHeaders);
-        res.headers.set('Cache-Control', 'public, max-age=300, s-maxage=600');
-        ctx.waitUntil(cache.put(cacheKey, res.clone()));
+        res.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
         return res;
       }
 

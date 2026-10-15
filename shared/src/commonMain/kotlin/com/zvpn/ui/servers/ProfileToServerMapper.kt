@@ -94,22 +94,22 @@ object ProfileToServerMapper {
 
         val proto = profile.protocol.lowercase()
 
-        // ── 3-step tier resolution ──────────────────────────────────────────────
-        // Step 1: explicit tier field embedded in profile note (set by ConfigRepository from JSON)
+        // ── Strict Tier Resolution (Backend is the Single Source of Truth) ─────
+        // The backend classifies servers into free / premium / premium_plus.
+        // The app strictly respects whatever the backend sends.
         val backendTier = profile.serverTier?.lowercase()?.trim()
-        val tier: ServerTier = when {
-            backendTier == "premium_plus" || backendTier == "vip" -> ServerTier.PremiumPlus
-            backendTier == "premium"      || backendTier == "pro"  -> ServerTier.Premium
-
-            // If backend says "free" or is null/empty, evaluate protocol & speed dynamically on device:
-            proto in PREMIUM_PLUS_PROTOS                           -> ServerTier.PremiumPlus
-            proto in PREMIUM_PROTOS                                -> ServerTier.Premium
-
-            // Step 3: name regex fallback
-            TIER_PLUS.containsMatchIn(rawName)                     -> ServerTier.PremiumPlus
-            TIER_PRO.containsMatchIn(rawName)                      -> ServerTier.Premium
-
-            else                                                   -> ServerTier.Free
+        val tier: ServerTier = when (backendTier) {
+            "premium_plus", "vip" -> ServerTier.PremiumPlus
+            "premium", "pro"      -> ServerTier.Premium
+            "free"                -> ServerTier.Free
+            else -> when {
+                // Fallback only if backend sent no tier field at all
+                proto in PREMIUM_PLUS_PROTOS       -> ServerTier.PremiumPlus
+                proto in PREMIUM_PROTOS            -> ServerTier.Premium
+                TIER_PLUS.containsMatchIn(rawName) -> ServerTier.PremiumPlus
+                TIER_PRO.containsMatchIn(rawName)  -> ServerTier.Premium
+                else                               -> ServerTier.Free
+            }
         }
 
         // Real speed from backend; fallback to protocol-based estimate
