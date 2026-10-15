@@ -133,12 +133,12 @@ export default {
 
         // ── Authoritative Proportional Tier Distribution Engine ───────────
         // Mathematical Proportions (Scales dynamically with ANY total server count):
-        //   - Premium+ (⚡ Top Tier):   25% (highest speed, lowest latency, next-gen protocols)
-        //   - Premium  (🔷 Main Tier):  65% (solid speed & mainstream secure protocols)
+        //   - Premium+ (⚡ Top Tier):   65% (highest speed, lowest latency, next-gen protocols)
+        //   - Premium  (🔷 Main Tier):  25% (solid speed & mainstream secure protocols)
         //   - Free     (🆓 Limited):    10% (entry-level / slowest servers to encourage upgrade)
-        const RATIO_PREMIUM_PLUS = 0.25;
+        const RATIO_PREMIUM_PLUS = 0.65;
         const RATIO_FREE = 0.10;
-        // The remaining ~65% goes to Premium
+        // The remaining ~25% goes to Premium
 
         const NEXT_GEN_PROTOS = new Set(['hysteria2', 'hy2', 'tuic', 'juicity']);
         const SECURE_PROTOS = new Set([
