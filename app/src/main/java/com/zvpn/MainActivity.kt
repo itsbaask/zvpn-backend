@@ -48,6 +48,7 @@ import com.zvpn.ui.platform.FilePick
 import com.zvpn.ui.platform.LocalPlatform
 import com.zvpn.ui.theme.ZVpnTheme
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.tasks.await
 
 
 class MainActivity : ComponentActivity() {
@@ -146,6 +147,34 @@ class MainActivity : ComponentActivity() {
                         .getOrNull()
                 },
             )
+        }
+
+    private val firebaseAuthManager by lazy { com.zvpn.auth.FirebaseAuthManager(this) }
+
+    private val googleSignInLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                lifecycleScope.launch {
+                    val authResult = firebaseAuthManager.handleSignInResult(result.data)
+                    authResult.onSuccess { user: com.google.firebase.auth.FirebaseUser ->
+                        val token = runCatching { user.getIdToken(false).await()?.token }.getOrNull() ?: ""
+                        com.zvpn.domain.auth.UserAuthManager.updateSession(
+                            com.zvpn.domain.auth.UserSession(
+                                userId = user.uid,
+                                email = user.email.orEmpty(),
+                                displayName = user.displayName.orEmpty(),
+                                isAnonymous = false,
+                                token = token,
+                            )
+                        )
+                        Toast.makeText(this@MainActivity, "Signed in as ${user.displayName ?: user.email}", Toast.LENGTH_SHORT).show()
+                    }.onFailure { err ->
+                        Toast.makeText(this@MainActivity, "Sign-in error: ${err.message}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            } else {
+                Toast.makeText(this@MainActivity, "Sign in cancelled", Toast.LENGTH_SHORT).show()
+            }
         }
 
     private suspend fun pickImage(): ByteArray? {
@@ -438,6 +467,9 @@ class MainActivity : ComponentActivity() {
                         appVersion = com.zvpn.BuildConfig.VERSION_NAME,
                         userTier = currentTier,
                         onUpgrade = { /* AdRewardHost handles billing flow */ },
+                        onSignInWithGoogle = {
+                            googleSignInLauncher.launch(firebaseAuthManager.getSignInIntent())
+                        },
                         adBanner = if (!isPremiumUser) ({
                             com.zvpn.ads.UnityBannerAdView(
                                 modifier = Modifier.fillMaxWidth(),

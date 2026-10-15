@@ -80,6 +80,8 @@ fun MainScaffold(
     onUpgrade: (() -> Unit)? = null,
     /** Optional Unity Banner ad — shown for free users at bottom of server list. */
     adBanner: @Composable (() -> Unit)? = null,
+    /** Triggered when user taps Sign In With Google in SettingsScreen */
+    onSignInWithGoogle: (() -> Unit)? = null,
 ) {
     val platform = com.zvpn.ui.platform.LocalPlatform.current
     var current by rememberSaveable { mutableStateOf(TopDestination.Home) }
@@ -357,6 +359,7 @@ fun MainScaffold(
                             appVersion = appVersion,
                         )
                     },
+                    onSignInWithGoogle = onSignInWithGoogle,
                 )
             }
             }

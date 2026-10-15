@@ -1,4 +1,4 @@
-﻿@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 
 package com.zvpn.ui.settings
 
@@ -118,6 +118,8 @@ fun SettingsScreen(
     mtuHint: com.zvpn.data.net.MtuServerHint? = null,
 
     ai: com.zvpn.ui.settings.AiSection? = null,
+
+    onSignInWithGoogle: (() -> Unit)? = null,
 ) {
     var page by rememberSaveable { mutableStateOf(SettingsPage.Root) }
     var showAbout by rememberSaveable { mutableStateOf(false) }
@@ -186,6 +188,7 @@ fun SettingsScreen(
                 onAbout = { showAbout = true },
                 onReplayTour = onReplayTour,
                 hasAi = ai != null,
+                onSignInWithGoogle = onSignInWithGoogle,
             )
             SettingsPage.Ui -> UiPage(settings, contentPadding, modifier, onUpdate, onLanguage)
             SettingsPage.Vpn -> VpnPage(settings, contentPadding, modifier, onUpdate, mtuHint)
@@ -276,6 +279,7 @@ private fun RootPage(
     onReplayTour: (() -> Unit)?,
 
     hasAi: Boolean,
+    onSignInWithGoogle: (() -> Unit)? = null,
 ) {
     val platform = LocalPlatform.current
 
@@ -309,7 +313,11 @@ private fun RootPage(
                     badgeColor = androidx.compose.ui.graphics.Color(0xFF6C63FF),
                     trailingText = "Sign In",
                 ) {
-                    platform.toast("Sign in with Google to protect your points & rewards!")
+                    if (onSignInWithGoogle != null) {
+                        onSignInWithGoogle.invoke()
+                    } else {
+                        platform.toast("Sign in with Google to protect your points & rewards!")
+                    }
                 }
             }
         }
