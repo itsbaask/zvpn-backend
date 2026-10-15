@@ -131,30 +131,38 @@ export default {
         let payload = await object.json();
         let servers = payload.servers || [];
 
-        // ── Authoritative Backend Tier Classifier ──────────────────────────
-        // Evaluates protocol, speed, and latency on the backend to guarantee
-        // servers are accurately tagged as free, premium, or premium_plus
-        // even if the raw R2 file was generated with a legacy "free" flag.
+        // ── Authoritative Backend Tier Classifier (Monetization Engine) ────
+        // Business Rule: Free tier is limited and exclusive (lowest count).
+        // The vast majority of servers are Premium (highest count) or Premium+ (top tier).
         const PREMIUM_PLUS_PROTOS = new Set(['hysteria2', 'hy2', 'tuic', 'juicity']);
-        const PREMIUM_PROTOS = new Set([
-          'vless', 'trojan', 'wireguard', 'amneziawg', 'wg', 'awg',
-          'ikev2', 'sstp', 'openconnect', 'hysteria2', 'hy2', 'tuic', 'juicity'
+        const PREMIUM_CORE_PROTOS = new Set([
+          'vless', 'vmess', 'trojan', 'shadowsocks', 'ss', 'ssr', 'wireguard', 'amneziawg',
+          'wg', 'awg', 'ikev2', 'sstp', 'openconnect'
         ]);
 
-        servers = servers.map(s => {
+        servers = servers.map((s, idx) => {
           const proto = (s.protocol || '').toLowerCase().trim();
           const speed = parseFloat(s.speed_mbps || 0);
           const latency = parseInt(s.latency_ms || 150);
           const rawUri = (s.raw_uri || '').toLowerCase();
           const isReality = rawUri.includes('reality') || rawUri.includes('xtls');
 
-          let assignedTier = 'free';
-          if (PREMIUM_PLUS_PROTOS.has(proto) || isReality || (speed > 100 && latency < 80)) {
+          let assignedTier = 'premium'; // Default is Premium to maximize conversion
+
+          if (PREMIUM_PLUS_PROTOS.has(proto) || isReality || speed > 50 || (proto === 'vless' && speed > 20)) {
+            // Top performance & next-gen protocols -> Premium+
             assignedTier = 'premium_plus';
-          } else if (speed > 60 && PREMIUM_PROTOS.has(proto)) {
-            assignedTier = 'premium_plus';
-          } else if (speed > 30 || PREMIUM_PROTOS.has(proto)) {
+          } else if (PREMIUM_CORE_PROTOS.has(proto) || speed > 15) {
+            // Mainstream secure protocols -> Premium
             assignedTier = 'premium';
+          } else {
+            // Legacy slow servers (HTTP proxies, plain SOCKS5, low-speed OpenVPN) -> Free
+            // Even within legacy, allocate only a limited subset as free (e.g. 1 out of 3)
+            if (idx % 3 === 0 && speed < 10) {
+              assignedTier = 'free';
+            } else {
+              assignedTier = 'premium';
+            }
           }
 
           const pointsCost = assignedTier === 'premium_plus' ? 10 : (assignedTier === 'premium' ? 4 : 1);
