@@ -12,6 +12,10 @@ import com.unity3d.ads.metadata.MetaData
 import com.zvpn.domain.ads.UnityAdsConfig
 import com.zvpn.domain.ads.UnityAdsS2SManager
 import com.zvpn.domain.ads.PointsManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -119,7 +123,15 @@ object UnityAdsManager {
                     error: UnityAds.UnityAdsInitializationError,
                     message: String,
                 ) {
-                    Log.e(TAG, "Init failed: $error — $message")
+                    Log.e(TAG, "Init failed: $error — $message (DNS ad-blocker or offline). Will retry in 15s...")
+                    _isInitialized.value = false
+                    // Auto-retry when connectivity changes or once VPN is connected
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                        kotlinx.coroutines.delay(15_000L)
+                        if (!_isInitialized.value) {
+                            init(context)
+                        }
+                    }
                 }
             }
         )
