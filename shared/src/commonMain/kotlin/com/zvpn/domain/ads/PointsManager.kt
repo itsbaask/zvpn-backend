@@ -10,6 +10,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlin.math.max
 
+data class PointTransaction(
+    val id: String,
+    val title: String,
+    val amount: Int, // positive = earned, negative = spent
+    val timestamp: Long,
+    val isCredit: Boolean,
+)
+
 object PointsManager {
 
     // ── Persistence Keys ──────────────────────────────────────────────────────
@@ -23,6 +31,7 @@ object PointsManager {
     private const val KEY_HARDWARE_MAC      = "zvpn_hw_mac"
     private const val KEY_NETWORK_ID        = "zvpn_network_id"
     private const val KEY_REWARDED_UNTIL    = "zvpn_rewarded_until_ms"
+    private const val KEY_TRANSACTIONS      = "zvpn_points_tx_history"
 
     // ── Public Economy Constants (delegates to BillingConfig) ─────────────────
     val AD_REWARD_POINTS          get() = BillingConfig.AD_REWARD_POINTS
@@ -53,6 +62,9 @@ object PointsManager {
     /** Timestamp (ms) until which ad-rewarded premium access is active. 0 = no active reward. */
     private val _rewardedUntilMs = MutableStateFlow(0L)
     val rewardedUntilMs: StateFlow<Long> = _rewardedUntilMs.asStateFlow()
+
+    private val _transactions = MutableStateFlow<List<PointTransaction>>(emptyList())
+    val transactions: StateFlow<List<PointTransaction>> = _transactions.asStateFlow()
 
     // ── Derived Properties ────────────────────────────────────────────────────
     val isAdRewardActive: Boolean get() = currentTimeMillis() < _rewardedUntilMs.value
@@ -162,7 +174,7 @@ object PointsManager {
         addPointsInternal(points)
     }
 
-    private fun addPointsInternal(pts: Int) {
+    private fun addPointsInternal(pts: Int, title: String = "Points Earned") {
         val todayAlready = _todayPoints.value
         // Clamp to daily max
         val remaining = BillingConfig.MAX_DAILY_EARNED_POINTS - todayAlready
@@ -175,6 +187,20 @@ object PointsManager {
         _todayPoints.value = newToday
         store?.putInt(KEY_TOTAL_POINTS, newTotal)
         store?.putInt(KEY_TODAY_POINTS, newToday)
+
+        logTransaction(title, actual, isCredit = true)
+    }
+
+    private fun logTransaction(title: String, amount: Int, isCredit: Boolean) {
+        val tx = PointTransaction(
+            id = currentTimeMillis().toString(),
+            title = title,
+            amount = amount,
+            timestamp = currentTimeMillis(),
+            isCredit = isCredit,
+        )
+        val updated = (listOf(tx) + _transactions.value).take(20)
+        _transactions.value = updated
     }
 
     // ── Ad Reward ─────────────────────────────────────────────────────────────
@@ -188,7 +214,7 @@ object PointsManager {
         val newCount = _todayAds.value + 1
         _todayAds.value = newCount
         store?.putInt(KEY_TODAY_ADS, newCount)
-        addPointsDirect(BillingConfig.AD_REWARD_POINTS)
+        addPointsInternal(BillingConfig.AD_REWARD_POINTS, "Watched Rewarded Ad")
         return true
     }
 
@@ -196,7 +222,7 @@ object PointsManager {
      * Record a passively-shown interstitial ad (smaller reward, no user cap check).
      */
     fun recordInterstitialAd() {
-        addPointsDirect(BillingConfig.INTERSTITIAL_REWARD_POINTS)
+        addPointsInternal(BillingConfig.INTERSTITIAL_REWARD_POINTS, "Bonus Interstitial Ad")
     }
 
     /**
@@ -211,12 +237,13 @@ object PointsManager {
 
     // ── Points Consumption ────────────────────────────────────────────────────
     /** Deduct [points] from the balance. Returns false if insufficient balance or not signed in. */
-    fun consumePoints(points: Int): Boolean {
+    fun consumePoints(points: Int, title: String = "VPN Connection"): Boolean {
         if (points <= 0) return true
         if (!isGoogleSignedIn() || _totalPoints.value < points) return false
         val newTotal = max(0, _totalPoints.value - points)
         _totalPoints.value = newTotal
         store?.putInt(KEY_TOTAL_POINTS, newTotal)
+        logTransaction(title, points, isCredit = false)
         return true
     }
 
@@ -259,7 +286,7 @@ object PointsManager {
             else -> 100   // Day 7+: double century
         }
 
-        addPoints(reward)
+        addPointsInternal(reward, "Daily Check-in Day $currentStreak")
 
         val nextStreak = if (currentStreak >= 7) 1 else currentStreak + 1
         _streakDays.value = nextStreak
@@ -282,7 +309,7 @@ object PointsManager {
         if (store?.getBoolean(keyRedeemed, false) == true) return false
 
         store?.putBoolean(keyRedeemed, true)
-        addPoints(REFERRAL_REWARD_POINTS)
+        addPointsInternal(REFERRAL_REWARD_POINTS, "Friend Referral Bonus ($clean)")
         return true
     }
 }

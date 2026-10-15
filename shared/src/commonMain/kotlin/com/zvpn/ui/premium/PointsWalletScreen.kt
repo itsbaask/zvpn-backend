@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zvpn.domain.ads.PointsManager
+import com.zvpn.domain.billing.BillingConfig
 import com.zvpn.domain.billing.UserTier
 import com.zvpn.ui.theme.ZHotPink
 import com.zvpn.ui.theme.ZLime
@@ -413,6 +414,59 @@ fun PointsWalletScreen(
 
         Spacer(Modifier.height(20.dp))
 
+        // ══ UNLOCK PREMIUM FEATURES WITH POINTS ══════════════════════════════
+        SectionLabel("Unlock Features With Points")
+        Spacer(Modifier.height(10.dp))
+
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+            shape = MaterialTheme.shapes.large,
+            color = cs.surfaceContainerHigh,
+        ) {
+            Column(Modifier.padding(16.dp)) {
+                val features = listOf(
+                    Triple("🔗 Double VPN / Proxy Chain", "Multi-hop encrypted routing", BillingConfig.FEATURE_PROXY_CHAIN_UNLOCK),
+                    Triple("⚡ Split Tunneling Bypass", "Route selected apps outside VPN", BillingConfig.FEATURE_SPLIT_TUNNEL_UNLOCK),
+                    Triple("🚀 Full Speed & Latency Test", "Precision speed benchmark", BillingConfig.FEATURE_SPEEDTEST_COST),
+                    Triple("📡 Ping All 10,000+ Servers", "Find the lowest ping worldwide", BillingConfig.FEATURE_PING_ALL_COST),
+                )
+
+                features.forEachIndexed { idx, (fTitle, fDesc, fCost) ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(fTitle, style = typo.titleSmall, fontWeight = FontWeight.Bold, color = cs.onSurface)
+                            Text(fDesc, style = typo.bodySmall, color = cs.onSurfaceVariant)
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                val ok = PointsManager.unlockFeature(fCost)
+                                // Trigger feedback
+                            },
+                            enabled = totalPts >= fCost,
+                            shape = MaterialTheme.shapes.medium,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = cs.primary,
+                                disabledContainerColor = cs.onSurface.copy(alpha = 0.08f),
+                            ),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        ) {
+                            Text("$fCost Pts", style = typo.labelMedium, fontWeight = FontWeight.ExtraBold)
+                        }
+                    }
+                    if (idx < features.lastIndex) {
+                        HorizontalDivider(color = cs.outlineVariant.copy(0.4f), thickness = 0.5.dp)
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(20.dp))
+
         // ══ HOW TO SPEND ══════════════════════════════════════════════════════
         SectionLabel("How Points Are Used")
         Spacer(Modifier.height(10.dp))
@@ -425,7 +479,7 @@ fun PointsWalletScreen(
             Column(Modifier.padding(vertical = 4.dp)) {
                 val spendRows = listOf(
                     Triple(ZLime, "🌍 Free Servers", "1 pt/min — 100 pts = 1h 40min"),
-                    Triple(ZViolet, "⚡ Premium Servers", "5 pts/min — 100 pts = 20 min"),
+                    Triple(ZViolet, "⚡ Premium Servers", "4 pts/min — 100 pts = 25 min"),
                     Triple(ZHotPink, "👑 Premium+ Servers", "10 pts/min — 100 pts = 10 min"),
                 )
                 spendRows.forEachIndexed { i, (accent, title, desc) ->
@@ -447,6 +501,44 @@ fun PointsWalletScreen(
         }
 
         Spacer(Modifier.height(20.dp))
+
+        // ══ ACTIVITY & TRANSACTION HISTORY ════════════════════════════════════
+        val txs by PointsManager.transactions.collectAsState()
+        if (txs.isNotEmpty()) {
+            SectionLabel("Recent Points Activity")
+            Spacer(Modifier.height(10.dp))
+
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                shape = MaterialTheme.shapes.large,
+                color = cs.surfaceContainerHigh,
+            ) {
+                Column(Modifier.padding(14.dp)) {
+                    txs.take(6).forEachIndexed { idx, tx ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(if (tx.isCredit) "➕" else "➖", fontSize = 14.sp)
+                                Text(tx.title, style = typo.bodyMedium, fontWeight = FontWeight.Medium, color = cs.onSurface)
+                            }
+                            Text(
+                                text = (if (tx.isCredit) "+" else "-") + "${tx.amount} pts",
+                                style = typo.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (tx.isCredit) Color(0xFF10B981) else Color(0xFFEF4444),
+                            )
+                        }
+                        if (idx < txs.take(6).lastIndex) {
+                            HorizontalDivider(color = cs.outlineVariant.copy(0.3f), thickness = 0.5.dp)
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(20.dp))
+        }
 
         // ── Upgrade CTA ────────────────────────────────────────────────────────
         if (!isPremium) {
