@@ -120,6 +120,7 @@ fun SettingsScreen(
     ai: com.zvpn.ui.settings.AiSection? = null,
 
     onSignInWithGoogle: (() -> Unit)? = null,
+    onOpenPointsWallet: (() -> Unit)? = null,
 ) {
     var page by rememberSaveable { mutableStateOf(SettingsPage.Root) }
     var showAbout by rememberSaveable { mutableStateOf(false) }
@@ -189,6 +190,7 @@ fun SettingsScreen(
                 onReplayTour = onReplayTour,
                 hasAi = ai != null,
                 onSignInWithGoogle = onSignInWithGoogle,
+                onOpenPointsWallet = onOpenPointsWallet,
             )
             SettingsPage.Ui -> UiPage(settings, contentPadding, modifier, onUpdate, onLanguage)
             SettingsPage.Vpn -> VpnPage(settings, contentPadding, modifier, onUpdate, mtuHint)
@@ -280,6 +282,7 @@ private fun RootPage(
 
     hasAi: Boolean,
     onSignInWithGoogle: (() -> Unit)? = null,
+    onOpenPointsWallet: (() -> Unit)? = null,
 ) {
     val platform = LocalPlatform.current
 
@@ -319,6 +322,16 @@ private fun RootPage(
                         platform.toast("Sign in with Google to protect your points & rewards!")
                     }
                 }
+            }
+
+            SettingsMenuRow(
+                title = "Points & Ads Rewards Center",
+                subtitle = "Watch ads, earn points, claim daily bonuses & invite friends",
+                leadingIcon = Res.drawable.ic_bolt,
+                badgeColor = androidx.compose.ui.graphics.Color(0xFFF59E0B),
+                trailingText = "$totalPts Pts",
+            ) {
+                onOpenPointsWallet?.invoke()
             }
         }
 

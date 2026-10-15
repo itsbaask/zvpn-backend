@@ -1,4 +1,4 @@
-﻿@file:OptIn(
+@file:OptIn(
     androidx.compose.material3.ExperimentalMaterial3Api::class,
     androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class,
 )
@@ -182,6 +182,7 @@ fun HomeScreen(
 
     connectStyle: ConnectButtonStyle = ConnectButtonStyle.Pill,
     homeVm: HomeViewModel = viewModel { HomeViewModel() },
+    onOpenPointsWallet: (() -> Unit)? = null,
 ) {
     val ui by connectionVm.ui.collectAsStateWithLifecycle()
     val live = ui.state == ConnectionState.Connected
@@ -239,6 +240,7 @@ fun HomeScreen(
                     state = ui.state,
                     onSecretUnlocked = onSecretUnlocked,
                     onShowLogs = { showLogs = true },
+                    onOpenPointsWallet = onOpenPointsWallet,
                 )
 
                 val fault = when {
@@ -691,7 +693,10 @@ private fun BrandHeader(
     state: ConnectionState,
     onSecretUnlocked: () -> Unit,
     onShowLogs: () -> Unit,
+    onOpenPointsWallet: (() -> Unit)? = null,
 ) {
+    val totalPts by com.zvpn.domain.ads.PointsManager.totalPoints.collectAsStateWithLifecycle()
+
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -708,6 +713,35 @@ private fun BrandHeader(
                     tint = if (state.isActive || state == ConnectionState.Disconnecting) Color.White
                     else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+        }
+
+        // ── Points Wallet & Ads Button ──────────────────────────────────────
+        if (onOpenPointsWallet != null) {
+            Surface(
+                onClick = onOpenPointsWallet,
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFFF59E0B).copy(alpha = 0.16f),
+                tonalElevation = 2.dp,
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_bolt),
+                        contentDescription = "Points Wallet",
+                        tint = Color(0xFFF59E0B),
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Text(
+                        text = "$totalPts Pts",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFFF59E0B),
+                    )
+                }
             }
         }
     }

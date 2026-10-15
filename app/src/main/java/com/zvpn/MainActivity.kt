@@ -452,6 +452,9 @@ class MainActivity : ComponentActivity() {
                     }
                     val currentTier by billingManager.userTier.collectAsStateWithLifecycle()
                     val isPremiumUser = currentTier == UserTier.Premium || currentTier == UserTier.PremiumPlus
+                    // ── Ad / Paywall global overlay ──────────────────────────
+                    val adHostState = com.zvpn.ui.ads.rememberAdRewardHostState()
+
                     MainScaffold(
                         settings = settings,
                         configRepository = configRepository,
@@ -466,7 +469,8 @@ class MainActivity : ComponentActivity() {
                         aiBridge = aiBridge,
                         appVersion = com.zvpn.BuildConfig.VERSION_NAME,
                         userTier = currentTier,
-                        onUpgrade = { /* AdRewardHost handles billing flow */ },
+                        onUpgrade = { adHostState.showPaywall() },
+                        onOpenPointsWallet = { adHostState.showWallet() },
                         onSignInWithGoogle = {
                             googleSignInLauncher.launch(firebaseAuthManager.getSignInIntent())
                         },
@@ -477,8 +481,6 @@ class MainActivity : ComponentActivity() {
                         }) else null,
                     )
 
-                    // ── Ad / Paywall global overlay ──────────────────────────
-                    val adHostState = com.zvpn.ui.ads.rememberAdRewardHostState()
                     com.zvpn.ui.ads.AdRewardHost(
                         state = adHostState,
                         billingManager = billingManager,

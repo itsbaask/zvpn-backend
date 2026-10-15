@@ -82,6 +82,8 @@ fun MainScaffold(
     adBanner: @Composable (() -> Unit)? = null,
     /** Triggered when user taps Sign In With Google in SettingsScreen */
     onSignInWithGoogle: (() -> Unit)? = null,
+    /** Triggered when user taps the Points/Ads wallet button */
+    onOpenPointsWallet: (() -> Unit)? = null,
 ) {
     val platform = com.zvpn.ui.platform.LocalPlatform.current
     var current by rememberSaveable { mutableStateOf(TopDestination.Home) }
@@ -282,6 +284,7 @@ fun MainScaffold(
                         current = TopDestination.Settings
                     },
                     onSecretUnlocked = { spaceUnlocked = true },
+                    onOpenPointsWallet = onOpenPointsWallet,
                 )
                 TopDestination.Servers -> ServersScreen(
                     repository = configRepository,
@@ -360,6 +363,7 @@ fun MainScaffold(
                         )
                     },
                     onSignInWithGoogle = onSignInWithGoogle,
+                    onOpenPointsWallet = onOpenPointsWallet,
                 )
             }
             }
