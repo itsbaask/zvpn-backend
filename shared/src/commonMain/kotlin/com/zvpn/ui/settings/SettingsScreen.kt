@@ -298,15 +298,51 @@ private fun RootPage(
             val session by com.zvpn.domain.auth.UserAuthManager.session.collectAsState()
             val totalPts by com.zvpn.domain.ads.PointsManager.totalPoints.collectAsState()
 
+            var showSignOutConfirm by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
+            if (showSignOutConfirm) {
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { showSignOutConfirm = false },
+                    title = { androidx.compose.material3.Text("Sign Out") },
+                    text = { androidx.compose.material3.Text("Are you sure you want to sign out from ${session.email.ifBlank { session.displayName }}?") },
+                    confirmButton = {
+                        androidx.compose.material3.TextButton(
+                            onClick = {
+                                showSignOutConfirm = false
+                                com.zvpn.domain.auth.UserAuthManager.signOut()
+                                platform.toast("Signed out")
+                            }
+                        ) {
+                            androidx.compose.material3.Text("Sign Out", color = androidx.compose.ui.graphics.Color(0xFFE53935))
+                        }
+                    },
+                    dismissButton = {
+                        androidx.compose.material3.TextButton(onClick = { showSignOutConfirm = false }) {
+                            androidx.compose.material3.Text("Cancel")
+                        }
+                    }
+                )
+            }
+
             if (session.email.isNotBlank() || session.userId.isNotBlank()) {
                 SettingsMenuRow(
                     title = session.displayName.ifBlank { "Google User" },
                     subtitle = "${session.email.ifBlank { session.userId }} • $totalPts Points",
                     leadingIcon = Res.drawable.ic_check_circle,
                     badgeColor = androidx.compose.ui.graphics.Color(0xFF4CAF50),
-                    trailingText = "Signed In",
+                    trailingText = "Active",
                 ) {
-                    com.zvpn.domain.auth.UserAuthManager.signOut()
+                    platform.toast("Signed in as ${session.displayName.ifBlank { session.email }}")
+                }
+
+                SettingsMenuRow(
+                    title = "Sign Out",
+                    subtitle = "Disconnect Google account from this device",
+                    leadingIcon = Res.drawable.ic_close,
+                    badgeColor = androidx.compose.ui.graphics.Color(0xFFE53935),
+                    trailingText = "Log Out",
+                ) {
+                    showSignOutConfirm = true
                 }
             } else {
                 SettingsMenuRow(
