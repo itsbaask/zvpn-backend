@@ -100,9 +100,8 @@ object ProfileToServerMapper {
         val tier: ServerTier = when {
             backendTier == "premium_plus" || backendTier == "vip" -> ServerTier.PremiumPlus
             backendTier == "premium"      || backendTier == "pro"  -> ServerTier.Premium
-            backendTier == "free"                                   -> ServerTier.Free
 
-            // Step 2: protocol-based classification (no backend field)
+            // If backend says "free" or is null/empty, evaluate protocol & speed dynamically on device:
             proto in PREMIUM_PLUS_PROTOS                           -> ServerTier.PremiumPlus
             proto in PREMIUM_PROTOS                                -> ServerTier.Premium
 
