@@ -334,7 +334,14 @@ class MainActivity : ComponentActivity() {
                 val status = VpnManager.status.value
                 if (status.state == ConnectionState.Connected) {
                     val tier = billingManager.userTier.value
-                    PointsManager.consumePerMinute(tier.label)
+                    val profile = configRepository.activeProfile()
+                    val serverTier = profile?.serverTier ?: "free"
+                    val proto = profile?.protocol ?: "openvpn"
+                    val success = PointsManager.consumePerMinute(serverTier, proto, tier)
+                    if (!success && tier.pointsCostMultiplier > 0.0) {
+                        // Ran out of points for this server: disconnect and prompt
+                        AndroidVpn.stop(this@MainActivity)
+                    }
                 }
             }
         }

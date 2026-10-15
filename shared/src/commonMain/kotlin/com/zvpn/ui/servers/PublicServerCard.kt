@@ -50,6 +50,8 @@ fun PublicServerCard(
     isSelected: Boolean,
     userTier: UserTier,
     isFavorite: Boolean,
+    pointsCostPerMin: Int,          // pts/min cost for this user on this server
+    userPointsBalance: Int,         // user's current points (to show affordability)
     onToggleFavorite: () -> Unit,
     onClick: () -> Unit,
     onLockedClick: () -> Unit,
@@ -159,6 +161,31 @@ fun PublicServerCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Medium
                     )
+
+                    // ── Points Cost Badge ───────────────────────────────────────
+                    if (!locked && pointsCostPerMin > 0) {
+                        Spacer(Modifier.height(3.dp))
+                        val canAfford5Min = userPointsBalance >= pointsCostPerMin * 5
+                        val costColor = when {
+                            userTier.pointsCostMultiplier == 0.0 -> Color(0xFF10B981) // paid tier: green
+                            !canAfford5Min                       -> Color(0xFFEF4444) // can't afford: red
+                            else                                 -> Color(0xFFF59E0B) // normal: amber
+                        }
+                        val costLabel = if (userTier.pointsCostMultiplier == 0.0) "Unlimited" else "$pointsCostPerMin pts/min"
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = costColor.copy(alpha = 0.12f),
+                        ) {
+                            Text(
+                                text = "⚡ $costLabel",
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = costColor,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 10.sp,
+                            )
+                        }
+                    }
                 }
 
                 // Right: Favorite toggle + Ping status + Lock

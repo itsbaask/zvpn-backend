@@ -945,11 +945,35 @@ class EnterpriseMultiSourceSyncEngine:
             # Numbering per country
             country_counters[c_name] = country_counters.get(c_name, 0) + 1
             idx_num = country_counters[c_name]
-            clean_display_name = f"{flag} {c_name} #{idx_num}"
 
             # Speed & Latency
             speed_val = round(float(raw_item.get("speed_mbps")), 2) if raw_item.get("speed_mbps") is not None else 25.0
-            lat_val = raw_item.get("verified_latency_ms") or raw_item.get("latency_ms") or 150
+            lat_val = int(raw_item.get("verified_latency_ms") or raw_item.get("latency_ms") or 150)
+
+            # ── Smart Tier Classification ──────────────────────────────────────
+            # Premium+ protocols (new-gen, highest security)
+            PREMIUM_PLUS_PROTOS = {"hysteria2", "tuic", "juicity"}
+            PREMIUM_PROTOS = {
+                "vless", "trojan", "wireguard", "amneziawg", "ikev2", "sstp",
+                "openconnect", "hysteria2", "tuic", "juicity",
+            }
+            is_reality = bool(raw_uri and ("reality" in raw_uri.lower() or "xtls-rprx-vision" in raw_uri.lower()))
+
+            if proto in PREMIUM_PLUS_PROTOS or is_reality or (speed_val > 100 and lat_val < 80):
+                server_tier = "premium_plus"
+            elif speed_val > 60 and proto in PREMIUM_PROTOS:
+                server_tier = "premium_plus"
+            elif speed_val > 30 or proto in PREMIUM_PROTOS:
+                server_tier = "premium"
+            else:
+                server_tier = "free"
+
+            # Tier-based display name prefix
+            tier_prefix = {"premium_plus": "⚡ ", "premium": "🔷 ", "free": ""}.get(server_tier, "")
+            clean_display_name = f"{tier_prefix}{flag} {c_name} #{idx_num}"
+
+            # Points cost per minute (consumed by app PointsManager per 60s tick)
+            points_cost = {"premium_plus": 10, "premium": 4, "free": 1}.get(server_tier, 1)
 
             entry = {
                 "id": f"{src}_{sid}_{idx_num}",
@@ -970,7 +994,8 @@ class EnterpriseMultiSourceSyncEngine:
                 "config_data": strip_ovpn_comments(config_data) if config_data else None,
                 "speed_mbps": speed_val,
                 "latency_ms": lat_val,
-                "tier": "free",
+                "tier": server_tier,
+                "points_cost_per_min": points_cost,
                 "status": "online"
             }
             all_catalog.append(entry)

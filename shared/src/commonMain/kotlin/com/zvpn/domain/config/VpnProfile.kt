@@ -1,4 +1,4 @@
-﻿@file:OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
+@file:OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
 
 package com.zvpn.domain.config
 
@@ -103,6 +103,10 @@ data class VpnProfile(
 
     val bytesDown: Long = 0,
     val bytesUp: Long = 0,
+
+    val serverTier: String? = null,
+    val speedMbps: Float? = null,
+    val pointsCostPerMin: Int? = null,
 
     val note: String? = null,
 ) {

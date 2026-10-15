@@ -824,19 +824,40 @@ private fun ServerRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (server.protocolLabel.isNotBlank()) {
+                Row(
+                    modifier = Modifier.padding(top = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (server.protocolLabel.isNotBlank()) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(scheme.primary.copy(alpha = 0.12f))
+                                .padding(horizontal = 6.dp, vertical = 1.dp),
+                        ) {
+                            Text(
+                                text = server.protocolLabel.uppercase(),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = scheme.primary,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+                    val cost = com.zvpn.domain.billing.BillingConfig.pointsCostPerMin(server.tier.id, server.protocolLabel)
+                    val costLabel = if (cost <= 1) "1 pt/min" else "$cost pts/min"
                     Box(
                         modifier = Modifier
-                            .padding(top = 2.dp)
                             .clip(RoundedCornerShape(6.dp))
-                            .background(scheme.primary.copy(alpha = 0.12f))
+                            .background(Color(0xFFF59E0B).copy(alpha = 0.15f))
                             .padding(horizontal = 6.dp, vertical = 1.dp),
                     ) {
                         Text(
-                            text = server.protocolLabel.uppercase(),
+                            text = "⚡ $costLabel",
                             style = MaterialTheme.typography.labelSmall,
-                            color = scheme.primary,
-                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFF59E0B),
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 10.sp,
                         )
                     }
                 }

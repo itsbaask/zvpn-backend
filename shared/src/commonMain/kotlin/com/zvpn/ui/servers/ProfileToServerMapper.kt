@@ -11,8 +11,17 @@ import kotlinx.coroutines.withContext
 
 object ProfileToServerMapper {
 
+    // ── Fallback regex (last resort when no backend tier available) ────────────
     private val TIER_PLUS = Regex("""\b(?:vip|plus|premium\+)\b""", RegexOption.IGNORE_CASE)
-    private val TIER_PRO = Regex("""\b(?:pro|premium)\b""", RegexOption.IGNORE_CASE)
+    private val TIER_PRO  = Regex("""\b(?:pro|premium)\b""",        RegexOption.IGNORE_CASE)
+
+    /** Protocols that are inherently at least premium grade */
+    private val PREMIUM_PROTOS = setOf(
+        "vless", "trojan", "wireguard", "amneziawg", "ikev2", "sstp",
+        "openconnect", "hysteria2", "tuic", "juicity",
+    )
+    /** Protocols that are inherently premium_plus */
+    private val PREMIUM_PLUS_PROTOS = setOf("hysteria2", "tuic", "juicity")
 
     fun countryNameFromCode(cc: String): String {
         if (cc == "XX" || cc.isBlank()) return "United States"
@@ -83,27 +92,49 @@ object ProfileToServerMapper {
         val flagEmoji = profile.flag?.takeIf { it.isNotBlank() && it != "🌐" } ?: flagFromCode(cc)
         val continent = profile.continent?.takeIf { it.isNotBlank() && it != "Other" } ?: continentFromCode(cc)
 
-        val tier = when {
-            TIER_PLUS.containsMatchIn(rawName) -> ServerTier.PremiumPlus
-            TIER_PRO.containsMatchIn(rawName) -> ServerTier.Premium
-            else -> ServerTier.Free
+        val proto = profile.protocol.lowercase()
+
+        // ── 3-step tier resolution ──────────────────────────────────────────────
+        // Step 1: explicit tier field embedded in profile note (set by ConfigRepository from JSON)
+        val backendTier = profile.serverTier?.lowercase()?.trim()
+        val tier: ServerTier = when {
+            backendTier == "premium_plus" || backendTier == "vip" -> ServerTier.PremiumPlus
+            backendTier == "premium"      || backendTier == "pro"  -> ServerTier.Premium
+            backendTier == "free"                                   -> ServerTier.Free
+
+            // Step 2: protocol-based classification (no backend field)
+            proto in PREMIUM_PLUS_PROTOS                           -> ServerTier.PremiumPlus
+            proto in PREMIUM_PROTOS                                -> ServerTier.Premium
+
+            // Step 3: name regex fallback
+            TIER_PLUS.containsMatchIn(rawName)                     -> ServerTier.PremiumPlus
+            TIER_PRO.containsMatchIn(rawName)                      -> ServerTier.Premium
+
+            else                                                   -> ServerTier.Free
+        }
+
+        // Real speed from backend; fallback to protocol-based estimate
+        val speed = profile.speedMbps?.takeIf { it > 0f } ?: when {
+            proto in PREMIUM_PLUS_PROTOS -> 120f
+            proto in PREMIUM_PROTOS      -> 60f
+            else                         -> 25f
         }
 
         return PublicServer(
-            id = profile.id,
-            displayName = rawName,
-            countryCode = cc,
-            countryName = countryName,
-            flag = flagEmoji,
+            id           = profile.id,
+            displayName  = rawName,
+            countryCode  = cc,
+            countryName  = countryName,
+            flag         = flagEmoji,
             protocolLabel = profile.protocol.uppercase(),
-            speedMbps = 35.0f,
-            latencyMs = profile.lastPingMs?.takeIf { it > 0 },
-            tier = tier,
-            continent = continent,
-            profileUrl = "",
-            configUri = profile.rawPayload() ?: "",
-            engine = profile.protocol.uppercase(),
-            isSystem = profile.isSystemBackend,
+            speedMbps    = speed,
+            latencyMs    = profile.lastPingMs?.takeIf { it > 0 },
+            tier         = tier,
+            continent    = continent,
+            profileUrl   = "",
+            configUri    = profile.rawPayload() ?: "",
+            engine       = profile.protocol.uppercase(),
+            isSystem     = profile.isSystemBackend,
         )
     }
 }

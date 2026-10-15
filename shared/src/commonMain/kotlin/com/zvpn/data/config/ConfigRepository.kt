@@ -1,4 +1,4 @@
-﻿@file:OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
+@file:OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
 
 package com.zvpn.data.config
 
@@ -411,11 +411,17 @@ class ConfigRepository(private val store: KeyValueStore) {
                         duplicates++
                     } else {
                         val existing = previousMap[serverId]
+                        val rawTier = (server["tier"] as? JsonPrimitive)?.contentOrNull
+                        val rawSpeed = (server["speed_mbps"] as? JsonPrimitive)?.contentOrNull?.toFloatOrNull()
+                        val rawPoints = (server["points_cost_per_min"] as? JsonPrimitive)?.contentOrNull?.toIntOrNull()
                         val updatedProfile = profile.copy(
                             countryCode = countryCode,
                             countryName = countryName,
                             flag = flag,
                             continent = continent,
+                            serverTier = rawTier,
+                            speedMbps = rawSpeed,
+                            pointsCostPerMin = rawPoints,
                             lastPingMs = existing?.lastPingMs ?: profile.lastPingMs,
                         )
                         fresh += updatedProfile
