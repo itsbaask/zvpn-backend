@@ -67,6 +67,9 @@ class MainActivity : ComponentActivity() {
     /** BillingManager handles Google Play subscriptions + ad-reward tier escalation */
     private val billingManager by lazy { BillingManager(this) }
 
+    /** Global overlay controller for paywall / reward / wallet sheets */
+    private var adHostState: com.zvpn.ui.ads.AdRewardHostState? = null
+
     /** Count how many VPN sessions have ended — used to pace interstitial ads */
     private var vpnDisconnectCount = 0
 
@@ -453,7 +456,8 @@ class MainActivity : ComponentActivity() {
                     val currentTier by billingManager.userTier.collectAsStateWithLifecycle()
                     val isPremiumUser = currentTier == UserTier.Premium || currentTier == UserTier.PremiumPlus
                     // ── Ad / Paywall global overlay ──────────────────────────
-                    val adHostState = com.zvpn.ui.ads.rememberAdRewardHostState()
+                    val hostState = com.zvpn.ui.ads.rememberAdRewardHostState()
+                    adHostState = hostState
 
                     MainScaffold(
                         settings = settings,
@@ -469,8 +473,8 @@ class MainActivity : ComponentActivity() {
                         aiBridge = aiBridge,
                         appVersion = com.zvpn.BuildConfig.VERSION_NAME,
                         userTier = currentTier,
-                        onUpgrade = { adHostState.showPaywall() },
-                        onOpenPointsWallet = { adHostState.showWallet() },
+                        onUpgrade = { hostState.showPaywall() },
+                        onOpenPointsWallet = { hostState.showWallet() },
                         onSignInWithGoogle = {
                             googleSignInLauncher.launch(firebaseAuthManager.getSignInIntent())
                         },
@@ -482,7 +486,7 @@ class MainActivity : ComponentActivity() {
                     )
 
                     com.zvpn.ui.ads.AdRewardHost(
-                        state = adHostState,
+                        state = hostState,
                         billingManager = billingManager,
                         onShareReferral = {
                             val code = com.zvpn.domain.ads.PointsManager.referralCode.value
@@ -563,6 +567,37 @@ class MainActivity : ComponentActivity() {
             toast(getString(R.string.select_config_first))
             return
         }
+
+        // ── Monetization & Points Gating ─────────────────────────────────────
+        // 1. Paid Subscribers (Premium / Premium+) bypass all checks
+        val currentTier = billingManager.userTier.value
+        val isPaidUser = currentTier == com.zvpn.domain.billing.UserTier.Premium ||
+                         currentTier == com.zvpn.domain.billing.UserTier.PremiumPlus
+
+        if (!isPaidUser) {
+            val serverTier = profile.serverTier ?: "free"
+            // Check tier permissions: Free users cannot access Premium / Premium+ without upgrade/points
+            val canAccess = com.zvpn.domain.billing.UserTier.canAccess(currentTier, serverTier)
+            if (!canAccess) {
+                toast("Upgrade or watch an ad to access $serverTier servers")
+                adHostState?.showPaywall()
+                return
+            }
+
+            // Check point balance: Must have at least enough points for the initial connection
+            val protoStr = profile.protocol.lowercase()
+            val initialCost = com.zvpn.domain.billing.BillingConfig.pointsCostPerMin(serverTier, protoStr)
+            if (com.zvpn.domain.ads.PointsManager.totalPoints.value < initialCost) {
+                toast("Insufficient points! Watch an ad to earn points and connect.")
+                adHostState?.showWallet()
+                return
+            }
+        }
+
+        // Store active server tier & protocol on VpnManager for minute metering
+        VpnManager.activeServerTier = profile.serverTier ?: "free"
+        VpnManager.activeProtocol   = profile.protocol.lowercase()
+
         planning = true
         lifecycleScope.launch {
             val plan = try {
