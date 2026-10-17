@@ -853,7 +853,7 @@ private fun ServerRow(
                             .padding(horizontal = 6.dp, vertical = 1.dp),
                     ) {
                         Text(
-                            text = "⚡ $costLabel",
+                            text = costLabel,
                             style = MaterialTheme.typography.labelSmall,
                             color = Color(0xFFF59E0B),
                             fontWeight = FontWeight.SemiBold,

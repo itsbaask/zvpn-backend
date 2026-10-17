@@ -81,6 +81,14 @@ fun MapScreen(
     vm: MapViewModel = viewModel { MapViewModel() },
 ) {
     val status by VpnManager.status.collectAsStateWithLifecycle()
+    val unlockedSet by com.zvpn.domain.ads.PointsManager.unlockedFeatures.collectAsStateWithLifecycle()
+    val isMapUnlocked = unlockedSet.contains("world_map")
+
+    LaunchedEffect(isMapUnlocked) {
+        if (!isMapUnlocked) {
+            com.zvpn.domain.ads.PointsManager.unlockFeature("world_map", com.zvpn.domain.billing.BillingConfig.FEATURE_WORLD_MAP_UNLOCK)
+        }
+    }
     val connected = status.state == ConnectionState.Connected
 
     val ownTunnel = status.state.isActive || status.state.isTransitioning

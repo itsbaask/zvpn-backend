@@ -32,6 +32,7 @@ class BillingManager(private val context: Context) : PurchasesUpdatedListener {
     private lateinit var billingClient: BillingClient
 
     fun init() {
+        instance = this
         billingClient = BillingClient.newBuilder(context)
             .setListener(this)
             .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
@@ -49,15 +50,21 @@ class BillingManager(private val context: Context) : PurchasesUpdatedListener {
     }
 
     private suspend fun queryProducts() {
-        val productIds = listOf(
+        val subsProductIds = listOf(
             BillingConfig.PRODUCT_PREMIUM_WEEKLY,
             BillingConfig.PRODUCT_PREMIUM_MONTHLY,
             BillingConfig.PRODUCT_PREMIUM_YEARLY,
             BillingConfig.PRODUCT_PREMIUM_PLUS_YEARLY,
         ).map { QueryProductDetailsParams.Product.newBuilder().setProductId(it).setProductType(BillingClient.ProductType.SUBS).build() }
 
-        val params = QueryProductDetailsParams.newBuilder().setProductList(productIds).build()
-        val result = billingClient.queryProductDetails(params)
+        val inAppProductIds = listOf(
+            BillingConfig.PRODUCT_PACK_500_PTS,
+            BillingConfig.PRODUCT_PACK_1200_PTS,
+            BillingConfig.PRODUCT_PACK_3000_PTS,
+        ).map { QueryProductDetailsParams.Product.newBuilder().setProductId(it).setProductType(BillingClient.ProductType.INAPP).build() }
+
+        val allParams = QueryProductDetailsParams.newBuilder().setProductList(subsProductIds + inAppProductIds).build()
+        val result = billingClient.queryProductDetails(allParams)
         if (result.billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
             _products.value = result.productDetailsList ?: emptyList()
         }
@@ -84,14 +91,14 @@ class BillingManager(private val context: Context) : PurchasesUpdatedListener {
     }
 
     fun launchBilling(activity: Activity, productDetails: ProductDetails) {
-        val offerToken = productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken ?: return
+        val builder = BillingFlowParams.ProductDetailsParams.newBuilder().setProductDetails(productDetails)
+        val offerToken = productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
+        if (offerToken != null) {
+            builder.setOfferToken(offerToken)
+        }
         val flowParams = BillingFlowParams.newBuilder()
-            .setProductDetailsParamsList(
-                listOf(BillingFlowParams.ProductDetailsParams.newBuilder()
-                    .setProductDetails(productDetails)
-                    .setOfferToken(offerToken)
-                    .build())
-            ).build()
+            .setProductDetailsParamsList(listOf(builder.build()))
+            .build()
         _isPurchasing.value = true
         billingClient.launchBillingFlow(activity, flowParams)
     }
@@ -103,11 +110,30 @@ class BillingManager(private val context: Context) : PurchasesUpdatedListener {
                 purchases.forEach { purchase ->
                     if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
                         val productId = purchase.products.firstOrNull() ?: ""
-                        _userTier.value = if (productId == BillingConfig.PRODUCT_PREMIUM_PLUS_YEARLY || productId.contains("plus")) UserTier.PremiumPlus else UserTier.Premium
-                        if (!purchase.isAcknowledged) {
-                            billingClient.acknowledgePurchase(
-                                AcknowledgePurchaseParams.newBuilder().setPurchaseToken(purchase.purchaseToken).build()
-                            ) {}
+
+                        // Check if consumable Point Pack purchase
+                        val pointsToCredit = when (productId) {
+                            BillingConfig.PRODUCT_PACK_500_PTS -> 500
+                            BillingConfig.PRODUCT_PACK_1200_PTS -> 1200
+                            BillingConfig.PRODUCT_PACK_3000_PTS -> 3000
+                            else -> 0
+                        }
+
+                        if (pointsToCredit > 0) {
+                            val consumeParams = ConsumeParams.newBuilder().setPurchaseToken(purchase.purchaseToken).build()
+                            billingClient.consumeAsync(consumeParams) { consumeResult, _ ->
+                                if (consumeResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                                    com.zvpn.domain.ads.PointsManager.addPointsDirect(pointsToCredit)
+                                    Log.i(TAG, "Point pack credited: +$pointsToCredit pts")
+                                }
+                            }
+                        } else {
+                            _userTier.value = if (productId == BillingConfig.PRODUCT_PREMIUM_PLUS_YEARLY || productId.contains("plus")) UserTier.PremiumPlus else UserTier.Premium
+                            if (!purchase.isAcknowledged) {
+                                billingClient.acknowledgePurchase(
+                                    AcknowledgePurchaseParams.newBuilder().setPurchaseToken(purchase.purchaseToken).build()
+                                ) {}
+                            }
                         }
                     }
                 }
@@ -135,5 +161,15 @@ class BillingManager(private val context: Context) : PurchasesUpdatedListener {
     fun destroy() {
         scope.cancel()
         if (::billingClient.isInitialized && billingClient.isReady) billingClient.endConnection()
+        if (instance === this) instance = null
+    }
+
+    companion object {
+        @Volatile
+        var instance: BillingManager? = null
+            private set
+
+        val currentTier: UserTier
+            get() = instance?.userTier?.value ?: UserTier.Free
     }
 }

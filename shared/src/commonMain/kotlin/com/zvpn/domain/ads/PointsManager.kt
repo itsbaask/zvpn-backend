@@ -32,6 +32,8 @@ object PointsManager {
     private const val KEY_NETWORK_ID        = "zvpn_network_id"
     private const val KEY_REWARDED_UNTIL    = "zvpn_rewarded_until_ms"
     private const val KEY_TRANSACTIONS      = "zvpn_points_tx_history"
+    private const val KEY_UNLOCKED_FEATURES = "zvpn_unlocked_features"
+    private const val KEY_AUTO_DEDUCT_POINTS  = "zvpn_auto_deduct_points"
 
     // ── Public Economy Constants (delegates to BillingConfig) ─────────────────
     val AD_REWARD_POINTS          get() = BillingConfig.AD_REWARD_POINTS
@@ -66,6 +68,15 @@ object PointsManager {
     private val _transactions = MutableStateFlow<List<PointTransaction>>(emptyList())
     val transactions: StateFlow<List<PointTransaction>> = _transactions.asStateFlow()
 
+    private val _unlockedFeatures = MutableStateFlow<Set<String>>(emptySet())
+    val unlockedFeatures: StateFlow<Set<String>> = _unlockedFeatures.asStateFlow()
+
+    private val _autoDeductEnabled = MutableStateFlow(true)
+    val autoDeductEnabled: StateFlow<Boolean> = _autoDeductEnabled.asStateFlow()
+
+    private val _featureExpirations = MutableStateFlow<Map<String, Long>>(emptyMap())
+    val featureExpirations: StateFlow<Map<String, Long>> = _featureExpirations.asStateFlow()
+
     // ── Derived Properties ────────────────────────────────────────────────────
     val isAdRewardActive: Boolean get() = currentTimeMillis() < _rewardedUntilMs.value
 
@@ -76,11 +87,11 @@ object PointsManager {
 
     fun isGoogleSignedIn(): Boolean = UserAuthManager.session.value.isSignedIn
 
-    /** True if the user can still watch an ad today (not yet at daily cap) */
-    val canWatchAdToday: Boolean get() = _todayAds.value < BillingConfig.FREE_DAILY_AD_CAP
+    /** Unlimited ads allowed */
+    val canWatchAdToday: Boolean get() = true
 
     /** How many more ads the user can watch today */
-    val adsRemainingToday: Int get() = (BillingConfig.FREE_DAILY_AD_CAP - _todayAds.value).coerceAtLeast(0)
+    val adsRemainingToday: Int get() = 999999
 
     // ── Initialisation ────────────────────────────────────────────────────────
     fun init(keyValueStore: KeyValueStore) {
@@ -101,7 +112,21 @@ object PointsManager {
         val savedReward = keyValueStore.getString(KEY_REWARDED_UNTIL)?.toLongOrNull() ?: 0L
         _rewardedUntilMs.value = savedReward
 
+        // Restore unlocked features
+        val savedFeatures = keyValueStore.getString(KEY_UNLOCKED_FEATURES) ?: ""
+        if (savedFeatures.isNotBlank()) {
+            _unlockedFeatures.value = savedFeatures.split(",").toSet()
+        }
+
+        // Restore auto-deduct preference
+        _autoDeductEnabled.value = keyValueStore.getBoolean(KEY_AUTO_DEDUCT_POINTS, true)
+
         checkDailyReset()
+    }
+
+    fun setAutoDeductEnabled(enabled: Boolean) {
+        _autoDeductEnabled.value = enabled
+        store?.putBoolean(KEY_AUTO_DEDUCT_POINTS, enabled)
     }
 
     // ── Hardware / Network ID ─────────────────────────────────────────────────
@@ -160,9 +185,8 @@ object PointsManager {
     }
 
     // ── Points Addition ───────────────────────────────────────────────────────
-    /** Add points; requires Google Sign-In. Use for manual actions (referral, streak). */
+    /** Add points for user actions (referral, streak, ad watch). Works for both signed-in and guest users. */
     fun addPoints(points: Int) {
-        if (!isGoogleSignedIn()) return
         addPointsInternal(points)
     }
 
@@ -236,10 +260,10 @@ object PointsManager {
     }
 
     // ── Points Consumption ────────────────────────────────────────────────────
-    /** Deduct [points] from the balance. Returns false if insufficient balance or not signed in. */
+    /** Deduct [points] from the balance. Returns false if insufficient balance. */
     fun consumePoints(points: Int, title: String = "VPN Connection"): Boolean {
         if (points <= 0) return true
-        if (!isGoogleSignedIn() || _totalPoints.value < points) return false
+        if (_totalPoints.value < points) return false
         val newTotal = max(0, _totalPoints.value - points)
         _totalPoints.value = newTotal
         store?.putInt(KEY_TOTAL_POINTS, newTotal)
@@ -268,13 +292,38 @@ object PointsManager {
     fun previewCostPerMin(serverTier: String, protocol: String, userTier: UserTier): Int =
         UserTier.effectiveCostPerMin(userTier, serverTier, protocol)
 
-    // ── Premium Feature Unlock ────────────────────────────────────────────────
-    /** Spend points to unlock a one-session premium feature. Returns false if insufficient. */
-    fun unlockFeature(featureCost: Int): Boolean = consumePoints(featureCost)
+    // ── Premium Feature Unlock (Time-Bounded Session Unlocks) ─────────────────
+    fun isFeatureUnlocked(featureKey: String): Boolean {
+        if (_unlockedFeatures.value.contains(featureKey)) {
+            val expiresAt = _featureExpirations.value[featureKey] ?: Long.MAX_VALUE
+            if (currentTimeMillis() < expiresAt) return true
+        }
+        return false
+    }
+
+    /** Spend points to unlock a premium feature for [durationMs] (default 1 hour). Returns false if insufficient balance. */
+    fun unlockFeature(featureKey: String, featureCost: Int, durationMs: Long = 3600_000L): Boolean {
+        if (isFeatureUnlocked(featureKey)) return true
+        val success = consumePoints(featureCost, title = "Unlocked $featureKey")
+        if (success) {
+            val updatedSet = _unlockedFeatures.value + featureKey
+            val newExpiry = currentTimeMillis() + durationMs
+            val updatedExpirations = _featureExpirations.value + (featureKey to newExpiry)
+
+            _unlockedFeatures.value = updatedSet
+            _featureExpirations.value = updatedExpirations
+
+            store?.putString(KEY_UNLOCKED_FEATURES, updatedSet.joinToString(","))
+        }
+        return success
+    }
+
+    /** Legacy overload by cost */
+    fun unlockFeature(featureCost: Int): Boolean = unlockFeature("feature_$featureCost", featureCost)
 
     // ── Daily Streak ──────────────────────────────────────────────────────────
     fun claimDailyStreak(): Int {
-        if (!isGoogleSignedIn() || !_canClaimDailyStreak.value) return 0
+        if (!_canClaimDailyStreak.value) return 0
         val currentStreak = _streakDays.value
         val reward = when (currentStreak) {
             1    -> 15
@@ -301,7 +350,6 @@ object PointsManager {
 
     // ── Referral ──────────────────────────────────────────────────────────────
     fun redeemReferralCode(code: String): Boolean {
-        if (!isGoogleSignedIn()) return false
         val clean = code.trim().uppercase()
         if (clean.isBlank() || clean == _referralCode.value) return false
 

@@ -1,4 +1,4 @@
-﻿@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 
 package com.zvpn.ui.servers
 
@@ -44,6 +44,8 @@ import com.zvpn.shared.resources.Res
 import com.zvpn.shared.resources.*
 import com.zvpn.domain.config.DnsTunnelProfile
 import com.zvpn.domain.config.DohPresets
+import com.zvpn.domain.ads.PointsManager
+import com.zvpn.domain.billing.BillingConfig
 import com.zvpn.ui.components.PickerField
 import com.zvpn.ui.platform.draggableHorizontalScroll
 
@@ -277,9 +279,10 @@ fun DnsTunnelSheet(
 
             Button(
                 onClick = {
-                    onSave(
-                        name.trim(),
-                        DnsTunnelProfile(
+                    if (PointsManager.unlockFeature("dns_stealth_tunnel", BillingConfig.FEATURE_DNS_TUNNEL_UNLOCK)) {
+                        onSave(
+                            name.trim(),
+                            DnsTunnelProfile(
                             engine = engine,
                             domain = domain.trim(),
                             publicKey = publicKey.trim(),
@@ -313,6 +316,7 @@ fun DnsTunnelSheet(
                             forwardDnsThroughSsh = forwardDns,
                         ),
                     )
+                    } // unlockFeature
                 },
                 shape = RoundedCornerShape(18.dp),
                 modifier = Modifier.fillMaxWidth().height(54.dp),

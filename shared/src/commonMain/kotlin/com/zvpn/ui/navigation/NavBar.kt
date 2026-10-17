@@ -98,7 +98,7 @@ private fun FloatingPillBar(
             if (onOpenPremium != null) {
                 GenericNavPill(
                     iconRes = Res.drawable.ic_bolt,
-                    label = "Premium ⚡",
+                    label = "Premium",
                     selected = false,
                     compact = compact,
                     onClick = onOpenPremium,
@@ -253,7 +253,7 @@ private fun MaterialBar(
                 },
                 label = {
                     Text(
-                        "Premium ⚡",
+                        "Premium",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,

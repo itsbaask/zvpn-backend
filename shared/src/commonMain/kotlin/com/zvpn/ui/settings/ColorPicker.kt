@@ -1,4 +1,4 @@
-﻿@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 
 package com.zvpn.ui.settings
 
@@ -79,7 +79,11 @@ fun ColorPickerDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(onClick = { onPick(color) }) { Text(stringResource(Res.string.action_save)) }
+            TextButton(onClick = {
+                if (com.zvpn.domain.ads.PointsManager.unlockFeature("ui_custom_theme_pickers", com.zvpn.domain.billing.BillingConfig.FEATURE_THEME_STYLE_UNLOCK)) {
+                    onPick(color)
+                }
+            }) { Text(stringResource(Res.string.action_save)) }
         },
         dismissButton = {
             Row {

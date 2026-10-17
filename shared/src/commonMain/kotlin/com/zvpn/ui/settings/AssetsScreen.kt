@@ -1,4 +1,4 @@
-﻿@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 
 package com.zvpn.ui.settings
 
@@ -139,13 +139,15 @@ fun AssetsScreen(
             } else {
                 Button(
                     onClick = {
-                        scope.launch {
-                            busy = true
-                            message = null
-                            val ok = geo.downloadAll(settings.geoFilesSource)
-                            assets = geo.state()
-                            busy = false
-                            message = getString(if (ok) Res.string.assets_done else Res.string.assets_failed)
+                        if (com.zvpn.domain.ads.PointsManager.unlockFeature("assets_sync", com.zvpn.domain.billing.BillingConfig.FEATURE_ASSETS_SYNC_COST)) {
+                            scope.launch {
+                                busy = true
+                                message = null
+                                val ok = geo.downloadAll(settings.geoFilesSource)
+                                assets = geo.state()
+                                busy = false
+                                message = getString(if (ok) Res.string.assets_done else Res.string.assets_failed)
+                            }
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),

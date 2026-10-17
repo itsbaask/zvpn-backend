@@ -1133,6 +1133,25 @@ class ZVpnService : VpnService() {
                 val seconds = (waited / 1000L).coerceAtLeast(1L)
                 VpnManager.onMetrics(elapsed, down / seconds, up / seconds, totalDown, totalUp)
 
+                // ── Per-minute Point Consumption Tick ─────────────────────────────
+                // Every full 60 seconds deduct points based on server tier & protocol.
+                // Paid subscribers (pointsCostMultiplier==0) are exempt.
+                if (elapsed > 0 && elapsed % 60 == 0) {
+                    val currentTier = com.zvpn.billing.BillingManager.currentTier
+                    val serverTier = VpnManager.activeServerTier
+                    val protocol   = VpnManager.activeProtocol
+                    val ok = com.zvpn.domain.ads.PointsManager.consumePerMinute(serverTier, protocol, currentTier)
+                    if (!ok) {
+                        // Balance depleted — notify user and stop tunnel
+                        val nm = getSystemService(NotificationManager::class.java)
+                        val noPointsNotif = notifications.buildNoPointsNotification()
+                        nm?.notify(VpnNotifications.NOTIFICATION_ID, noPointsNotif)
+                        android.os.Handler(Looper.getMainLooper()).post { stopEverything() }
+                        break
+                    }
+                }
+                // ─────────────────────────────────────────────────────────────────
+
                 val repaint = elapsed - lastNotifySec >= cadence.notifySeconds
                 if (repaint) {
                     lastNotifySec = elapsed

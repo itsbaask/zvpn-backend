@@ -1,13 +1,12 @@
 @file:OptIn(
-    androidx.compose.material3.ExperimentalMaterial3Api::class,
-    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class,
+    ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3ExpressiveApi::class,
 )
 
 package com.zvpn.ui.premium
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -31,12 +31,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zvpn.domain.billing.BillingConfig
-import com.zvpn.shared.resources.Res
-import com.zvpn.shared.resources.ic_bolt
-import com.zvpn.shared.resources.ic_close
-import com.zvpn.ui.theme.ZGradients
+import com.zvpn.shared.resources.*
+import com.zvpn.ui.theme.ZCyan
 import com.zvpn.ui.theme.ZHotPink
 import com.zvpn.ui.theme.ZLime
+import com.zvpn.ui.theme.ZOnLime
 import com.zvpn.ui.theme.ZViolet
 import org.jetbrains.compose.resources.painterResource
 
@@ -51,11 +50,11 @@ data class PlanOption(
 )
 
 /**
- * PaywallScreen — redesigned to match ZVPN's design language exactly.
+ * PaywallScreen — redesigned to match ZVPN's expressive design language.
  *
- * Uses ONLY MaterialTheme tokens (no hardcoded dark/light colours).
- * The hero uses ZGradients (Violet → HotPink → Lime) — same as the
- * connection animation — so it feels native to the app.
+ * Uses MaterialTheme colorScheme tokens for full Light/Dark mode support.
+ * Incorporates ZVPN's signature vibrant palette (ZViolet, ZHotPink, ZLime, ZCyan)
+ * and ambient radial glows matching the connection animations.
  */
 @Composable
 fun PaywallScreen(
@@ -71,13 +70,13 @@ fun PaywallScreen(
         listOf(
             PlanOption(
                 productId = BillingConfig.PRODUCT_PREMIUM_WEEKLY,
-                title = "Weekly",
+                title = "Weekly Plan",
                 price = BillingConfig.PRICE_WEEKLY_DISPLAY,
                 perDay = BillingConfig.PRICE_WEEKLY_PER_DAY,
             ),
             PlanOption(
                 productId = BillingConfig.PRODUCT_PREMIUM_MONTHLY,
-                title = "Monthly",
+                title = "Monthly Plan",
                 price = BillingConfig.PRICE_MONTHLY_DISPLAY,
                 perDay = BillingConfig.PRICE_MONTHLY_PER_DAY,
                 badge = "Most Popular",
@@ -85,7 +84,7 @@ fun PaywallScreen(
             ),
             PlanOption(
                 productId = BillingConfig.PRODUCT_PREMIUM_YEARLY,
-                title = "Yearly",
+                title = "Yearly Plan",
                 price = BillingConfig.PRICE_YEARLY_DISPLAY,
                 perDay = BillingConfig.PRICE_YEARLY_PER_DAY,
                 badge = "Best Value",
@@ -99,31 +98,57 @@ fun PaywallScreen(
                 badge = "Ultimate",
                 savePct = "Save 58%",
             ),
+            PlanOption(
+                productId = BillingConfig.PRODUCT_PACK_3000_PTS,
+                title = "3,000 Points Pack",
+                price = "$7.99",
+                perDay = "+3,000 Pts",
+                badge = "Point Pack",
+            ),
+            PlanOption(
+                productId = BillingConfig.PRODUCT_PACK_1200_PTS,
+                title = "1,200 Points Pack",
+                price = "$3.99",
+                perDay = "+1,200 Pts",
+                badge = "Point Pack",
+            ),
         )
     }
 
     var selectedPlan by remember { mutableStateOf(plans[1].productId) }
 
+    // Pulsing background glow animation for hero header
+    val infiniteTransition = rememberInfiniteTransition(label = "paywall-glow")
+    val glowPulse by infiniteTransition.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2400, easing = LinearOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "glowPulse",
+    )
+
     Box(modifier = Modifier.fillMaxSize().background(cs.background)) {
 
-        // ── Decorative hero gradient blob (top) ─────────────────────────────
+        // ── Ambient Top Hero Radial Glow ──────────────────────────────────────
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(260.dp)
+                .height(300.dp)
                 .drawBehind {
-                    // Radial glow — same violet/pink as app orb
                     drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                ZViolet.copy(alpha = 0.35f),
-                                ZHotPink.copy(alpha = 0.15f),
+                                ZViolet.copy(alpha = 0.30f * glowPulse),
+                                ZHotPink.copy(alpha = 0.15f * glowPulse),
+                                ZCyan.copy(alpha = 0.05f),
                                 Color.Transparent,
                             ),
                             center = Offset(size.width / 2f, 0f),
-                            radius = size.width * 0.75f,
+                            radius = size.width * 0.85f,
                         ),
-                        radius = size.width * 0.75f,
+                        radius = size.width * 0.85f,
                         center = Offset(size.width / 2f, 0f),
                     )
                 }
@@ -134,64 +159,131 @@ fun PaywallScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
-                .padding(top = 12.dp, bottom = 32.dp),
+                .padding(top = 12.dp, bottom = 36.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
 
-            // ── Top bar ───────────────────────────────────────────────────────
+            // ── Top Navigation Bar ────────────────────────────────────────────
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onDismiss) {
+                // Restore purchases text button
+                TextButton(
+                    onClick = { onPlanSelected("restore") },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                ) {
+                    Text(
+                        text = "Restore",
+                        style = typo.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = cs.onSurfaceVariant,
+                    )
+                }
+
+                // Close button
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(cs.surfaceContainerHigh.copy(alpha = 0.7f)),
+                ) {
                     Icon(
                         painter = painterResource(Res.drawable.ic_close),
                         contentDescription = "Close",
-                        tint = cs.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp),
+                        tint = cs.onSurface,
+                        modifier = Modifier.size(18.dp),
                     )
                 }
             }
 
             Spacer(Modifier.height(8.dp))
 
-            // ── Icon — same gradient orb as connect button ────────────────────
+            // ── Hero Icon Badge ───────────────────────────────────────────────
             Box(
                 modifier = Modifier
-                    .size(80.dp)
+                    .size(88.dp)
+                    .shadow(16.dp, CircleShape, spotColor = ZViolet)
                     .clip(CircleShape)
                     .background(
                         Brush.linearGradient(
-                            colors = listOf(ZViolet, ZHotPink),
+                            colors = listOf(ZViolet, ZHotPink, ZLime)
                         )
-                    ),
+                    )
+                    .padding(3.dp)
+                    .clip(CircleShape)
+                    .background(cs.surfaceContainerLowest),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    painter = painterResource(Res.drawable.ic_bolt),
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(40.dp),
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(ZViolet.copy(alpha = 0.25f), ZHotPink.copy(alpha = 0.20f))
+                            )
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_bolt),
+                        contentDescription = null,
+                        tint = ZHotPink,
+                        modifier = Modifier.size(44.dp),
+                    )
+                }
             }
 
             Spacer(Modifier.height(16.dp))
 
-            // ── Title ─────────────────────────────────────────────────────────
+            // ── Premium Badge Tag ─────────────────────────────────────────────
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = cs.primaryContainer,
+                tonalElevation = 0.dp,
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(ZLime)
+                    )
+                    Text(
+                        text = "ZVPN PREMIUM",
+                        style = typo.labelSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = cs.onPrimaryContainer,
+                        letterSpacing = 1.2.sp,
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            // ── Main Title ───────────────────────────────────────────────────
             Text(
-                text = "ZVPN Premium",
+                text = "Unleash Ultimate VPN Power",
                 style = typo.headlineMedium,
-                fontWeight = FontWeight.ExtraBold,
+                fontWeight = FontWeight.Black,
                 color = cs.onBackground,
+                textAlign = TextAlign.Center,
             )
 
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(8.dp))
 
-            // Gradient accent line under title
+            // Gradient accent line
             Box(
                 modifier = Modifier
-                    .width(120.dp)
-                    .height(3.dp)
+                    .width(100.dp)
+                    .height(3.5.dp)
                     .clip(CircleShape)
                     .background(
                         Brush.linearGradient(listOf(ZViolet, ZHotPink, ZLime))
@@ -201,39 +293,37 @@ fun PaywallScreen(
             Spacer(Modifier.height(12.dp))
 
             Text(
-                text = "Unlock 10,000+ servers, zero ads, unlimited bandwidth & multi-hop chains",
+                text = "10,000+ Supercharged Servers • Ultra Low Ping • Zero Ads • Unlimited Bandwidth",
                 style = typo.bodyMedium,
                 color = cs.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 8.dp),
+                modifier = Modifier.padding(horizontal = 12.dp),
             )
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(22.dp))
 
-            // ── Feature list ──────────────────────────────────────────────────
+            // ── Feature List Panel ────────────────────────────────────────────
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.large,
+                shape = MaterialTheme.shapes.extraLarge,
                 color = cs.surfaceContainer,
-                tonalElevation = 0.dp,
+                border = BorderStroke(1.dp, cs.outlineVariant.copy(alpha = 0.35f)),
             ) {
                 Column(
-                    modifier = Modifier.padding(vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(0.dp),
+                    modifier = Modifier.padding(vertical = 6.dp),
                 ) {
                     val features = listOf(
-                        Triple(ZViolet, "⚡", "10,000+ verified high-speed servers"),
-                        Triple(ZHotPink, "🛡️", "All protocols: VLESS, Hysteria 2, WireGuard…"),
-                        Triple(ZLime, "🚫", "Zero ads — completely ad-free experience"),
-                        Triple(ZViolet, "⛓️", "Multi-Hop & Custom DNS anti-tracker"),
-                        Triple(ZHotPink, "💬", "Priority support & instant activation"),
+                        FeatureItem(Res.drawable.ic_bolt, ZViolet, "10,000+ Ultra Fast Servers", "Worldwide low-ping dedicated nodes"),
+                        FeatureItem(Res.drawable.ic_encrypted, ZHotPink, "All Premium Protocols", "VLESS, Hysteria 2, WireGuard & Shadowsocks"),
+                        FeatureItem(Res.drawable.ic_check_circle, ZLime, "Zero Ads & Unlimited Speed", "No speed caps, no bandwidth throttling"),
+                        FeatureItem(Res.drawable.ic_public, ZCyan, "Multi-Hop & Anti-Tracker", "Double encryption & ad-block DNS built-in"),
                     )
-                    features.forEachIndexed { i, (accent, emoji, text) ->
-                        FeatureRow(emoji = emoji, text = text, accent = accent)
+                    features.forEachIndexed { i, feature ->
+                        FeatureRow(item = feature)
                         if (i < features.lastIndex) {
                             HorizontalDivider(
                                 modifier = Modifier.padding(horizontal = 16.dp),
-                                color = cs.outlineVariant.copy(alpha = 0.5f),
+                                color = cs.outlineVariant.copy(alpha = 0.3f),
                                 thickness = 0.5.dp,
                             )
                         }
@@ -243,26 +333,47 @@ fun PaywallScreen(
 
             Spacer(Modifier.height(24.dp))
 
-            // ── Plan cards ────────────────────────────────────────────────────
+            // ── Section Label ────────────────────────────────────────────────
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                horizontalArrangement = Arrangement.Start,
+            ) {
+                Text(
+                    text = "SELECT YOUR PLAN",
+                    style = typo.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = cs.onSurfaceVariant,
+                    letterSpacing = 1.sp,
+                )
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            // ── Plan Cards List ──────────────────────────────────────────────
             plans.forEach { plan ->
                 PlanCard(
                     plan = plan,
                     selected = selectedPlan == plan.productId,
                     onClick = { selectedPlan = plan.productId },
                 )
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(12.dp))
             }
 
             Spacer(Modifier.height(16.dp))
 
-            // ── CTA ───────────────────────────────────────────────────────────
+            // ── Main CTA Button ──────────────────────────────────────────────
             val selectedPlanData = plans.firstOrNull { it.productId == selectedPlan }
+            val ctaText = if (selectedPlanData != null)
+                "Continue — ${selectedPlanData.price}"
+            else "Unlock ZVPN Premium"
+
             Button(
                 onClick = { onPlanSelected(selectedPlan) },
                 enabled = !isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
+                    .height(58.dp)
+                    .shadow(12.dp, MaterialTheme.shapes.large, spotColor = ZViolet),
                 shape = MaterialTheme.shapes.large,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Transparent,
@@ -275,7 +386,9 @@ fun PaywallScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(
-                            Brush.linearGradient(listOf(ZViolet, ZHotPink)),
+                            Brush.linearGradient(
+                                colors = listOf(ZViolet, ZHotPink, ZLime)
+                            ),
                             shape = MaterialTheme.shapes.large,
                         ),
                     contentAlignment = Alignment.Center,
@@ -284,64 +397,143 @@ fun PaywallScreen(
                         CircularProgressIndicator(
                             modifier = Modifier.size(24.dp),
                             color = Color.White,
-                            strokeWidth = 2.dp,
+                            strokeWidth = 2.5.dp,
                         )
                     } else {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                        ) {
+                            Text(
+                                text = ctaText,
+                                style = typo.titleMedium,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White,
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_bolt),
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ── Watch Ad CTA (Optional Free Option) ──────────────────────────
+            if (onWatchAd != null) {
+                Spacer(Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = onWatchAd,
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = MaterialTheme.shapes.medium,
+                    border = BorderStroke(1.dp, ZViolet.copy(alpha = 0.5f)),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = cs.primary,
+                    ),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                    ) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_bolt),
+                            contentDescription = null,
+                            tint = ZViolet,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
                         Text(
-                            text = if (selectedPlanData != null)
-                                "Continue — ${selectedPlanData.price}"
-                            else "Continue",
-                            style = typo.titleMedium,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.White,
+                            text = "Watch Ad for 30 Min Free Access",
+                            style = typo.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = cs.onSurface,
                         )
                     }
                 }
             }
 
-            // ── Watch ad option ───────────────────────────────────────────────
-            if (onWatchAd != null) {
-                Spacer(Modifier.height(10.dp))
-                OutlinedButton(
-                    onClick = onWatchAd,
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    border = BorderStroke(1.dp, cs.outlineVariant),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = cs.primary,
-                    ),
-                ) {
-                    Text(
-                        "🎬  Watch ad for 30 min free access",
-                        style = typo.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(12.dp))
 
             TextButton(onClick = onDismiss) {
                 Text(
-                    "Maybe later",
+                    text = "Maybe Later",
                     style = typo.labelLarge,
                     color = cs.onSurfaceVariant,
+                    fontWeight = FontWeight.Medium,
                 )
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
 
+            // ── Auto-renewal Legal Note ───────────────────────────────────────
             Text(
-                "Cancel anytime in Google Play. Subscription renews automatically.",
+                text = "Subscriptions renew automatically until canceled in Google Play Store.\nCancel anytime in Play Store settings.",
                 style = typo.labelSmall,
-                color = cs.onSurfaceVariant.copy(alpha = 0.6f),
+                color = cs.onSurfaceVariant.copy(alpha = 0.65f),
                 textAlign = TextAlign.Center,
+                lineHeight = 15.sp,
             )
         }
     }
 }
 
-// ─── Plan Card ────────────────────────────────────────────────────────────────
+// ─── Feature Data Model & Item Component ─────────────────────────────────────
+
+private data class FeatureItem(
+    val iconRes: org.jetbrains.compose.resources.DrawableResource,
+    val accentColor: Color,
+    val title: String,
+    val subtitle: String,
+)
+
+@Composable
+private fun FeatureRow(item: FeatureItem) {
+    val cs = MaterialTheme.colorScheme
+    val typo = MaterialTheme.typography
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(item.accentColor.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(item.iconRes),
+                contentDescription = null,
+                tint = item.accentColor,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = item.title,
+                style = typo.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = cs.onSurface,
+            )
+            Text(
+                text = item.subtitle,
+                style = typo.labelSmall,
+                color = cs.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+// ─── Plan Card Component ──────────────────────────────────────────────────────
 
 @Composable
 private fun PlanCard(
@@ -353,18 +545,18 @@ private fun PlanCard(
     val typo = MaterialTheme.typography
 
     val borderColor by animateColorAsState(
-        targetValue = if (selected) ZViolet else cs.outlineVariant,
-        animationSpec = tween(200),
+        targetValue = if (selected) ZViolet else cs.outlineVariant.copy(alpha = 0.4f),
+        animationSpec = tween(220),
         label = "plan-border",
     )
     val bgColor by animateColorAsState(
-        targetValue = if (selected) cs.primaryContainer else cs.surfaceContainerLow,
-        animationSpec = tween(200),
+        targetValue = if (selected) cs.primaryContainer.copy(alpha = 0.85f) else cs.surfaceContainerLow,
+        animationSpec = tween(220),
         label = "plan-bg",
     )
     val scale by animateFloatAsState(
-        targetValue = if (selected) 1.01f else 1f,
-        animationSpec = tween(180),
+        targetValue = if (selected) 1.015f else 1.0f,
+        animationSpec = tween(200),
         label = "plan-scale",
     )
 
@@ -376,23 +568,24 @@ private fun PlanCard(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(MaterialTheme.shapes.large)
+                .clip(MaterialTheme.shapes.extraLarge)
                 .clickable(onClick = onClick),
-            shape = MaterialTheme.shapes.large,
+            shape = MaterialTheme.shapes.extraLarge,
             color = bgColor,
             border = BorderStroke(
                 width = if (selected) 2.dp else 1.dp,
                 color = borderColor,
             ),
+            tonalElevation = if (selected) 4.dp else 0.dp,
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // Radio dot
+                // Radio indicator
                 Box(
                     modifier = Modifier
-                        .size(20.dp)
+                        .size(22.dp)
                         .clip(CircleShape)
                         .background(
                             if (selected)
@@ -405,7 +598,7 @@ private fun PlanCard(
                     if (selected) {
                         Box(
                             modifier = Modifier
-                                .size(8.dp)
+                                .size(9.dp)
                                 .clip(CircleShape)
                                 .background(Color.White)
                         )
@@ -415,16 +608,36 @@ private fun PlanCard(
                 Spacer(Modifier.width(14.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = plan.title,
-                        style = typo.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = if (selected) cs.onPrimaryContainer else cs.onSurface,
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = plan.title,
+                            style = typo.titleSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (selected) cs.onPrimaryContainer else cs.onSurface,
+                        )
+                        if (plan.savePct.isNotEmpty()) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = ZLime,
+                            ) {
+                                Text(
+                                    text = plan.savePct,
+                                    style = typo.labelSmall,
+                                    fontWeight = FontWeight.Black,
+                                    color = ZOnLime,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(2.dp))
                     Text(
                         text = plan.perDay,
-                        style = typo.labelSmall,
-                        color = if (selected) cs.onPrimaryContainer.copy(0.7f) else cs.onSurfaceVariant,
+                        style = typo.labelMedium,
+                        color = if (selected) cs.onPrimaryContainer.copy(0.75f) else cs.onSurfaceVariant,
                     )
                 }
 
@@ -432,78 +645,44 @@ private fun PlanCard(
                     Text(
                         text = plan.price,
                         style = typo.titleMedium,
-                        fontWeight = FontWeight.ExtraBold,
+                        fontWeight = FontWeight.Black,
                         color = if (selected) cs.onPrimaryContainer else cs.onSurface,
                     )
-                    if (plan.savePct.isNotEmpty()) {
-                        Text(
-                            text = plan.savePct,
-                            style = typo.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = ZLime,
-                        )
-                    }
                 }
             }
         }
 
-        // Badge chip
+        // Floating Top-Right Badge (e.g. Most Popular / Best Value)
         if (plan.badge.isNotEmpty()) {
+            val badgeBrush = when {
+                plan.isPopular -> Brush.linearGradient(listOf(ZViolet, ZHotPink))
+                plan.badge == "Best Value" -> Brush.linearGradient(listOf(ZLime, ZLime))
+                else -> Brush.linearGradient(listOf(cs.secondaryContainer, cs.secondaryContainer))
+            }
+            val textColor = when {
+                plan.isPopular -> Color.White
+                plan.badge == "Best Value" -> ZOnLime
+                else -> cs.onSecondaryContainer
+            }
+
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(end = 14.dp)
-                    .offset(y = (-10).dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(
-                        if (plan.isPopular)
-                            Brush.linearGradient(listOf(ZViolet, ZHotPink))
-                        else
-                            Brush.linearGradient(
-                                listOf(
-                                    MaterialTheme.colorScheme.secondaryContainer,
-                                    MaterialTheme.colorScheme.secondaryContainer,
-                                )
-                            )
-                    )
+                    .padding(end = 16.dp)
+                    .offset(y = (-11).dp)
+                    .shadow(4.dp, RoundedCornerShape(10.dp))
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(badgeBrush)
                     .padding(horizontal = 10.dp, vertical = 3.dp),
             ) {
                 Text(
                     text = plan.badge,
                     style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = if (plan.isPopular) Color.White
-                    else MaterialTheme.colorScheme.onSecondaryContainer,
+                    fontWeight = FontWeight.Black,
+                    color = textColor,
                 )
             }
         }
     }
 }
 
-// ─── Feature Row ─────────────────────────────────────────────────────────────
-
-@Composable
-private fun FeatureRow(emoji: String, text: String, accent: Color) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        // Accent dot
-        Box(
-            modifier = Modifier
-                .size(6.dp)
-                .clip(CircleShape)
-                .background(accent)
-        )
-        Text(
-            text = "$emoji  $text",
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f),
-        )
-    }
-}

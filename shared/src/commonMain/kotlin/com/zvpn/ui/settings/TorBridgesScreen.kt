@@ -59,6 +59,8 @@ fun TorBridgesScreen(
     }
 
     fun toggle(line: String) {
+        val ok = com.zvpn.domain.ads.PointsManager.unlockFeature("tor_bridges", com.zvpn.domain.billing.BillingConfig.FEATURE_TOR_BRIDGES_UNLOCK)
+        if (!ok) return
         val next = enabled.toMutableSet()
         if (!next.remove(line)) next.add(line)
         onUpdate { it.copy(torEnabledBridges = next.joinToString("\n")) }

@@ -319,6 +319,9 @@ fun MainScaffold(
                     com.zvpn.ui.browser.BrowserScreen(
                         contentPadding = innerPadding,
                         privacy = realPrivacy,
+                        userTier = userTier,
+                        onUpgrade = onUpgrade ?: { showPaywallSheet = true },
+                        onWatchAd = { showPaywallSheet = true },
                     )
                 }
                 TopDestination.Settings -> SettingsScreen(

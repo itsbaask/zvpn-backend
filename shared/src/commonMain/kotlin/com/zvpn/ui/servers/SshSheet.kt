@@ -1,4 +1,4 @@
-﻿@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 
 package com.zvpn.ui.servers
 
@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.dp
 import com.zvpn.shared.resources.Res
 import com.zvpn.shared.resources.*
 import com.zvpn.domain.config.SshProfile
+import com.zvpn.domain.ads.PointsManager
+import com.zvpn.domain.billing.BillingConfig
 import com.zvpn.ui.components.PickerField
 
 @Composable
@@ -85,18 +87,20 @@ fun SshSheet(
 
             Button(
                 onClick = {
-                    onSave(
-                        name.trim(),
-                        SshProfile(
-                            host = host.trim(),
-                            port = port.toIntOrNull() ?: 22,
-                            username = username.trim(),
-                            authType = authType,
-                            password = password,
-                            privateKey = privateKey.trim(),
-                            keyPassphrase = passphrase,
-                        ),
-                    )
+                    if (PointsManager.unlockFeature("ssh_remote_tunnel", BillingConfig.FEATURE_SSH_KEYS_UNLOCK)) {
+                        onSave(
+                            name.trim(),
+                            SshProfile(
+                                host = host.trim(),
+                                port = port.toIntOrNull() ?: 22,
+                                username = username.trim(),
+                                authType = authType,
+                                password = password,
+                                privateKey = privateKey.trim(),
+                                keyPassphrase = passphrase,
+                            ),
+                        )
+                    } // unlockFeature
                 },
                 shape = RoundedCornerShape(18.dp),
                 modifier = Modifier.fillMaxWidth().height(54.dp),

@@ -11,12 +11,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.zvpn.data.net.NetworkInfo
 import com.zvpn.data.net.NetworkInfoRepository
+import com.zvpn.shared.resources.Res
+import com.zvpn.shared.resources.ic_public
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun MyIpDialog(
@@ -36,6 +38,7 @@ fun MyIpDialog(
     }
 
     LaunchedEffect(Unit) {
+        com.zvpn.domain.ads.PointsManager.unlockFeature("my_ip_geolocation_inspector", com.zvpn.domain.billing.BillingConfig.FEATURE_MY_IP_INSPECTOR)
         loadIpInfo()
     }
 
@@ -51,7 +54,12 @@ fun MyIpDialog(
                         .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("🌐", fontSize = 20.sp)
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_public),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp),
+                    )
                 }
                 Text("My IP Information", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             }

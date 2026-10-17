@@ -1,4 +1,4 @@
-﻿package com.zvpn.ui.servers
+package com.zvpn.ui.servers
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -89,6 +89,7 @@ fun DeepLinkImportHost(repository: ConfigRepository, onImported: () -> Unit) {
         },
         confirmButton = {
             TextButton(onClick = {
+                if (com.zvpn.domain.ads.PointsManager.unlockFeature("server_import_clipboard", com.zvpn.domain.billing.BillingConfig.FEATURE_EXPORT_CONFIG_COST)) {
                 DeepLinkBus.clear()
 
                 scope.launch(Dispatchers.Default) {
@@ -129,6 +130,7 @@ fun DeepLinkImportHost(repository: ConfigRepository, onImported: () -> Unit) {
                             )
                         }
                 }
+                } // unlockFeature
             }) {
                 Text(
                     stringResource(

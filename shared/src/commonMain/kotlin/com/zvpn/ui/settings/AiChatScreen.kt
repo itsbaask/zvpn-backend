@@ -132,6 +132,8 @@ fun AiChatScreen(
             FilledIconButton(
                 enabled = draft.isNotBlank() && !busy,
                 onClick = {
+                    val ok = com.zvpn.domain.ads.PointsManager.unlockFeature("ai_chat", com.zvpn.domain.billing.BillingConfig.FEATURE_AI_CHAT_COST)
+                    if (!ok) return@FilledIconButton
                     val message = draft.trim()
                     draft = ""
                     busy = true

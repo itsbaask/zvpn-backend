@@ -191,9 +191,9 @@ fun AdRewardSheet(
                 Text("Consumption rates while connected:", style = typo.labelMedium, color = cs.onSurfaceVariant)
                 Spacer(Modifier.height(6.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
-                    Text("🟢 Free: 1/min", style = typo.bodySmall, color = cs.onSurface)
-                    Text("⚡ Premium: 5/min", style = typo.bodySmall, color = cs.primary)
-                    Text("👑 Plus: 10/min", style = typo.bodySmall, color = cs.onSurface)
+                    Text("Free: 1/min", style = typo.bodySmall, color = cs.onSurface)
+                    Text("Premium: 5/min", style = typo.bodySmall, color = cs.primary)
+                    Text("Plus: 10/min", style = typo.bodySmall, color = cs.onSurface)
                 }
             }
         }
@@ -213,7 +213,7 @@ fun AdRewardSheet(
             ) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        "📅 Daily Streak — Day $streakDays",
+                        "Daily Streak — Day $streakDays",
                         style = typo.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = cs.onSurface,
@@ -248,11 +248,11 @@ fun AdRewardSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("🎁 Refer Friends — +50 pts each", style = typo.titleSmall, fontWeight = FontWeight.Bold, color = cs.onSurface)
+                    Text("Refer Friends — +50 pts each", style = typo.titleSmall, fontWeight = FontWeight.Bold, color = cs.onSurface)
                     Text("Code: $myRefCode", style = typo.bodySmall, color = cs.primary, fontWeight = FontWeight.SemiBold)
                 }
                 FilledTonalButton(onClick = onShareReferral, shape = MaterialTheme.shapes.medium) {
-                    Text("Share 🚀", fontWeight = FontWeight.Bold)
+                    Text("Share", fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -290,19 +290,16 @@ fun AdRewardSheet(
                     } else {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                if (remainingToday > 0) "🎬  Watch Ad — +100 pts + 30 min"
-                                else "Daily limit ($maxPerDay/$maxPerDay)",
+                                "Watch Ad — +100 Pts & 30 Min Access",
                                 style = typo.titleSmall,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = if (adEnabled) Color.White else cs.onSurface.copy(0.38f),
                             )
-                            if (remainingToday > 0) {
-                                Text(
-                                    "$remainingToday of $maxPerDay remaining today",
-                                    style = typo.labelSmall,
-                                    color = Color.White.copy(0.7f),
-                                )
-                            }
+                            Text(
+                                "Unlimited Ads · Watch anytime to earn",
+                                style = typo.labelSmall,
+                                color = Color.White.copy(0.7f),
+                            )
                         }
                     }
                 }
@@ -317,7 +314,7 @@ fun AdRewardSheet(
             modifier = Modifier.fillMaxWidth().height(46.dp),
             shape = MaterialTheme.shapes.medium,
         ) {
-            Text("💎 Open Points Wallet", style = typo.labelLarge, fontWeight = FontWeight.SemiBold)
+            Text("Open Points Wallet", style = typo.labelLarge, fontWeight = FontWeight.SemiBold)
         }
 
         Spacer(Modifier.height(8.dp))
@@ -328,7 +325,7 @@ fun AdRewardSheet(
             modifier = Modifier.fillMaxWidth().height(46.dp),
             shape = MaterialTheme.shapes.medium,
         ) {
-            Text("👑 Go Premium — No Ads", style = typo.labelLarge, fontWeight = FontWeight.SemiBold)
+            Text("Go Premium — No Ads", style = typo.labelLarge, fontWeight = FontWeight.SemiBold)
         }
 
         Spacer(Modifier.height(4.dp))

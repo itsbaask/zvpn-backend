@@ -598,7 +598,17 @@ fun ServersScreen(
                     testing = testing,
                     updating = updating,
                     onPingTcp = { startPing(real = false) },
-                    onPingReal = { startPing(real = true) },
+                    onPingReal = {
+                        val isPingUnlocked = userTier != com.zvpn.domain.billing.UserTier.Free || com.zvpn.domain.ads.PointsManager.isFeatureUnlocked("ping_all")
+                        if (!isPingUnlocked) {
+                            val ok = com.zvpn.domain.ads.PointsManager.unlockFeature("ping_all", com.zvpn.domain.billing.BillingConfig.FEATURE_PING_ALL_COST)
+                            if (!ok) {
+                                onUpgrade?.invoke()
+                                return@ServersActionBar
+                            }
+                        }
+                        startPing(real = true)
+                    },
                     onStopPing = { PingCoordinator.cancel() },
                     onSubscriptions = { showSubs = true },
                 ) { dismiss ->
@@ -611,7 +621,7 @@ fun ServersScreen(
                         },
                     )
                     DropdownMenuItem(
-                        text = { Text("Go Premium ⚡") },
+                        text = { Text("Go Premium") },
                         leadingIcon = { Icon(painterResource(Res.drawable.ic_bolt), null, tint = MaterialTheme.colorScheme.primary) },
                         onClick = {
                             dismiss()

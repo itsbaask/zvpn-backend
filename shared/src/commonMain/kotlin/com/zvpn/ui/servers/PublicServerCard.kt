@@ -177,7 +177,7 @@ fun PublicServerCard(
                             color = costColor.copy(alpha = 0.12f),
                         ) {
                             Text(
-                                text = "⚡ $costLabel",
+                                text = costLabel,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = costColor,

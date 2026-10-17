@@ -128,7 +128,12 @@ fun SpeedTestScreen(
             ActionButton(
                 running = running,
                 hasResults = st.hasResults,
-                onStart = { job = scope.launch { engine.run() } },
+                onStart = {
+                    val ok = com.zvpn.domain.ads.PointsManager.unlockFeature("speedtest", com.zvpn.domain.billing.BillingConfig.FEATURE_SPEEDTEST_COST)
+                    if (ok) {
+                        job = scope.launch { engine.run() }
+                    }
+                },
                 onStop = { engine.cancel() },
             )
         }

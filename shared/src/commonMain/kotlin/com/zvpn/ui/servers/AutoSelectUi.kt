@@ -1,4 +1,4 @@
-﻿@file:OptIn(
+@file:OptIn(
     androidx.compose.material3.ExperimentalMaterial3Api::class,
     androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class,
 )
@@ -45,6 +45,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.zvpn.core.AutoSelect
+import com.zvpn.domain.ads.PointsManager
+import com.zvpn.domain.billing.BillingConfig
 import com.zvpn.domain.config.VpnProfile
 import com.zvpn.platform.currentTimeMillis
 import com.zvpn.shared.resources.Res
@@ -280,7 +282,12 @@ fun AutoSelectSheet(
                         selected = tag == status.selected,
                         pinned = tag == status.pinned,
                         onPin = if (AutoSelect.supportsPinning) {
-                            { AutoSelect.pin(tag); Unit }
+                            {
+                                if (PointsManager.unlockFeature("auto_select_correction", BillingConfig.FEATURE_SPEEDTEST_COST)) {
+                                    AutoSelect.pin(tag)
+                                }
+                                Unit
+                            }
                         } else null,
                     )
                 }

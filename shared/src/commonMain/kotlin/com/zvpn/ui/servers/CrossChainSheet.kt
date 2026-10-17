@@ -1,4 +1,4 @@
-﻿@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 
 package com.zvpn.ui.servers
 
@@ -32,6 +32,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.zvpn.domain.config.VpnProfile
+import com.zvpn.domain.ads.PointsManager
+import com.zvpn.domain.billing.BillingConfig
 import com.zvpn.shared.resources.Res
 import com.zvpn.shared.resources.*
 import org.jetbrains.compose.resources.stringResource
@@ -231,7 +233,11 @@ fun CrossChainSheet(
                 }
 
                 Button(
-                    onClick = { onSave(name.trim(), innerId, outerId) },
+                    onClick = {
+                        if (PointsManager.unlockFeature("cross_chain", BillingConfig.FEATURE_PROXY_CHAIN_UNLOCK)) {
+                            onSave(name.trim(), innerId, outerId)
+                        }
+                    },
                     enabled = valid,
                     shape = RoundedCornerShape(18.dp),
                     modifier = Modifier.fillMaxWidth().height(54.dp),

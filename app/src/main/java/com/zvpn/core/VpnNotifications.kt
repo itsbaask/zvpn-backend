@@ -1,4 +1,4 @@
-﻿package com.zvpn.core
+package com.zvpn.core
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -85,6 +85,24 @@ class VpnNotifications(private val ctx: Context) {
             chip = state.chip,
             showDetailsOnLockScreen = state.showDetailsOnLockScreen
         )
+    }
+
+    /**
+     * Notification shown when the user's point balance reaches 0 during an active VPN session.
+     * The tunnel has been stopped. User is prompted to watch an ad or subscribe.
+     */
+    fun buildNoPointsNotification(): Notification {
+        return NotificationCompat.Builder(ctx, CHANNEL_ID_ALERTS)
+            .setSmallIcon(R.drawable.ic_bolt)
+            .setContentTitle("VPN Disconnected — No Points")
+            .setContentText("Your point balance ran out. Watch an ad or subscribe to continue.")
+            .setStyle(NotificationCompat.BigTextStyle()
+                .bigText("Your point balance reached 0 and the VPN tunnel was stopped.\nWatch an ad to earn +100 points and reconnect, or upgrade to Premium for unlimited access."))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setOngoing(false)
+            .setContentIntent(openApp())
+            .build()
     }
 
     fun build(

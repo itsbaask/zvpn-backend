@@ -48,9 +48,9 @@ object UnityAdsManager {
     const val POINTS_PER_INTERSTITIAL  = 25    // per interstitial view
     const val REWARD_MINUTES           = 30    // premium access per rewarded ad
 
-    // ─── Daily caps ──────────────────────────────────────────────────────────
-    const val MAX_REWARDED_PER_DAY     = 8
-    const val MAX_INTERSTITIAL_PER_DAY = 15
+    // ─── Daily caps (Unlimited ads allowed) ──────────────────────────────────
+    const val MAX_REWARDED_PER_DAY     = 999999
+    const val MAX_INTERSTITIAL_PER_DAY = 999999
 
     // ─── State ───────────────────────────────────────────────────────────────
     private val _isInitialized = MutableStateFlow(false)
@@ -218,10 +218,6 @@ object UnityAdsManager {
         if (isShowing.get()) { onFailed("already_showing"); return }
 
         resetDailyCountIfNeeded()
-        if (rewardedShownToday >= MAX_REWARDED_PER_DAY) {
-            onFailed("daily_cap_reached")
-            return
-        }
 
         // Generate S2S token before showing
         val nonce = UUID.randomUUID().toString()

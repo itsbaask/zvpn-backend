@@ -63,6 +63,8 @@ fun PointsWalletScreen(
     val canClaimStreak by PointsManager.canClaimDailyStreak.collectAsState()
     val streakDays by PointsManager.streakDays.collectAsState()
     val myRefCode by PointsManager.referralCode.collectAsState()
+    val unlockedSet by PointsManager.unlockedFeatures.collectAsState()
+    val autoDeduct by PointsManager.autoDeductEnabled.collectAsState()
     val isSignedIn = PointsManager.isGoogleSignedIn()
 
     var showRedeemDialog by remember { mutableStateOf(false) }
@@ -167,10 +169,10 @@ fun PointsWalletScreen(
                 ) {
                     Text(
                         text = when (userTier) {
-                            UserTier.PremiumPlus -> "👑 PREMIUM+"
-                            UserTier.Premium -> "⚡ PREMIUM"
-                            UserTier.AdRewarded -> "🎬 AD REWARDED"
-                            else -> "🆓 FREE TIER"
+                            UserTier.PremiumPlus -> "PREMIUM+"
+                            UserTier.Premium -> "PREMIUM"
+                            UserTier.AdRewarded -> "AD REWARDED"
+                            else -> "FREE TIER"
                         },
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp),
                         style = typo.labelMedium,
@@ -255,19 +257,16 @@ fun PointsWalletScreen(
                         } else {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    if (remainingAds > 0) "🎬  Watch Ad — +100 pts + 30 min"
-                                    else "Daily limit reached ($maxRewardedPerDay/$maxRewardedPerDay)",
+                                    "Watch Ad — +100 Pts & 30 Min Access",
                                     style = typo.titleSmall,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = if (adBtnEnabled) Color.White else cs.onSurface.copy(0.38f),
                                 )
-                                if (remainingAds > 0) {
-                                    Text(
-                                        "$remainingAds of $maxRewardedPerDay ads remaining today",
-                                        style = typo.labelSmall,
-                                        color = Color.White.copy(0.7f),
-                                    )
-                                }
+                                Text(
+                                    "Unlimited Ads · Watch anytime to earn",
+                                    style = typo.labelSmall,
+                                    color = Color.White.copy(0.7f),
+                                )
                             }
                         }
                     }
@@ -295,6 +294,41 @@ fun PointsWalletScreen(
 
         Spacer(Modifier.height(10.dp))
 
+        // ── Auto-Deduct Preference Toggle Card ────────────────────────────────
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+            shape = MaterialTheme.shapes.large,
+            color = cs.surfaceContainerHigh,
+        ) {
+            Row(
+                Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "Auto-Deduct Points",
+                        style = typo.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = cs.onSurface,
+                    )
+                    Text(
+                        if (autoDeduct) "Deduct points automatically without asking"
+                        else "Ask for confirmation before spending points",
+                        style = typo.bodySmall,
+                        color = cs.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                Switch(
+                    checked = autoDeduct,
+                    onCheckedChange = { PointsManager.setAutoDeductEnabled(it) },
+                )
+            }
+        }
+
+        Spacer(Modifier.height(10.dp))
+
         // ── Daily streak ───────────────────────────────────────────────────────
         Surface(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
@@ -309,22 +343,21 @@ fun PointsWalletScreen(
                 ) {
                     Column {
                         Text(
-                            "📅 Daily Login Streak",
+                            "Daily Login Streak",
                             style = typo.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = cs.onSurface,
                         )
                         Text(
-                            if (canClaimStreak && isSignedIn) "Claim Day $streakDays bonus!"
-                            else if (!isSignedIn) "Sign in with Google to earn"
-                            else "Return tomorrow for Day ${streakDays % 7 + 1}",
+                            if (canClaimStreak) "Claim Day $streakDays bonus!"
+                            else "Return tomorrow for Day ${(streakDays % 7) + 1}",
                             style = typo.bodySmall,
                             color = cs.onSurfaceVariant,
                         )
                     }
                     Button(
                         onClick = { PointsManager.claimDailyStreak() },
-                        enabled = canClaimStreak && isSignedIn,
+                        enabled = canClaimStreak,
                         shape = MaterialTheme.shapes.medium,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = cs.primary,
@@ -332,7 +365,7 @@ fun PointsWalletScreen(
                         ),
                     ) {
                         Text(
-                            if (canClaimStreak && isSignedIn) "Claim" else "✓ Done",
+                            if (canClaimStreak) "Claim" else "✓ Claimed",
                             fontWeight = FontWeight.Bold,
                         )
                     }
@@ -342,14 +375,14 @@ fun PointsWalletScreen(
 
                 // 7-day streak grid
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    val rewards = listOf(10, 15, 20, 25, 30, 40, 50)
+                    val rewards = listOf(15, 20, 30, 40, 50, 75, 100)
                     rewards.forEachIndexed { idx, pts ->
                         val dayNum = idx + 1
                         StreakCell(
                             day = dayNum,
                             pts = pts,
-                            isDone = dayNum < streakDays,
-                            isToday = dayNum == streakDays,
+                            isDone = dayNum < streakDays || (dayNum == streakDays && !canClaimStreak),
+                            isToday = dayNum == streakDays && canClaimStreak,
                         )
                     }
                 }
@@ -372,7 +405,7 @@ fun PointsWalletScreen(
                 ) {
                     Column(Modifier.weight(1f)) {
                         Text(
-                            "🎁 Refer Friends",
+                            "Refer Friends",
                             style = typo.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = cs.onSurface,
@@ -414,6 +447,13 @@ fun PointsWalletScreen(
 
         Spacer(Modifier.height(20.dp))
 
+data class FeatureUnlockItem(
+    val key: String,
+    val title: String,
+    val desc: String,
+    val cost: Int,
+)
+
         // ══ UNLOCK PREMIUM FEATURES WITH POINTS ══════════════════════════════
         SectionLabel("Unlock Features With Points")
         Spacer(Modifier.height(10.dp))
@@ -425,37 +465,44 @@ fun PointsWalletScreen(
         ) {
             Column(Modifier.padding(16.dp)) {
                 val features = listOf(
-                    Triple("🔗 Double VPN / Proxy Chain", "Multi-hop encrypted routing", BillingConfig.FEATURE_PROXY_CHAIN_UNLOCK),
-                    Triple("⚡ Split Tunneling Bypass", "Route selected apps outside VPN", BillingConfig.FEATURE_SPLIT_TUNNEL_UNLOCK),
-                    Triple("🚀 Full Speed & Latency Test", "Precision speed benchmark", BillingConfig.FEATURE_SPEEDTEST_COST),
-                    Triple("📡 Ping All 10,000+ Servers", "Find the lowest ping worldwide", BillingConfig.FEATURE_PING_ALL_COST),
+                    FeatureUnlockItem("browser", "Private In-App Browser", "Incognito & Ad-Block browsing", BillingConfig.FEATURE_BROWSER_UNLOCK),
+                    FeatureUnlockItem("proxy_chain", "Double VPN / Proxy Chain", "Multi-hop encrypted routing", BillingConfig.FEATURE_PROXY_CHAIN_UNLOCK),
+                    FeatureUnlockItem("split_tunnel", "Split Tunneling Bypass", "Route selected apps outside VPN", BillingConfig.FEATURE_SPLIT_TUNNEL_UNLOCK),
+                    FeatureUnlockItem("speedtest", "Full Speed & Latency Test", "Precision speed benchmark", BillingConfig.FEATURE_SPEEDTEST_COST),
+                    FeatureUnlockItem("ping_all", "Ping All 10,000+ Servers", "Find the lowest ping worldwide", BillingConfig.FEATURE_PING_ALL_COST),
+                    FeatureUnlockItem("export_config", "Export & Share Configs", "Share VPN configurations", BillingConfig.FEATURE_EXPORT_CONFIG_COST),
                 )
 
-                features.forEachIndexed { idx, (fTitle, fDesc, fCost) ->
+                features.forEachIndexed { idx, feature ->
+                    val isUnlocked = unlockedSet.contains(feature.key)
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Column(Modifier.weight(1f)) {
-                            Text(fTitle, style = typo.titleSmall, fontWeight = FontWeight.Bold, color = cs.onSurface)
-                            Text(fDesc, style = typo.bodySmall, color = cs.onSurfaceVariant)
+                            Text(feature.title, style = typo.titleSmall, fontWeight = FontWeight.Bold, color = cs.onSurface)
+                            Text(feature.desc, style = typo.bodySmall, color = cs.onSurfaceVariant)
                         }
                         Spacer(Modifier.width(8.dp))
                         Button(
                             onClick = {
-                                val ok = PointsManager.unlockFeature(fCost)
-                                // Trigger feedback
+                                PointsManager.unlockFeature(feature.key, feature.cost)
                             },
-                            enabled = totalPts >= fCost,
+                            enabled = !isUnlocked && totalPts >= feature.cost,
                             shape = MaterialTheme.shapes.medium,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = cs.primary,
-                                disabledContainerColor = cs.onSurface.copy(alpha = 0.08f),
+                                containerColor = if (isUnlocked) cs.primaryContainer else cs.primary,
+                                disabledContainerColor = if (isUnlocked) cs.primaryContainer.copy(alpha = 0.5f) else cs.onSurface.copy(alpha = 0.08f),
                             ),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                         ) {
-                            Text("$fCost Pts", style = typo.labelMedium, fontWeight = FontWeight.ExtraBold)
+                            Text(
+                                if (isUnlocked) "✓ Unlocked" else "${feature.cost} Pts",
+                                style = typo.labelMedium,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = if (isUnlocked) cs.onPrimaryContainer else Color.White,
+                            )
                         }
                     }
                     if (idx < features.lastIndex) {
@@ -478,9 +525,9 @@ fun PointsWalletScreen(
         ) {
             Column(Modifier.padding(vertical = 4.dp)) {
                 val spendRows = listOf(
-                    Triple(ZLime, "🌍 Free Servers", "1 pt/min — 100 pts = 1h 40min"),
-                    Triple(ZViolet, "⚡ Premium Servers", "4 pts/min — 100 pts = 25 min"),
-                    Triple(ZHotPink, "👑 Premium+ Servers", "10 pts/min — 100 pts = 10 min"),
+                    Triple(ZLime, "Free Servers", "1 pt/min — 100 pts = 1h 40min"),
+                    Triple(ZViolet, "Premium Servers", "4 pts/min — 100 pts = 25 min"),
+                    Triple(ZHotPink, "Premium+ Servers", "10 pts/min — 100 pts = 10 min"),
                 )
                 spendRows.forEachIndexed { i, (accent, title, desc) ->
                     Row(
@@ -521,7 +568,7 @@ fun PointsWalletScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(if (tx.isCredit) "➕" else "➖", fontSize = 14.sp)
+                                Text(if (tx.isCredit) "+" else "-", style = typo.titleMedium, fontWeight = FontWeight.Bold, color = if (tx.isCredit) Color(0xFF10B981) else Color(0xFFEF4444))
                                 Text(tx.title, style = typo.bodyMedium, fontWeight = FontWeight.Medium, color = cs.onSurface)
                             }
                             Text(
@@ -559,7 +606,7 @@ fun PointsWalletScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        "👑  Upgrade to Premium — No Ads",
+                        "Upgrade to Premium — No Ads",
                         style = typo.titleSmall,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White,
@@ -600,7 +647,7 @@ fun PointsWalletScreen(
     if (showRedeemDialog) {
         AlertDialog(
             onDismissRequest = { showRedeemDialog = false; redeemInput = "" },
-            title = { Text("🎁 Redeem Referral Code", fontWeight = FontWeight.Bold) },
+            title = { Text("Redeem Referral Code", fontWeight = FontWeight.Bold) },
             text = {
                 Column {
                     Text("Enter a friend's code to earn +50 bonus points!", style = typo.bodyMedium, color = cs.onSurfaceVariant)

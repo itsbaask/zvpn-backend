@@ -156,8 +156,28 @@ fun AdRewardHost(
                 },
                 onDismiss = { state.dismiss() },
                 onWatchAd = if (userTier == UserTier.Free) ({
-                    state.showAdSheet()
+                    if (isAdLoading) return@PaywallScreen
+                    isAdLoading = true
+                    UnityAdsManager.showRewarded(
+                        activity = activity,
+                        onRewarded = { minutes, _ ->
+                            isAdLoading = false
+                            billingManager.grantAdReward(minutes)
+                            state.dismiss()
+                        },
+                        onFailed = { reason ->
+                            isAdLoading = false
+                            if (reason == "ad_not_ready") {
+                                android.widget.Toast.makeText(
+                                    activity,
+                                    "Loading ad... Please try again in a moment",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        },
+                    )
                 }) else null,
+                isLoading = isAdLoading,
             )
         }
     }

@@ -84,7 +84,14 @@ fun GamingScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { GamingBoostManager.setGamingBoostEnabled(!isEnabled) }
+                    .clickable {
+                        val targetState = !isEnabled
+                        if (targetState) {
+                            val ok = com.zvpn.domain.ads.PointsManager.unlockFeature("gaming_boost", com.zvpn.domain.billing.BillingConfig.FEATURE_GAMING_BOOST_COST)
+                            if (!ok) return@clickable
+                        }
+                        GamingBoostManager.setGamingBoostEnabled(targetState)
+                    }
                     .padding(20.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -104,7 +111,13 @@ fun GamingScreen(
                 }
                 Switch(
                     checked = isEnabled,
-                    onCheckedChange = { GamingBoostManager.setGamingBoostEnabled(it) },
+                    onCheckedChange = { targetState ->
+                        if (targetState) {
+                            val ok = com.zvpn.domain.ads.PointsManager.unlockFeature("gaming_boost", com.zvpn.domain.billing.BillingConfig.FEATURE_GAMING_BOOST_COST)
+                            if (!ok) return@Switch
+                        }
+                        GamingBoostManager.setGamingBoostEnabled(targetState)
+                    },
                 )
             }
         }

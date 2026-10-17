@@ -1,11 +1,16 @@
 package com.zvpn.domain.billing
 
 object BillingConfig {
-    // ── Google Play Product IDs ────────────────────────────────────────────────
+    // ── Google Play Subscriptions ─────────────────────────────────────────────
     const val PRODUCT_PREMIUM_WEEKLY      = "zvpn_premium_weekly"
     const val PRODUCT_PREMIUM_MONTHLY     = "zvpn_premium_monthly"
     const val PRODUCT_PREMIUM_YEARLY      = "zvpn_premium_yearly"
     const val PRODUCT_PREMIUM_PLUS_YEARLY = "zvpn_premium_plus_yearly"
+
+    // ── Consumable In-App Point Packs ──────────────────────────────────────────
+    const val PRODUCT_PACK_500_PTS  = "zvpn_pack_500_pts"   // $1.99 -> +500 Pts
+    const val PRODUCT_PACK_1200_PTS = "zvpn_pack_1200_pts"  // $3.99 -> +1200 Pts
+    const val PRODUCT_PACK_3000_PTS = "zvpn_pack_3000_pts"  // $7.99 -> +3000 Pts
 
     // ── Display Pricing ────────────────────────────────────────────────────────
     const val PRICE_WEEKLY_DISPLAY       = "$2.99"
@@ -33,8 +38,8 @@ object BillingConfig {
     /** Welcome gift on first install */
     const val WELCOME_GIFT_POINTS = 100
 
-    /** Max ads a FREE user may watch per day (prevents abuse) */
-    const val FREE_DAILY_AD_CAP = 10
+    /** Unlimited ads allowed per day */
+    const val FREE_DAILY_AD_CAP = 999999
 
     /** Time-based ad reward duration (legacy, still supported) */
     const val AD_REWARD_MINUTES = 30
@@ -91,9 +96,29 @@ object BillingConfig {
     const val FEATURE_SPEEDTEST_COST       = 10   // run a speed test
     const val FEATURE_PING_ALL_COST        = 5    // ping all servers
     const val FEATURE_EXPORT_CONFIG_COST   = 20   // export/share config
+    const val FEATURE_BROWSER_UNLOCK       = 15   // private browser session
+    const val FEATURE_MY_IP_INSPECTOR      = 15   // MY IP & ISP inspector
+    const val FEATURE_WORLD_MAP_UNLOCK     = 15   // 3D World Map
+    const val FEATURE_AI_CHAT_COST         = 25   // AI Chat query
+    const val FEATURE_GAMING_BOOST_COST    = 40   // Gaming Boost 1h
+    const val FEATURE_VAULT_UNLOCK         = 30   // Encrypted Vault
+    const val FEATURE_TOR_BRIDGES_UNLOCK   = 35   // Tor Bridges
+    const val FEATURE_DNS_PROTOCOLS_UNLOCK = 15   // DoH / DoT / DoQ
+    const val FEATURE_FRAGMENT_UNLOCK      = 20   // SNI Fragmentation
+    const val FEATURE_MUX_UNLOCK           = 20   // QUIC Mux
+    const val FEATURE_LIVE_MONITOR_UNLOCK  = 15   // Live Network Monitor
+    const val FEATURE_ASSETS_SYNC_COST     = 15   // GeoIP Auto-Sync
+    const val FEATURE_SINGBOX_EDITOR_UNLOCK = 25  // Sing-Box JSON Editor
+    const val FEATURE_MTU_TEST_COST         = 10  // MTU auto-optimisation test
+    const val FEATURE_ADVANCED_PORTS_UNLOCK = 15  // Advanced port & proxy settings
+    const val FEATURE_SSH_KEYS_UNLOCK       = 25  // SSH remote tunnel keys
+    const val FEATURE_THEME_STYLE_UNLOCK    = 10  // Custom UI theme & connect-button style
+    const val FEATURE_AMNEZIA_WG_UNLOCK     = 25  // AmneziaWG obfuscated WireGuard
+    const val FEATURE_OPENCONNECT_UNLOCK    = 35  // OpenConnect SSL-VPN session
+    const val FEATURE_DNS_TUNNEL_UNLOCK     = 30  // DNS Stealth Tunnel session
 
-    // ── Points Cap ────────────────────────────────────────────────────────────
-    const val MAX_DAILY_EARNED_POINTS = 300       // ceiling per day (anti-abuse)
+    // ── Points Cap (Unlimited) ────────────────────────────────────────────────
+    const val MAX_DAILY_EARNED_POINTS = 999999
 
     fun pointsCostPerMin(tier: String, protocol: String): Int {
         val base = when (tier.lowercase()) {

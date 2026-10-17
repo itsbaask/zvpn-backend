@@ -1,4 +1,4 @@
-﻿package com.zvpn.ui.settings
+package com.zvpn.ui.settings
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -63,6 +63,11 @@ fun LiveMonitorPage(contentPadding: PaddingValues, modifier: Modifier) {
 
     var crypto by remember { mutableStateOf("") }
     androidx.compose.runtime.LaunchedEffect(Unit) {
+        // Gate: costs 15 pts per session to access Live Monitor
+        com.zvpn.domain.ads.PointsManager.unlockFeature(
+            "live_monitor",
+            com.zvpn.domain.billing.BillingConfig.FEATURE_LIVE_MONITOR_UNLOCK,
+        )
         crypto = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
             platform.cryptoAcceleration()
         }

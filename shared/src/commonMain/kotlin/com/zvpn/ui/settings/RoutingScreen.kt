@@ -256,7 +256,10 @@ fun RoutingScreen(
                     }
                     Spacer(Modifier.width(8.dp))
                     OutlinedButton(onClick = {
-                        editing = RulesetItem(id = RulesetItem.newId())
+                        val ok = com.zvpn.domain.ads.PointsManager.unlockFeature("proxy_chain", com.zvpn.domain.billing.BillingConfig.FEATURE_PROXY_CHAIN_UNLOCK)
+                        if (ok) {
+                            editing = RulesetItem(id = RulesetItem.newId())
+                        }
                     }) {
                         Icon(painterResource(Res.drawable.ic_add), contentDescription = null,
                             modifier = Modifier.size(18.dp))

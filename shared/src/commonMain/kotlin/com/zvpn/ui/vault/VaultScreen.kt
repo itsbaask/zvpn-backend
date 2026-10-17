@@ -81,6 +81,14 @@ fun VaultScreen(
     modifier: Modifier = Modifier,
 ) {
     val platform = LocalPlatform.current
+    val unlockedSet by com.zvpn.domain.ads.PointsManager.unlockedFeatures.collectAsStateWithLifecycle()
+    val isVaultUnlocked = unlockedSet.contains("vault")
+
+    androidx.compose.runtime.LaunchedEffect(isVaultUnlocked) {
+        if (!isVaultUnlocked) {
+            com.zvpn.domain.ads.PointsManager.unlockFeature("vault", com.zvpn.domain.billing.BillingConfig.FEATURE_VAULT_UNLOCK)
+        }
+    }
     val needConfigMsg = stringResource(Res.string.vault_need_config_first)
     val profiles by repository.profiles.collectAsStateWithLifecycle()
     val activeId by repository.activeId.collectAsStateWithLifecycle()

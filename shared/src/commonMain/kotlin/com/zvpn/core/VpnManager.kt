@@ -1,4 +1,4 @@
-﻿package com.zvpn.core
+package com.zvpn.core
 
 import com.zvpn.domain.model.ConnectionState
 import kotlin.concurrent.Volatile
@@ -25,6 +25,14 @@ object VpnManager {
 
     @Volatile
     var activeSocksPort: Int? = null
+
+    /** Server tier of the active connection — used by point-metering tick in ZVpnService. */
+    @Volatile
+    var activeServerTier: String = "free"
+
+    /** Protocol of the active connection — used by point-metering tick in ZVpnService. */
+    @Volatile
+    var activeProtocol: String = "xray"
 
     @Volatile
     var deviceVpnProbe: () -> Boolean = { false }

@@ -122,7 +122,14 @@ fun BrowserScreen(
     contentPadding: PaddingValues,
     privacy: BrowserPrivacy = BrowserPrivacy(),
     controller: BrowserController = viewModel { BrowserController() },
+    userTier: com.zvpn.domain.billing.UserTier = com.zvpn.domain.billing.UserTier.Free,
+    onUpgrade: () -> Unit = {},
+    onWatchAd: () -> Unit = {},
 ) {
+    val unlockedFeatures by com.zvpn.domain.ads.PointsManager.unlockedFeatures.collectAsState()
+    val totalPts by com.zvpn.domain.ads.PointsManager.totalPoints.collectAsState()
+    val isBrowserUnlocked = userTier != com.zvpn.domain.billing.UserTier.Free || unlockedFeatures.contains("browser")
+
     var showTabs by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     var library by remember { mutableStateOf<Int?>(null) } // 0 = bookmarks, 1 = history
@@ -155,61 +162,73 @@ fun BrowserScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        if (tab.url.isBlank()) {
-            TorBackdrop(torState = controller.torState)
-        }
-
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(contentPadding),
-        ) {
-            AnimatedVisibility(
-                visible = tab.url.isNotBlank(),
-                enter = expandVertically(tween(300)) + fadeIn(tween(300)),
-                exit = shrinkVertically(tween(200)) + fadeOut(tween(150)),
-            ) {
-                AddressBar(
-                    url = tab.url,
-                    privacy = live,
-                    progress = if (tab.loading) tab.progress else null,
-                    onGo = controller::open,
-                )
+        if (!isBrowserUnlocked) {
+            BrowserLockOverlay(
+                totalPts = totalPts,
+                cost = com.zvpn.domain.billing.BillingConfig.FEATURE_BROWSER_UNLOCK,
+                onUnlockWithPoints = {
+                    com.zvpn.domain.ads.PointsManager.unlockFeature("browser", com.zvpn.domain.billing.BillingConfig.FEATURE_BROWSER_UNLOCK)
+                },
+                onUpgrade = onUpgrade,
+                onWatchAd = onWatchAd,
+            )
+        } else {
+            if (tab.url.isBlank()) {
+                TorBackdrop(torState = controller.torState)
             }
 
-            Box(
+            Column(
                 Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
+                    .fillMaxSize()
+                    .padding(contentPadding),
             ) {
-                key(tab.id) {
-                    PlatformWebView(tab, controller, Modifier.fillMaxSize().alpha(webAlpha))
-                }
-
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = tab.url.isBlank(),
-                    enter = fadeIn(tween(300)) + scaleIn(initialScale = 0.97f, animationSpec = tween(400, easing = FastOutSlowInEasing)),
-                    exit = fadeOut(tween(150)),
+                AnimatedVisibility(
+                    visible = tab.url.isNotBlank(),
+                    enter = expandVertically(tween(300)) + fadeIn(tween(300)),
+                    exit = shrinkVertically(tween(200)) + fadeOut(tween(150)),
                 ) {
-                    NewTabPage(
-                        controller = controller,
+                    AddressBar(
+                        url = tab.url,
                         privacy = live,
-                        onOpen = controller::open,
+                        progress = if (tab.loading) tab.progress else null,
+                        onGo = controller::open,
                     )
                 }
-            }
 
-            BottomToolbar(
-                canGoBack = tab.canGoBack || tab.url.isNotBlank(),
-                canGoForward = tab.canGoForward,
-                tabCount = controller.tabs.size,
-                isConnected = isConnected,
-                onBack = controller::back,
-                onForward = controller::forward,
-                onHome = controller::home,
-                onTabs = { showTabs = true },
-                onMenu = { showMenu = true },
-            )
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                ) {
+                    key(tab.id) {
+                        PlatformWebView(tab, controller, Modifier.fillMaxSize().alpha(webAlpha))
+                    }
+
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = tab.url.isBlank(),
+                        enter = fadeIn(tween(300)) + scaleIn(initialScale = 0.97f, animationSpec = tween(400, easing = FastOutSlowInEasing)),
+                        exit = fadeOut(tween(150)),
+                    ) {
+                        NewTabPage(
+                            controller = controller,
+                            privacy = live,
+                            onOpen = controller::open,
+                        )
+                    }
+                }
+
+                BottomToolbar(
+                    canGoBack = tab.canGoBack || tab.url.isNotBlank(),
+                    canGoForward = tab.canGoForward,
+                    tabCount = controller.tabs.size,
+                    isConnected = isConnected,
+                    onBack = controller::back,
+                    onForward = controller::forward,
+                    onHome = controller::home,
+                    onTabs = { showTabs = true },
+                    onMenu = { showMenu = true },
+                )
+            }
         }
     }
 
@@ -315,7 +334,125 @@ fun BrowserScreen(
     }
 }
 
-// ───────── Backdrop ─────────
+// ───────── Paywall Overlay for Private Browser ─────────
+
+@Composable
+private fun BrowserLockOverlay(
+    totalPts: Int,
+    cost: Int,
+    onUnlockWithPoints: () -> Unit,
+    onUpgrade: () -> Unit,
+    onWatchAd: () -> Unit,
+) {
+    val cs = MaterialTheme.colorScheme
+    val typo = MaterialTheme.typography
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(cs.background)
+            .padding(24.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.extraLarge,
+            color = cs.surfaceContainerHigh,
+            tonalElevation = 6.dp,
+            border = BorderStroke(1.dp, cs.outlineVariant.copy(alpha = 0.5f)),
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(24.dp)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                // Lock Icon Badge
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.linearGradient(
+                                listOf(com.zvpn.ui.theme.ZViolet, com.zvpn.ui.theme.ZHotPink)
+                            )
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_lock),
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(36.dp),
+                    )
+                }
+
+                Text(
+                    text = "Private In-App Browser",
+                    style = typo.headlineSmall,
+                    fontWeight = FontWeight.Black,
+                    color = cs.onSurface,
+                    textAlign = TextAlign.Center,
+                )
+
+                Text(
+                    text = "Incognito, Tor-Encrypted & Ad-Blocked Private Browsing is a Premium Feature.\nChoose an option to unlock access:",
+                    style = typo.bodyMedium,
+                    color = cs.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+
+                Spacer(Modifier.height(4.dp))
+
+                // Option 1: Upgrade to Premium
+                Button(
+                    onClick = onUpgrade,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = MaterialTheme.shapes.large,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = cs.primary,
+                        contentColor = Color.White,
+                    ),
+                ) {
+                    Text(
+                        text = "Upgrade to Premium (Unlimited Access)",
+                        style = typo.titleSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                    )
+                }
+
+                // Option 2: Unlock with Points
+                OutlinedButton(
+                    onClick = onUnlockWithPoints,
+                    enabled = totalPts >= cost,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = MaterialTheme.shapes.large,
+                    border = BorderStroke(1.5.dp, if (totalPts >= cost) com.zvpn.ui.theme.ZViolet else cs.outlineVariant),
+                ) {
+                    Text(
+                        text = "Unlock 1 Session — $cost Points",
+                        style = typo.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (totalPts >= cost) cs.primary else cs.onSurfaceVariant,
+                    )
+                }
+
+                // Option 3: Watch Ad
+                TextButton(
+                    onClick = onWatchAd,
+                ) {
+                    Text(
+                        text = "Watch Ad to Earn Points & Access",
+                        style = typo.labelLarge,
+                        color = cs.primary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun TorBackdrop(torState: BrowserTorState) {

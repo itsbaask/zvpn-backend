@@ -151,6 +151,10 @@ fun PerAppProxyScreen(
                 ),
                 selected = mode,
                 onSelect = { selected ->
+                    if (selected != PerAppMode.Off) {
+                        val ok = com.zvpn.domain.ads.PointsManager.unlockFeature("split_tunnel", com.zvpn.domain.billing.BillingConfig.FEATURE_SPLIT_TUNNEL_UNLOCK)
+                        if (!ok) return@PickerField
+                    }
                     onUpdate {
                         it.copy(
                             perAppProxyEnabled = selected != PerAppMode.Off,
